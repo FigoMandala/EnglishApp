@@ -1,0 +1,1 @@
+ALTER TABLE `toefl_sessions` ADD `progress` text;

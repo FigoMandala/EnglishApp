@@ -1,0 +1,8 @@
+# Jangan upload ke Vercel: data lokal, rahasia, dan hasil build lokal.
+data/
+.env*
+!.env.example
+.next/
+node_modules/
+tsconfig.tsbuildinfo
+*.pdf
