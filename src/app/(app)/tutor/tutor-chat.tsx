@@ -16,7 +16,24 @@ const SUGGESTIONS = [
   "Buatkan 3 soal structure untuk latihan malam ini.",
 ];
 
-export function TutorChat({ initialMessages }: { initialMessages: ChatMessage[] }) {
+/** Jaga-jaga kalau model tetap memakai markdown: buang tanda bintang dan pagar. */
+const plain = (text: string) =>
+  text.replace(/^\s*\*\s+/gm, "- ").replace(/\*+/g, "").replace(/^#+\s*/gm, "");
+
+export function TutorChat({
+  initialMessages,
+  context,
+  suggestions = SUGGESTIONS,
+  className,
+  compact = false,
+}: {
+  compact?: boolean;
+  initialMessages: ChatMessage[];
+  /** Soal yang sedang dikerjakan; dikirim ke AI supaya jawabannya relevan. */
+  context?: string;
+  suggestions?: string[];
+  className?: string;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -58,7 +75,7 @@ export function TutorChat({ initialMessages }: { initialMessages: ChatMessage[] 
       const response = await fetch("/api/tutor/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, context }),
         signal: controller.signal,
       });
 
@@ -123,8 +140,13 @@ export function TutorChat({ initialMessages }: { initialMessages: ChatMessage[] 
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="clay flex min-h-[420px] flex-col gap-4 p-5 sm:p-6">
+    <div className={cn("flex flex-col gap-4", className)}>
+      <div
+        className={cn(
+          "flex flex-1 flex-col gap-4 overflow-y-auto",
+          compact ? "min-h-0 rounded-plate bg-surface-muted p-3" : "clay min-h-[420px] p-5 sm:p-6",
+        )}
+      >
         {messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-primary-soft text-primary">
@@ -134,7 +156,7 @@ export function TutorChat({ initialMessages }: { initialMessages: ChatMessage[] 
               Mulai percakapan. Tanyakan grammar, kosakata, atau minta latihan soal.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((suggestion) => (
+              {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
@@ -157,13 +179,16 @@ export function TutorChat({ initialMessages }: { initialMessages: ChatMessage[] 
               </span>
               <div
                 className={cn(
-                  "max-w-[85%] whitespace-pre-wrap rounded-plate px-4 py-3 text-[0.9375rem] leading-relaxed",
+                  "whitespace-pre-wrap rounded-plate px-4 py-3 text-[0.9375rem] leading-relaxed",
+                  compact ? "max-w-full" : "max-w-[85%]",
                   entry.role === "user"
                     ? "bg-primary text-white"
-                    : "border-2 border-hairline bg-surface-muted text-ink",
+                    : compact
+                      ? "bg-surface text-ink"
+                      : "border-2 border-hairline bg-surface-muted text-ink",
                 )}
               >
-                {entry.content ||
+                {(entry.role === "assistant" ? plain(entry.content) : entry.content) ||
                   (streaming && index === messages.length - 1 ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   ) : (

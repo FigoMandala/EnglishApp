@@ -67,6 +67,8 @@ export const vocabulary = sqliteTable(
     topic: text("topic"),
     // Peringkat frekuensi pemakaian (1 = paling sering). Null kalau belum diketahui.
     frequencyRank: integer("frequency_rank"),
+    // "Jembatan keledai" Lori: trik singkat biar kata gampang diingat. Diisi admin.
+    mnemonic: text("mnemonic"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -556,6 +558,9 @@ export const moderationFlags = sqliteTable(
     feature: text("feature").notNull(),
     reason: text("reason").notNull(),
     excerpt: text("excerpt").notNull(),
+    // Hasil tinjauan admin. Null = belum ditinjau.
+    resolution: text("resolution", { enum: ["safe", "actioned"] }),
+    reviewedAt: text("reviewed_at"),
     createdAt: createdAt(),
   },
   (table) => [index("moderation_flags_user_idx").on(table.userId)],

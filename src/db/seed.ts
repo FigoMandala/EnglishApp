@@ -4,7 +4,11 @@ import "./load-env";
 
 import { db } from "./index";
 import { BEGINNER_EXERCISES, BEGINNER_LESSONS } from "./seed-beginner";
+import { MAIN_EXERCISES } from "./seed-exercises";
+import { ADVANCED_LESSONS } from "./seed-grammar-advanced";
 import { LEARNING_PATH } from "./seed-path";
+import type { ExerciseSeed, LessonSeed } from "./seed-types";
+import { EXTRA_EXERCISES, TENSE_LESSONS } from "./seed-tenses";
 import {
   grammarExercises,
   grammarLessons,
@@ -252,21 +256,27 @@ async function main() {
   }
 
   await seedBeginner();
+  await seedMainExercises();
+  await seedExpansion();
   await seedLearningPath();
 
   console.log("Seed selesai.");
 }
 
-/** Jalur belajar: unit + isinya. Aman diulang, hanya menambah yang belum ada. */
+/** Jalur belajar: unit + isinya. Aman diulang, menambah slug yang belum ada. */
 async function seedLearningPath() {
-  const [existing] = await db.select({ n: count() }).from(learningUnits);
-  if (Number(existing?.n ?? 0) > 0) {
-    console.log(`Jalur belajar: sudah ada ${existing.n} unit, dilewati.`);
+  const rows = await db
+    .select({ slug: learningUnits.slug, orderIndex: learningUnits.orderIndex })
+    .from(learningUnits);
+  const have = new Set(rows.map((row) => row.slug));
+  const missing = LEARNING_PATH.filter((unit) => !have.has(unit.slug));
+  if (missing.length === 0) {
+    console.log(`Jalur belajar: sudah ada ${rows.length} unit, lengkap.`);
     return;
   }
 
-  let order = 0;
-  for (const unit of LEARNING_PATH) {
+  let order = rows.reduce((max, row) => Math.max(max, row.orderIndex ?? 0), 0);
+  for (const unit of missing) {
     order += 1;
     const [row] = await db
       .insert(learningUnits)
@@ -284,7 +294,88 @@ async function seedLearningPath() {
     if (items.length) await db.insert(learningUnitItems).values(items);
   }
 
-  console.log(`Jalur belajar: ${LEARNING_PATH.length} unit ditambahkan.`);
+  console.log(`Jalur belajar: ${missing.length} unit ditambahkan (total ${rows.length + missing.length}).`);
+}
+
+/** Latihan materi utama: aman diulang, hanya mengisi lesson yang belum punya latihan. */
+async function seedMainExercises() {
+  let added = 0;
+  for (const [slug, exercises] of Object.entries(MAIN_EXERCISES)) {
+    const [lesson] = await db
+      .select({ id: grammarLessons.id })
+      .from(grammarLessons)
+      .where(eq(grammarLessons.slug, slug))
+      .limit(1);
+    if (!lesson) continue;
+    const [existing] = await db
+      .select({ n: count() })
+      .from(grammarExercises)
+      .where(eq(grammarExercises.lessonId, lesson.id));
+    if (Number(existing?.n ?? 0) > 0) continue;
+    await db
+      .insert(grammarExercises)
+      .values(exercises.map((exercise) => ({ ...exercise, lessonId: lesson.id })));
+    added += exercises.length;
+  }
+  if (added) console.log(`Latihan utama: ${added} soal ditambahkan.`);
+  else console.log("Latihan utama: sudah ada, dilewati.");
+}
+
+/** Materi & soal baru (tenses & gramatika lanjutan). Aman diulang: membuat lesson
+ *  yang belum ada, lalu menyisipkan soal yang prompt-nya belum terdaftar. */
+async function seedExpansion() {
+  const groups: LessonSeed[] = [...TENSE_LESSONS, ...ADVANCED_LESSONS];
+  let lessonsAdded = 0;
+  let exercisesAdded = 0;
+
+  for (const seed of groups) {
+    const [existing] = await db
+      .select({ id: grammarLessons.id })
+      .from(grammarLessons)
+      .where(eq(grammarLessons.slug, seed.lesson.slug))
+      .limit(1);
+
+    let lessonId = existing?.id;
+    if (lessonId === undefined) {
+      const [row] = await db.insert(grammarLessons).values(seed.lesson).returning();
+      if (!row) continue;
+      lessonId = row.id;
+      lessonsAdded += 1;
+    }
+    exercisesAdded += await appendExercises(lessonId, seed.exercises);
+  }
+
+  for (const [slug, exercises] of Object.entries(EXTRA_EXERCISES)) {
+    const [lesson] = await db
+      .select({ id: grammarLessons.id })
+      .from(grammarLessons)
+      .where(eq(grammarLessons.slug, slug))
+      .limit(1);
+    if (!lesson) continue;
+    exercisesAdded += await appendExercises(lesson.id, exercises);
+  }
+
+  console.log(
+    `Materi lanjutan: ${lessonsAdded} pelajaran, ${exercisesAdded} soal ditambahkan.`,
+  );
+}
+
+/** Sisipkan soal yang belum ada di sebuah lesson. Kuncinya prompt + jawaban,
+ *  karena soal "susun kata" bisa berbagi prompt generik yang sama. */
+async function appendExercises(lessonId: number, exercises: ExerciseSeed[]) {
+  if (exercises.length === 0) return 0;
+  const existing = await db
+    .select({ prompt: grammarExercises.prompt, answers: grammarExercises.answers })
+    .from(grammarExercises)
+    .where(eq(grammarExercises.lessonId, lessonId));
+  const key = (prompt: string, answers: string) => `${prompt}\u0000${answers}`;
+  const have = new Set(existing.map((row) => key(row.prompt, row.answers)));
+  const rows = exercises
+    .filter((exercise) => !have.has(key(exercise.prompt, exercise.answers)))
+    .map((exercise) => ({ ...exercise, lessonId }));
+  if (rows.length === 0) return 0;
+  await db.insert(grammarExercises).values(rows);
+  return rows.length;
 }
 
 /** Materi & soal pemula: aman diulang, hanya menambah yang belum ada. */

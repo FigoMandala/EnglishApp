@@ -109,5 +109,6 @@ export function toVocabRow(item: GeneratedWord): NewVocabRow {
     topic: item.topic,
     cefr: null,
     frequencyRank: null,
+    mnemonic: null,
   };
 }

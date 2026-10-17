@@ -196,6 +196,26 @@ export function EprtHome(props: EprtHomeProps) {
 
   return (
     <div className="flex flex-col gap-10">
+      {pending ? (
+        <div
+          aria-busy="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm"
+        >
+          <div
+            role="status"
+            className="flex flex-col items-center gap-4 rounded-plate border-2 border-hairline bg-surface px-10 py-8 shadow-overlay"
+          >
+            <Loader2 className="size-10 animate-spin text-primary" aria-hidden />
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-lg font-bold">Menyiapkan soal…</p>
+              <p className="text-[0.9375rem] text-ink-subtle">
+                Latihan singkat biasanya di bawah 30 detik; simulasi penuh bisa 1–2 menit.
+                Jangan tutup halaman ini.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <p className="eyebrow text-ink-subtle">EPrT · English Proficiency Test</p>
@@ -250,11 +270,11 @@ export function EprtHome(props: EprtHomeProps) {
               </div>
             </div>
           ) : null}
-          <div className="mt-2 flex flex-wrap gap-3">
+          <div className="mt-2 grid max-w-xl items-start gap-3 sm:grid-cols-2">
             {activeSim ? (
               <Link
                 href={`/eptr/simulasi?id=${activeSim.id}`}
-                className="flex h-[3.25rem] items-center gap-2.5 rounded-control bg-white px-7 text-[1.0625rem] font-bold text-primary-deep shadow-card transition-transform hover:-translate-y-0.5"
+                className="flex h-[3.25rem] items-center justify-center gap-2.5 rounded-control bg-white px-7 text-[1.0625rem] font-bold text-primary-deep shadow-card transition-transform hover:-translate-y-0.5 sm:col-span-2"
               >
                 {activeSim.scope ? "Lanjutkan mini-test" : "Lanjutkan simulasi"}
                 <ArrowRight className="size-5" aria-hidden />
@@ -264,7 +284,7 @@ export function EprtHome(props: EprtHomeProps) {
               disabled={!props.configured}
               label={activeSim ? "Mulai simulasi penuh baru" : "Mulai simulasi"}
               className={cn(
-                "h-[3.25rem] rounded-control px-6 text-[1.0625rem]",
+                "h-[3.25rem] w-full rounded-control px-6 text-[1.0625rem]",
                 activeSim
                   ? "bg-white/10 text-white shadow-none ring-2 ring-inset ring-white/25 hover:bg-white/20"
                   : "bg-white text-primary-deep hover:bg-white",
@@ -273,7 +293,7 @@ export function EprtHome(props: EprtHomeProps) {
             <StartFastButton
               disabled={!props.configured}
               label="Siapkan dulu 140 soal"
-              className="h-[3.25rem] bg-white/10 px-6 text-[1.0625rem] text-white ring-2 ring-inset ring-white/25 hover:bg-white/20"
+              className="h-[3.25rem] w-full bg-white/10 px-6 text-[1.0625rem] text-white ring-2 ring-inset ring-white/25 hover:bg-white/20"
             />
           </div>
           {!props.configured ? (
@@ -351,11 +371,7 @@ export function EprtHome(props: EprtHomeProps) {
           <h2 id="practice-title" className="font-display text-[1.75rem] font-extrabold">
             Latihan per bagian
           </h2>
-          {pending ? (
-            <p role="status" className="text-[0.9375rem] text-ink-subtle">
-              Menyiapkan soal, biasanya kurang dari 30 detik.
-            </p>
-          ) : state.status === "error" ? (
+          {state.status === "error" ? (
             <p role="alert" className="text-[0.9375rem] font-semibold text-negative">
               {state.message}
             </p>
@@ -391,11 +407,7 @@ export function EprtHome(props: EprtHomeProps) {
             <p className="max-w-xl text-[0.9375rem] text-ink-subtle">
               10 soal yang fokus ke satu topik. Topik dengan akurasi di bawah 60% ditandai kuning.
             </p>
-            {pending ? (
-              <p role="status" className="text-[0.9375rem] text-ink-subtle">
-                Menyiapkan soal, biasanya kurang dari 30 detik.
-              </p>
-            ) : state.status === "error" ? (
+            {state.status === "error" ? (
               <p role="alert" className="text-[0.9375rem] font-semibold text-negative">
                 {state.message}
               </p>

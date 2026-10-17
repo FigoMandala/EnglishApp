@@ -1,20 +1,46 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { aiUsage } from "@/db/schema";
+import { aiUsage, appConfig } from "@/db/schema";
 
 import { todayISO } from "./srs";
 
 /**
  * Kill-switch anggaran AI harian. Kalau biaya hari ini melewati batas,
  * fitur AI non-esensial dihentikan supaya tidak rugi.
- * Batas dikonfigurasi via env AI_DAILY_BUDGET_USD (default $5).
+ * Batas diatur admin (app_config), lalu env AI_DAILY_BUDGET_USD, lalu default $5.
  */
 const DEFAULT_BUDGET_USD = 5;
+const BUDGET_KEY = "ai_daily_budget_usd";
+export const BUDGET_MIN_USD = 1;
+export const BUDGET_MAX_USD = 100;
 
-export function dailyBudgetUsd() {
+function envBudgetUsd() {
   const raw = Number(process.env.AI_DAILY_BUDGET_USD);
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_BUDGET_USD;
+}
+
+export async function dailyBudgetUsd() {
+  const [row] = await db.select().from(appConfig).where(eq(appConfig.key, BUDGET_KEY)).limit(1);
+  const stored = Number(row?.value);
+  return Number.isFinite(stored) && stored > 0 ? stored : envBudgetUsd();
+}
+
+/** Validasi batas dari form admin. Mengembalikan pesan galat atau null. */
+export function budgetError(value: number) {
+  if (!Number.isFinite(value)) return "Batas harus berupa angka.";
+  if (value < BUDGET_MIN_USD || value > BUDGET_MAX_USD) {
+    return `Batas harus antara $${BUDGET_MIN_USD} dan $${BUDGET_MAX_USD}.`;
+  }
+  return null;
+}
+
+export async function setDailyBudgetUsd(value: number) {
+  const text = String(Math.round(value * 100) / 100);
+  await db
+    .insert(appConfig)
+    .values({ key: BUDGET_KEY, value: text })
+    .onConflictDoUpdate({ target: appConfig.key, set: { value: text, updatedAt: sql`(datetime('now'))` } });
 }
 
 export async function spentTodayUsd(): Promise<number> {
@@ -31,7 +57,7 @@ export async function spentTodayUsd(): Promise<number> {
 export type BudgetState = { allowed: boolean; spent: number; budget: number };
 
 export async function checkBudget(): Promise<BudgetState> {
-  const [spent, budget] = [await spentTodayUsd(), dailyBudgetUsd()];
+  const [spent, budget] = await Promise.all([spentTodayUsd(), dailyBudgetUsd()]);
   return { allowed: spent < budget, spent, budget };
 }
 

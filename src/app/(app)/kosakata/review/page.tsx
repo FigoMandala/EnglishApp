@@ -27,6 +27,7 @@ export default async function ReviewPage({
         partOfSpeech: card.partOfSpeech,
         exampleEn: card.exampleEn,
         exampleId: card.exampleId,
+        mnemonic: card.mnemonic,
         box: card.box,
       }))}
     />

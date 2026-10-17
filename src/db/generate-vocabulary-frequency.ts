@@ -11,6 +11,7 @@ import {
   loadFrequencyList,
   type FrequencyEntry,
 } from "@/lib/vocabulary-frequency";
+import { cefrForFrequencyRank, frequencyBand } from "@/lib/cefr";
 import { normalizeWord, parseGeneratedWords, toVocabRow } from "@/lib/vocabulary-generator";
 
 const TARGET = Number(process.env.VOCAB_TARGET ?? 2000);
@@ -96,10 +97,17 @@ async function main() {
         return;
       }
 
-      const rows = kept.map((item) => ({
-        ...toVocabRow(item),
-        frequencyRank: rankOf.get(normalizeWord(item.word)) ?? null,
-      })) as NewVocabulary[];
+      const rows = kept.map((item) => {
+        const rank = rankOf.get(normalizeWord(item.word)) ?? null;
+        return {
+          ...toVocabRow(item),
+          // Level & CEFR mengikuti peringkat frekuensi, bukan fallback
+          // "intermediate" dari parser (prompt tidak meminta level).
+          level: frequencyBand(rank),
+          cefr: rank === null ? null : cefrForFrequencyRank(rank),
+          frequencyRank: rank,
+        };
+      }) as NewVocabulary[];
       await db.insert(vocabulary).values(rows);
       added += rows.length;
       console.log(`+ ${entries[0]?.word}..${entries[entries.length - 1]?.word}: ${rows.length} kata`);

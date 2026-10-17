@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   BookOpen,
+  Dumbbell,
   Flame,
   Play,
   SpellCheck,
@@ -121,6 +122,12 @@ export default async function BelajarPage() {
             icon={<BookOpen className="size-5" aria-hidden />}
             title="Materi Grammar"
             detail={`${lessonStats.completed}/${lessonStats.total} materi selesai`}
+          />
+          <ShortcutCard
+            href="/latihan"
+            icon={<Dumbbell className="size-5" aria-hidden />}
+            title="Latihan Bebas"
+            detail="12 soal acak, dasar sampai lanjut"
           />
           <ShortcutCard
             href="/writing"

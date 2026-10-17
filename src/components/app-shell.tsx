@@ -2,12 +2,14 @@
 
 import {
   BookOpen,
+  Dumbbell,
   GraduationCap,
   Layers,
   LogOut,
   Menu,
   MessageCircle,
   PenLine,
+  ShieldCheck,
   SpellCheck,
   X,
 } from "lucide-react";
@@ -28,6 +30,7 @@ const GROUPS: NavGroup[] = [
       { href: "/belajar", label: "Jalur Belajar", short: "Jalur", icon: Layers },
       { href: "/kosakata", label: "Kosakata", short: "Kosa", icon: SpellCheck },
       { href: "/materi", label: "Materi Grammar", short: "Materi", icon: BookOpen },
+      { href: "/latihan", label: "Latihan Bebas", short: "Latihan", icon: Dumbbell },
       { href: "/writing", label: "Writing Coach", short: "Nulis", icon: PenLine },
       { href: "/tutor", label: "Tutor AI", short: "Tutor", icon: MessageCircle },
     ],
@@ -142,27 +145,38 @@ export function AppShell({
     ));
 
   const userCard = (
-    <div className="flex items-center gap-2.5 rounded-control px-2 py-1.5">
-      <span
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-deep text-[0.8125rem] font-extrabold text-white"
-      >
-        {initials}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.875rem] font-bold text-ink">@{username}</span>
-        <span className="block text-[0.75rem] font-semibold text-ink-faint">{isAdmin ? "Admin" : "Murid"}</span>
-      </span>
-      <form action={logoutAction}>
-        <button
-          type="submit"
-          aria-label="Keluar"
-          title="Keluar"
-          className="flex size-10 cursor-pointer items-center justify-center rounded-control border-2 border-hairline bg-surface text-ink-subtle transition-colors hover:border-negative hover:text-negative"
+    <div className="flex flex-col gap-2">
+      {isAdmin ? (
+        <Link
+          href="/admin"
+          className="ledge flex min-h-11 items-center gap-2.5 rounded-control bg-charcoal px-3 text-[0.875rem] font-bold text-white [--ledge:#000]"
         >
-          <LogOut className="size-4" aria-hidden />
-        </button>
-      </form>
+          <ShieldCheck className="size-4 text-mango" aria-hidden />
+          Mode Admin
+        </Link>
+      ) : null}
+      <div className="flex items-center gap-2.5 rounded-control px-2 py-1.5">
+        <span
+          aria-hidden
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-deep text-[0.8125rem] font-extrabold text-white"
+        >
+          {initials}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.875rem] font-bold text-ink">@{username}</span>
+          <span className="block text-[0.75rem] font-semibold text-ink-faint">{isAdmin ? "Admin" : "Murid"}</span>
+        </span>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            aria-label="Keluar"
+            title="Keluar"
+            className="flex size-10 cursor-pointer items-center justify-center rounded-control border-2 border-hairline bg-surface text-ink-subtle transition-colors hover:border-negative hover:text-negative"
+          >
+            <LogOut className="size-4" aria-hidden />
+          </button>
+        </form>
+      </div>
     </div>
   );
 

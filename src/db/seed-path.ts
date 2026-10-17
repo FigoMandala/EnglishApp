@@ -118,4 +118,59 @@ export const LEARNING_PATH: UnitSeed[] = [
       { kind: "vocab", vocabCount: 12, title: "Kosakata: akademik lanjut", orderIndex: 2 },
     ],
   },
+  {
+    slug: "menengah-4-perfect-tenses",
+    title: "Unit 11: Perfect Tenses",
+    description: "Present perfect dan past perfect untuk aksi yang sudah terjadi.",
+    level: "intermediate",
+    items: [
+      { kind: "grammar", refSlug: "present-perfect", title: "Materi: Present Perfect", orderIndex: 1 },
+      { kind: "vocab", vocabCount: 12, title: "Kosakata: pengalaman & perjalanan", orderIndex: 2 },
+      { kind: "grammar", refSlug: "past-perfect", title: "Materi: Past Perfect", orderIndex: 3 },
+    ],
+  },
+  {
+    slug: "menengah-5-rencana-masa-depan",
+    title: "Unit 12: Rencana & Perbandingan",
+    description: "Membicarakan masa depan dan membandingkan dua hal.",
+    level: "intermediate",
+    items: [
+      { kind: "grammar", refSlug: "future-will-going-to", title: "Materi: Will & Going To", orderIndex: 1 },
+      { kind: "grammar", refSlug: "comparatives-superlatives", title: "Materi: Comparative & Superlative", orderIndex: 2 },
+      { kind: "vocab", vocabCount: 12, title: "Kosakata: rencana & tujuan", orderIndex: 3 },
+    ],
+  },
+  {
+    slug: "lanjut-3-pengandaian",
+    title: "Unit 13: Kalimat Pengandaian",
+    description: "Menguasai conditional type 0 sampai 3.",
+    level: "advanced",
+    items: [
+      { kind: "grammar", refSlug: "conditionals", title: "Materi: Conditional Sentences", orderIndex: 1 },
+      { kind: "vocab", vocabCount: 12, title: "Kosakata: sebab & akibat", orderIndex: 2 },
+      { kind: "grammar", refSlug: "wish-subjunctive", title: "Materi: Wish & Subjunctive", orderIndex: 3 },
+    ],
+  },
+  {
+    slug: "lanjut-4-pasif-pelaporan",
+    title: "Unit 14: Pasif & Pelaporan",
+    description: "Kalimat pasif lanjutan dan reported speech.",
+    level: "advanced",
+    items: [
+      { kind: "grammar", refSlug: "passive-voice-advanced", title: "Materi: Passive Voice Lanjutan", orderIndex: 1 },
+      { kind: "grammar", refSlug: "reported-speech", title: "Materi: Reported Speech", orderIndex: 2 },
+      { kind: "vocab", vocabCount: 12, title: "Kosakata: laporan & berita", orderIndex: 3 },
+    ],
+  },
+  {
+    slug: "lanjut-5-penekanan",
+    title: "Unit 15: Struktur Lanjut & Penekanan",
+    description: "Relative clause, inversi, dan modals of deduction.",
+    level: "advanced",
+    items: [
+      { kind: "grammar", refSlug: "relative-clauses", title: "Materi: Relative Clauses", orderIndex: 1 },
+      { kind: "grammar", refSlug: "inversion-emphasis", title: "Materi: Inversion & Emphasis", orderIndex: 2 },
+      { kind: "grammar", refSlug: "modals-deduction", title: "Materi: Modals of Deduction", orderIndex: 3 },
+    ],
+  },
 ];

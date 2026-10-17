@@ -57,6 +57,13 @@
       "when": 1791057956417,
       "tag": "0007_optimal_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792220129463,
+      "tag": "0008_familiar_anthem",
+      "breakpoints": true
     }
   ]
 }

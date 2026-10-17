@@ -1,10 +1,11 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   grammarAttempts,
   grammarExercises,
   grammarLessons,
+  type GrammarExerciseType,
   type NewGrammarExercise,
 } from "@/db/schema";
 
@@ -44,6 +45,7 @@ export async function getExerciseById(id: number) {
 /**
  * Simpan jawaban. Mengembalikan `firstCorrect: true` hanya saat soal pertama
  * kali dijawab benar, supaya XP tidak bisa dipanen berulang.
+ * Double-submit yang balapan ditangkap via indeks unik (update, bukan error).
  */
 export async function recordAttempt(
   userId: number,
@@ -51,24 +53,41 @@ export async function recordAttempt(
   answer: string,
   correct: boolean,
 ) {
-  const [existing] = await db
-    .select({ id: grammarAttempts.id, correct: grammarAttempts.correct })
-    .from(grammarAttempts)
-    .where(
-      and(eq(grammarAttempts.userId, userId), eq(grammarAttempts.exerciseId, exerciseId)),
-    )
-    .limit(1);
-
-  if (existing) {
+  const find = async () => {
+    const [row] = await db
+      .select({ id: grammarAttempts.id, correct: grammarAttempts.correct })
+      .from(grammarAttempts)
+      .where(
+        and(eq(grammarAttempts.userId, userId), eq(grammarAttempts.exerciseId, exerciseId)),
+      )
+      .limit(1);
+    return row ?? null;
+  };
+  const stamp = () =>
+    new Date().toISOString().slice(0, 19).replace("T", " ");
+  const save = async (id: number, prevCorrect: boolean) => {
     await db
       .update(grammarAttempts)
-      .set({ answer, correct })
-      .where(eq(grammarAttempts.id, existing.id));
-    return { firstCorrect: correct && !existing.correct };
-  }
+      .set({ answer, correct, ...(correct ? { lastCorrectAt: stamp() } : {}) })
+      .where(eq(grammarAttempts.id, id));
+    return { firstCorrect: correct && !prevCorrect };
+  };
 
-  await db.insert(grammarAttempts).values({ userId, exerciseId, answer, correct });
-  return { firstCorrect: correct };
+  const existing = await find();
+  if (existing) return save(existing.id, existing.correct);
+
+  try {
+    await db
+      .insert(grammarAttempts)
+      .values({ userId, exerciseId, answer, correct, lastCorrectAt: correct ? stamp() : null });
+    return { firstCorrect: correct };
+  } catch (error) {
+    // Request lain membuat barisnya duluan: jatuh ke update.
+    if (!(error instanceof Error) || !/unique|constraint/i.test(error.message)) throw error;
+    const raced = await find();
+    if (!raced) throw error;
+    return save(raced.id, raced.correct);
+  }
 }
 
 export async function resetAttempts(userId: number, lessonId: number) {
@@ -124,4 +143,64 @@ export async function createExercise(values: NewGrammarExercise) {
 export async function countExercises() {
   const [row] = await db.select({ n: sql<number>`count(*)` }).from(grammarExercises);
   return Number(row?.n ?? 0);
+}
+
+export type PracticeLevel = "basic" | "intermediate" | "advanced";
+
+export type PracticeExercise = {
+  id: number;
+  lessonSlug: string;
+  lessonTitle: string;
+  level: PracticeLevel;
+  type: GrammarExerciseType;
+  prompt: string;
+  hint: string | null;
+  options: string | null;
+  answered: { answer: string; correct: boolean } | null;
+};
+
+/**
+ * Ambil soal acak lintas materi untuk mode latihan bebas. Soal "compose"
+ * dikecualikan karena penilaiannya memanggil AI (biaya & latensi), sedangkan
+ * tipe lain dinilai lokal dan instan.
+ */
+export async function pickPracticeExercises(
+  userId: number,
+  options: { level?: PracticeLevel; limit?: number } = {},
+): Promise<PracticeExercise[]> {
+  const limit = Math.min(Math.max(options.limit ?? 12, 1), 40);
+
+  const rows = await db
+    .select({ exercise: grammarExercises, attempt: grammarAttempts, lesson: grammarLessons })
+    .from(grammarExercises)
+    .innerJoin(grammarLessons, eq(grammarLessons.id, grammarExercises.lessonId))
+    .leftJoin(
+      grammarAttempts,
+      and(
+        eq(grammarAttempts.exerciseId, grammarExercises.id),
+        eq(grammarAttempts.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        notInArray(grammarExercises.type, ["compose"]),
+        options.level ? eq(grammarLessons.level, options.level) : undefined,
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(limit);
+
+  return rows.map(({ exercise, attempt, lesson }) => ({
+    id: exercise.id,
+    lessonSlug: lesson.slug,
+    lessonTitle: lesson.title,
+    level: lesson.level,
+    type: exercise.type,
+    prompt: exercise.prompt,
+    hint: exercise.hint,
+    options: exercise.options,
+    answered: attempt
+      ? { answer: attempt.answer, correct: Boolean(attempt.correct) }
+      : null,
+  }));
 }

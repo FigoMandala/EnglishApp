@@ -34,7 +34,8 @@ export function ExerciseRunner({
   lessonId,
   exercises,
 }: {
-  lessonId: number;
+  /** null saat dipakai di latihan bebas (di luar satu materi). */
+  lessonId: number | null;
   exercises: RunnerExercise[];
 }) {
   const router = useRouter();
@@ -49,6 +50,7 @@ export function ExerciseRunner({
     );
 
   async function markDone() {
+    if (lessonId === null) return;
     setMarking(true);
     try {
       await markLessonDoneAction(lessonId);
@@ -68,12 +70,17 @@ export function ExerciseRunner({
           exercise={exercise}
           result={results[exercise.id] ?? null}
           onResult={(result) =>
-            setResults((prev) => ({ ...prev, [exercise.id]: result }))
+            setResults((prev) => {
+              const next = { ...prev };
+              if (result) next[exercise.id] = result;
+              else delete next[exercise.id];
+              return next;
+            })
           }
         />
       ))}
 
-      {exercises.length > 0 ? (
+      {lessonId !== null && exercises.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" disabled={marking || marked || !allCorrect} onClick={markDone}>
             {marked ? <Check className="size-4" aria-hidden /> : null}
@@ -99,9 +106,11 @@ function ExerciseCard({
   index: number;
   exercise: RunnerExercise;
   result: Result | null;
-  onResult: (result: Result) => void;
+  /** null = hapus hasil (Coba lagi). */
+  onResult: (result: Result | null) => void;
 }) {
   const id = useId();
+  const [attempt, setAttempt] = useState(0);
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +206,7 @@ function ExerciseCard({
         </div>
       ) : exercise.type === "arrange" ? (
         <ArrangeInput
+          key={attempt}
           words={shuffled.current ?? []}
           disabled={pending || Boolean(result)}
           onSubmit={(answer) => submit(answer)}
@@ -249,7 +259,9 @@ function ExerciseCard({
           onClick={() => {
             setValue("");
             setPicked(null);
-            onResult({ correct: false, explanation: null });
+            setError(null);
+            setAttempt((n) => n + 1);
+            onResult(null);
           }}
           className="flex w-fit items-center gap-1.5 text-[0.8125rem] font-bold text-primary hover:underline"
         >

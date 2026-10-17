@@ -17,6 +17,7 @@ export type ReviewCard = {
   partOfSpeech: string | null;
   exampleEn: string | null;
   exampleId: string | null;
+  mnemonic: string | null;
   box: number;
 };
 
@@ -184,6 +185,11 @@ export function ReviewSession({ cards }: { cards: ReviewCard[] }) {
                   {card.exampleId ? (
                     <span className="mt-0.5 block not-italic text-ink-faint">{card.exampleId}</span>
                   ) : null}
+                </p>
+              ) : null}
+              {card.mnemonic ? (
+                <p className="max-w-sm rounded-control bg-mango-soft px-3 py-2 text-[0.875rem] text-mango-ink">
+                  <strong>Jembatan keledai:</strong> {card.mnemonic}
                 </p>
               ) : null}
             </div>

@@ -86,7 +86,7 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   const limit = !perUser.ok ? perUser : perIp;
   if (!limit.ok) {
     await logAudit({ action: "login_rate_limited", detail: username });
-    const minutes = Math.ceil(limit.retryAfterMs / 60_000);
+    const minutes = Math.max(1, Math.ceil(limit.retryAfterMs / 60_000));
     return { error: `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.` };
   }
 

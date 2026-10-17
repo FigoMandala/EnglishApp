@@ -15,15 +15,20 @@ const SYSTEM = [
   "Saat pengguna meminta kosakata, beri arti, cara baca sederhana, dan satu contoh kalimat.",
   "Jaga jawaban tetap ringkas (maksimal sekitar 200 kata) kecuali diminta detail.",
   "Dorong pengguna menulis dalam Bahasa Inggris dengan pertanyaan lanjutan yang mudah.",
-  "Jangan pakai karakter em dash. Jangan pakai markdown heading; bullet sederhana boleh.",
+  "Jangan pakai karakter em dash. Tulis teks biasa: jangan pakai tanda bintang, tanda pagar, atau markdown apa pun. Untuk menekankan kata atau jawaban, pakai tanda kutip, misalnya \"can individuals\". Bullet sederhana pakai tanda hubung (-).",
 ].join(" ");
+
+const QUESTION_RULES =
+  "Pengguna sedang mengerjakan soal di bawah. Bantu dengan clue, pola grammar, atau cara menyingkirkan pilihan yang salah. " +
+  "Jangan langsung menyebut huruf jawaban kecuali pengguna jelas memintanya.";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
-  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { message?: unknown; context?: unknown } | null;
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 2_000) : "";
+  const context = typeof body?.context === "string" ? body.context.trim().slice(0, 4_000) : "";
   if (!message) {
     return Response.json({ message: "Pesan masih kosong." }, { status: 400 });
   }
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
   await createChatMessage(user.id, "user", message);
   const history = await listChatMessages(user.id, 20);
   const messages = [
-    { role: "system" as const, content: SYSTEM },
+    { role: "system" as const, content: context ? `${SYSTEM} ${QUESTION_RULES}\n\n[SOAL]\n${context}` : SYSTEM },
     ...history.map((row) => ({ role: row.role as "user" | "assistant", content: row.content })),
   ];
 

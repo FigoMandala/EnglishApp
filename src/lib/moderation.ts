@@ -16,9 +16,10 @@ const BLOCKED_PATTERNS: { reason: string; re: RegExp }[] = [
 export type ModerationResult = { allowed: boolean; reason?: string };
 
 export function moderateText(text: string): ModerationResult {
-  const value = text.slice(0, 4000);
+  // Seluruh teks diperiksa (regex murah); memotong dulu membuka celah:
+  // muatan setelah batas potong lolos tanpa flag.
   for (const { reason, re } of BLOCKED_PATTERNS) {
-    if (re.test(value)) return { allowed: false, reason };
+    if (re.test(text)) return { allowed: false, reason };
   }
   return { allowed: true };
 }

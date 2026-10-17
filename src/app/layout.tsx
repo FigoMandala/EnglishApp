@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import {
   Atkinson_Hyperlegible_Next,
   Baloo_2,
-  Bricolage_Grotesque,
+  Gabarito,
   JetBrains_Mono,
 } from "next/font/google";
 
@@ -14,7 +14,8 @@ const body = Atkinson_Hyperlegible_Next({
   variable: "--font-body",
   display: "swap",
 });
-const heading = Bricolage_Grotesque({
+// Gabarito — judul tebal & bulat, selaras dengan karakter Lori & Kaka.
+const heading = Gabarito({
   subsets: ["latin"],
   variable: "--font-heading",
   display: "swap",

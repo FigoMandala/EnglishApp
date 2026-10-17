@@ -133,14 +133,27 @@ export function StartFastButton({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Button variant="secondary" className={className} disabled={disabled || pending} onClick={run}>
+      <Button
+        variant="secondary"
+        className={`${className ?? ""} ${pending ? "disabled:opacity-100" : ""}`}
+        disabled={disabled || pending}
+        onClick={run}
+      >
         {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />}
-        {label}
+        {pending ? "Menyiapkan soal..." : label}
       </Button>
       {progress ? (
-        <p role="status" className="text-[0.8125rem] text-ink-subtle">
-          Menyiapkan soal... ({progress.done}/{progress.total})
-        </p>
+        <div role="status" className="flex w-full flex-col gap-1.5">
+          <div className="h-1.5 overflow-hidden rounded-full bg-current/15">
+            <div
+              className="h-full rounded-full bg-mint transition-[width] duration-500"
+              style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+            />
+          </div>
+          <p className="tnum text-[0.8125rem] opacity-80">
+            {progress.done} dari {progress.total} paket soal siap. Jangan tutup halaman ini.
+          </p>
+        </div>
       ) : null}
       {error ? (
         <p role="alert" className="text-[0.8125rem] font-medium text-negative">

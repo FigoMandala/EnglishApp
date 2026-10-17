@@ -4,6 +4,7 @@ import {
   createReview,
   createToeflSession,
   deleteReview,
+  findActiveReview,
   getReview,
   getSimulation,
   getToeflSession,
@@ -113,8 +114,8 @@ const SPARE_QUESTIONS = 2;
 export const DAILY_AI_LIMIT = 80;
 /** Porsi blok yang tetap dibuat baru oleh AI walau bank punya stok, supaya bank tidak basi. */
 const FRESH_RATIO = 0.3;
-/** Anggaran waktu total satu pembuatan soal, di bawah maxDuration 60 detik Vercel. */
-const GENERATION_BUDGET_MS = 52_000;
+/** Anggaran waktu total satu pembuatan soal, di bawah maxDuration 300 detik Vercel. */
+const GENERATION_BUDGET_MS = 270_000;
 /** Coba ulang hanya kalau sisa anggaran masih cukup untuk satu panggilan lagi. */
 const MIN_RETRY_MS = 20_000;
 const DEFAULT_LEVEL = 500;
@@ -979,6 +980,16 @@ async function recordResult(userId: number, question: ToeflQuestion, choice: num
   }
 
   if (!correct) {
+    // Soal yang sama boleh punya satu review aktif saja: kalau sudah ada,
+    // cukup reset jadwalnya ke hari ini, jangan buat baris baru.
+    const existing = await findActiveReview(userId, fingerprint(questionText(question)));
+    if (existing) {
+      // Jawaban salah selalu mengulang dari box 0, walau review-nya sudah
+      // jatuh tempo hari ini (sebelumnya box tidak di-reset dalam kasus itu).
+      if (existing.box !== 0 || existing.dueAt !== today)
+        await updateReview(existing.id, { box: 0, dueAt: today });
+      return;
+    }
     await createReview({
       userId,
       question: JSON.stringify(question),
@@ -996,7 +1007,9 @@ export async function finishSession(userId: number, sessionId: number) {
   const complete = isComplete(answers);
   const score = complete
     ? scaledScore(
-        row.section === "reading" ? "reading" : "structure",
+        // Review memakai konversi structure karena soalnya berasal dari
+        // latihan Structure/Reading tanpa informasi asal section.
+        row.section === "review" || row.section === "structure" ? "structure" : row.section,
         questions.filter((question, index) => answers[index] === question.answer).length /
           Math.max(1, questions.length),
       )

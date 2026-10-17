@@ -5,7 +5,7 @@ import { AiError } from "@/lib/ai-client";
 import { partBatches, SIM_PARTS } from "@/lib/eprt-simulation";
 import { getCurrentUser } from "@/lib/session";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // Menyiapkan satu batch kecil soal ({ id, index, batch }). Satu permintaan =
 // satu batch supaya tiap permintaan pendek dan aman di batas durasi Vercel.

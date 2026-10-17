@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { rateLimits } from "@/db/schema";
@@ -20,10 +20,18 @@ export async function checkRateLimit(
   const nowStr = String(now);
 
   // 1) Jendela masih berlaku dan masih ada sisa kuota: naikkan atomik.
+  // Syarat windowStart mencegah jendela basi ikut dihitung (tanpanya kuota
+  // menjadi kumulatif "N selamanya" sampai penuh, bukan "N per window").
   const bumped = await db
     .update(rateLimits)
     .set({ count: sql`${rateLimits.count} + 1`, updatedAt: sql`(datetime('now'))` })
-    .where(and(eq(rateLimits.key, key), lt(rateLimits.count, limit)))
+    .where(
+      and(
+        eq(rateLimits.key, key),
+        lt(rateLimits.count, limit),
+        gt(rateLimits.windowStart, String(now - windowMs)),
+      ),
+    )
     .returning({ count: rateLimits.count });
 
   if (bumped.length > 0) {
@@ -61,7 +69,13 @@ export async function purgeExpiredRateLimits(olderThanMs = 24 * 60 * 60 * 1000) 
 
 /** Ambil IP klien dari header (best-effort di balik proxy). */
 export function clientIp(headers: Headers): string {
+  // x-vercel-forwarded-for ditulis edge Vercel (tepercaya); x-forwarded-for
+  // mentah bisa dipalsukan user, jadi hanya jadi fallback terakhir.
+  const vercel = headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",")[0]?.trim() || "unknown";
+  const realIp = headers.get("x-real-ip");
+  if (realIp) return realIp.trim() || "unknown";
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return headers.get("x-real-ip")?.trim() || "unknown";
+  return "unknown";
 }

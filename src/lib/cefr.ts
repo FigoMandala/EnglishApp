@@ -59,6 +59,13 @@ export function cefrLabel(cefr: Cefr): string {
   return map[cefr];
 }
 
+/** Band CEFR dari peringkat frekuensi: makin sering dipakai, makin dasar. */
+export function cefrForFrequencyRank(rank: number): Cefr {
+  if (rank <= 1000) return "A2";
+  if (rank <= 2500) return "B1";
+  return "B2";
+}
+
 /** Tahap berikutnya (untuk progres "B1 → B2"). */
 export function nextCefr(cefr: Cefr): Cefr | null {
   const index = CEFR_LEVELS.indexOf(cefr);

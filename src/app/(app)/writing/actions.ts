@@ -6,6 +6,7 @@ import { logActivity } from "@/db/queries/activity";
 import { createWritingSubmission } from "@/db/queries/writing";
 import { analyzeEssay } from "@/lib/api/writing";
 import { AiError } from "@/lib/ai-client";
+import { guardUserInput } from "@/lib/moderation";
 import { validateEssay, wordCount } from "@/lib/writing";
 import { todayISO } from "@/lib/srs";
 
@@ -23,6 +24,11 @@ export async function submitEssayAction(
 
   const invalid = validateEssay(essay);
   if (invalid) return { status: "error", message: invalid };
+
+  const moderation = await guardUserInput(essay, "writing", user.id);
+  if (!moderation.allowed) {
+    return { status: "error", message: "Esaimu tidak bisa dinilai. Tulis ulang dengan bahasa yang santun ya." };
+  }
 
   let total = 0;
   try {

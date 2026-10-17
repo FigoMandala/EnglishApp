@@ -23,7 +23,7 @@ import { ToeflRunner } from "../../toefl/toefl-runner";
 import { OpenPartButton, PrefetchPart } from "./simulation-client";
 import { SimulationReview } from "./simulation-review";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export default async function SimulationPage({
   searchParams,

@@ -11,7 +11,7 @@ import { getVoiceConfig } from "@/lib/voice-config";
 import { ToeflRunner } from "../toefl/toefl-runner";
 import { EprtHome } from "./eprt-home";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MIN_SKILL_ANSWERS = 3;
 

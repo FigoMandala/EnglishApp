@@ -7,8 +7,8 @@ const base =
   "inline-flex cursor-pointer items-center justify-center gap-2 rounded-control text-center font-bold transition-[color,background-color,border-color,transform,box-shadow] duration-200 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 motion-reduce:transition-none motion-reduce:active:scale-100";
 
 const variants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-primary text-white shadow-card hover:bg-primary-deep hover:-translate-y-0.5",
+  // Tombol ber-"ledge": tepi bawah gelap, turun 4px saat ditekan (lihat .ledge di globals.css).
+  primary: "ledge bg-primary text-white active:scale-100",
   secondary:
     "border-2 border-hairline bg-surface text-ink shadow-card hover:border-primary hover:text-primary-deep",
   ghost: "text-ink-subtle hover:bg-surface-muted hover:text-ink",

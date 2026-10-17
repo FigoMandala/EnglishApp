@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { fingerprint, questionText } from "@/lib/question-variety";
+import { parseQuestions } from "@/lib/toefl";
 import { eprtSimulations, toeflReviews, toeflSessions, type ToeflSession } from "@/db/schema";
 
 export type Track = "toefl" | "eptr";
@@ -160,6 +162,35 @@ export async function getReview(userId: number, id: number) {
     .where(and(eq(toeflReviews.id, id), eq(toeflReviews.userId, userId)))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Review teraktif untuk satu soal (berdasarkan fingerprint pertanyaan), kalau ada.
+ * Dipakai supaya menjawab soal yang sama salah berkali-kali tidak membuat
+ * baris review baru setiap kali.
+ *
+ * Catatan: pencocokan masih dilakukan di JS (parse tiap baris), jadi hanya
+ * kolom yang dipakai yang diambil. Kalau review menumpuk (ribuan baris),
+ * tambahkan kolom `fingerprint` + index dan cari langsung di SQL.
+ */
+export async function findActiveReview(userId: number, questionFingerprint: string) {
+  const rows = await db
+    .select({
+      id: toeflReviews.id,
+      question: toeflReviews.question,
+      box: toeflReviews.box,
+      dueAt: toeflReviews.dueAt,
+    })
+    .from(toeflReviews)
+    .where(eq(toeflReviews.userId, userId))
+    .orderBy(desc(toeflReviews.id));
+  return (
+    rows.find((row) =>
+      parseQuestions(row.question).some(
+        (question) => fingerprint(questionText(question)) === questionFingerprint,
+      ),
+    ) ?? null
+  );
 }
 
 export async function createReview(values: {

@@ -1,8 +1,21 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Loader2, Timer, Volume2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  Timer,
+  Volume2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ProgressRule } from "@/components/ui/ledger";
@@ -10,13 +23,20 @@ import {
   correctCount,
   SKILLS,
   underlineSpans,
+  type SkillKey,
   type ToeflQuestion,
 } from "@/lib/toefl";
 import { parseInline } from "@/lib/markdown";
-import { DEFAULT_PREFS, speakLines, stopSpeaking, type VoicePrefs } from "@/lib/voices";
+import {
+  DEFAULT_PREFS,
+  speakLines,
+  stopSpeaking,
+  type VoicePrefs,
+} from "@/lib/voices";
 import { cn } from "@/lib/utils";
 
-import { answerToefl, finishToefl } from "./actions";
+import { answerToefl, finishToefl, startToeflBlock } from "./actions";
+import { AskAi } from "./ask-ai";
 
 export type ActiveSession = {
   id: number;
@@ -56,14 +76,27 @@ function stopSpeech() {
   if (typeof window !== "undefined") stopSpeaking();
 }
 
-function speak(question: ToeflQuestion, prefs: VoicePrefs, questionOnly = false, onEnd?: () => void, onReady?: () => void) {
+function speak(
+  question: ToeflQuestion,
+  prefs: VoicePrefs,
+  questionOnly = false,
+  onEnd?: () => void,
+  onReady?: () => void,
+) {
   const lines = questionOnly ? [] : (question.audio ?? []);
-  speakLines([...lines, { speaker: "man", text: question.q }], prefs, onEnd, onReady);
+  speakLines(
+    [...lines, { speaker: "man", text: question.q }],
+    prefs,
+    onEnd,
+    onReady,
+  );
 }
 
 /** Audio tanpa narator: identitas dialog/monolog, dipakai untuk deteksi audio bersama. */
 function dialogueOf(question: ToeflQuestion | undefined) {
-  const lines = (question?.audio ?? []).filter((line) => line.speaker !== "narrator");
+  const lines = (question?.audio ?? []).filter(
+    (line) => line.speaker !== "narrator",
+  );
   return lines.map((line) => `${line.speaker}:${line.text}`).join("\n");
 }
 
@@ -84,7 +117,10 @@ function loadPlayed(sessionId: number): Set<number> {
 
 function savePlayed(sessionId: number, played: Set<number>) {
   try {
-    window.localStorage.setItem(`eprt-audio:${sessionId}`, JSON.stringify([...played]));
+    window.localStorage.setItem(
+      `eprt-audio:${sessionId}`,
+      JSON.stringify([...played]),
+    );
   } catch {
     // Penyimpanan diblokir: batas sekali putar hanya berlaku sampai halaman dimuat ulang.
   }
@@ -95,7 +131,13 @@ function formatClock(ms: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-function Sentence({ question, revealed }: { question: ToeflQuestion; revealed: boolean }) {
+function Sentence({
+  question,
+  revealed,
+}: {
+  question: ToeflQuestion;
+  revealed: boolean;
+}) {
   if (question.type === "structure") {
     const [before, ...rest] = question.q.split(/_{2,}/);
     return (
@@ -107,7 +149,10 @@ function Sentence({ question, revealed }: { question: ToeflQuestion; revealed: b
               {question.options[question.answer]}
             </span>
           ) : (
-            <span aria-label="bagian kosong" className="mx-1 inline-block w-16 border-b-2 border-ink" />
+            <span
+              aria-label="bagian kosong"
+              className="mx-1 inline-block w-16 border-b-2 border-ink"
+            />
           )
         ) : null}
         {rest.join("___")}
@@ -115,7 +160,10 @@ function Sentence({ question, revealed }: { question: ToeflQuestion; revealed: b
     );
   }
 
-  const spans = question.type === "written" ? underlineSpans(question.q, question.options) : null;
+  const spans =
+    question.type === "written"
+      ? underlineSpans(question.q, question.options)
+      : null;
   if (!spans) {
     return (
       <>
@@ -170,7 +218,9 @@ function Sentence({ question, revealed }: { question: ToeflQuestion; revealed: b
   });
   const after = question.q.slice(cursor);
   if (after.trim()) nodes.push(plain(after, "end"));
-  return <span className="flex flex-wrap items-start gap-x-3 gap-y-3">{nodes}</span>;
+  return (
+    <span className="flex flex-wrap items-start gap-x-3 gap-y-3">{nodes}</span>
+  );
 }
 
 export function ToeflRunner({
@@ -191,13 +241,17 @@ export function ToeflRunner({
 }) {
   const { questions } = session;
   const [answers, setAnswers] = useState(session.answers);
-  const [index, setIndex] = useState<number | null>(() => nextOpen(session.answers, -1));
+  const [index, setIndex] = useState<number | null>(() =>
+    nextOpen(session.answers, -1),
+  );
   const [error, setError] = useState<string | null>(null);
   const [silent, setSilent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [played, setPlayed] = useState<Set<number>>(() => new Set());
   const [finished, setFinished] = useState(Boolean(session.completedAt));
-  const [deadline] = useState(() => (timeLeftMs === undefined ? null : Date.now() + timeLeftMs));
+  const [deadline] = useState(() =>
+    timeLeftMs === undefined ? null : Date.now() + timeLeftMs,
+  );
   const [left, setLeft] = useState(timeLeftMs ?? null);
   const expiredRef = useRef(false);
   // Pilihan yang belum dikirim: masih bisa diganti sampai Periksa/Lanjut ditekan.
@@ -208,10 +262,18 @@ export function ToeflRunner({
   const [textSize, setTextSize] = useState(0);
   const [offline, setOffline] = useState(false);
   const [announce, setAnnounce] = useState("");
+  // Tombol "Latihan ulang" di halaman hasil: mulai latihan baru via server action.
+  const [repeatState, repeatAction, repeatPending] = useActionState(startToeflBlock, {
+    status: "idle",
+  });
 
   const announcedRef = useRef(false);
   // Jawaban yang gagal terkirim (misalnya sinyal putus) dicoba lagi saat online.
   const retryRef = useRef<{ index: number; choice: number }[]>([]);
+  // Kiriman jawaban yang masih jalan. finish() menunggu semuanya sebelum
+  // menutup sesi, supaya jawaban terakhir tidak kalah lomba dengan finishToefl
+  // (server menolak jawaban yang datang setelah sesi ditutup).
+  const inflightRef = useRef<Set<Promise<void>>>(new Set());
 
   useEffect(() => {
     try {
@@ -250,7 +312,10 @@ export function ToeflRunner({
 
   function changeTextSize(step: number) {
     setTextSize((value) => {
-      const nextSize = Math.min(Math.max(value + step, 0), TEXT_SIZES.length - 1);
+      const nextSize = Math.min(
+        Math.max(value + step, 0),
+        TEXT_SIZES.length - 1,
+      );
       try {
         window.localStorage.setItem("eprt-text-size", String(nextSize));
       } catch {
@@ -263,7 +328,13 @@ export function ToeflRunner({
   function say(target: ToeflQuestion, questionOnly = false) {
     setSpeaking(true);
     setLoadingAudio(true);
-    speak(target, voice, questionOnly, () => setSpeaking(false), () => setLoadingAudio(false));
+    speak(
+      target,
+      voice,
+      questionOnly,
+      () => setSpeaking(false),
+      () => setLoadingAudio(false),
+    );
   }
 
   function silence() {
@@ -287,9 +358,10 @@ export function ToeflRunner({
   const audioUsed = exam && played.has(audioKey);
 
   function sendAnswer(answerIndex: number, choice: number) {
-    answerToefl(session.id, answerIndex, choice)
+    const sent = answerToefl(session.id, answerIndex, choice)
       .then((result) => {
-        if (result.status === "error") setError(result.message ?? "Jawaban gagal disimpan.");
+        if (result.status === "error")
+          setError(result.message ?? "Jawaban gagal disimpan.");
       })
       .catch(() => {
         retryRef.current.push({ index: answerIndex, choice });
@@ -299,6 +371,8 @@ export function ToeflRunner({
             : "Belum tersimpan karena offline. Dikirim otomatis saat tersambung lagi.",
         );
       });
+    inflightRef.current.add(sent);
+    void sent.finally(() => inflightRef.current.delete(sent));
   }
 
   function choose(option: number) {
@@ -309,8 +383,11 @@ export function ToeflRunner({
 
   /** Kunci pilihan yang sedang dipilih dan kirim ke server. */
   function commit() {
-    if (index === null || pending === null || answers[index] !== null) return answers;
-    const updated = answers.map((answer, i) => (i === index ? pending : answer));
+    if (index === null || pending === null || answers[index] !== null)
+      return answers;
+    const updated = answers.map((answer, i) =>
+      i === index ? pending : answer,
+    );
     setAnswers(updated);
     setPending(null);
     sendAnswer(index, pending);
@@ -337,7 +414,13 @@ export function ToeflRunner({
     // Mode ujian: audio soal berikutnya langsung diputar seperti tes asli. Dialog
     // yang sudah didengar tidak diulang, hanya pertanyaan naratornya.
     const upcoming = target === null ? null : questions[target];
-    if (!exam || target === null || !upcoming?.audio || !("speechSynthesis" in window)) return;
+    if (
+      !exam ||
+      target === null ||
+      !upcoming?.audio ||
+      !("speechSynthesis" in window)
+    )
+      return;
     const key = audioKeyOf(questions, target);
     const heard = played.has(key);
     if (!heard) markPlayed(key);
@@ -358,19 +441,25 @@ export function ToeflRunner({
     say(question);
   }
 
-  function finish() {
+  async function finish() {
     silence();
     setPending(null);
-    setBusy(true);
     setAnswers((prev) => prev.map((answer) => answer ?? -1));
     setIndex(null);
-    finishToefl(session.id)
-      .then((result) => {
-        if (result.status === "error") setError(result.message ?? "Gagal menyelesaikan sesi.");
-        else setFinished(true);
-      })
-      .catch(() => setError("Gagal menyelesaikan sesi. Periksa koneksi."))
-      .finally(() => setBusy(false));
+    setBusy(true);
+    // Tunggu kiriman jawaban yang masih jalan (misalnya pilihan terakhir
+    // saat waktu habis) sebelum menutup sesi di server.
+    await Promise.allSettled([...inflightRef.current]);
+    try {
+      const result = await finishToefl(session.id);
+      if (result.status === "error")
+        setError(result.message ?? "Gagal menyelesaikan sesi.");
+      else setFinished(true);
+    } catch {
+      setError("Gagal menyelesaikan sesi. Periksa koneksi.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -380,10 +469,13 @@ export function ToeflRunner({
       setLeft(remaining);
       if (remaining <= 0 && !expiredRef.current) {
         expiredRef.current = true;
-        setError("Waktu section habis. Soal yang belum dijawab dihitung salah.");
-        // Pilihan yang sudah diklik tapi belum dikirim tetap dihitung.
+        setError(
+          "Waktu section habis. Soal yang belum dijawab dihitung salah.",
+        );
+        // Pilihan yang sudah diklik tapi belum dikirim tetap dihitung:
+        // commit mengirimnya, finish menunggu kiriman selesai sebelum menutup sesi.
         commitRef.current();
-        finish();
+        void finish();
       }
     };
     tick();
@@ -418,8 +510,12 @@ export function ToeflRunner({
           Simpan &amp; keluar
         </Link>
         <div className="order-last flex min-w-0 basis-full flex-col sm:order-none sm:basis-auto sm:flex-1">
-          <span className="eyebrow text-ink-subtle">{exam ? "Simulasi · mode ujian" : "Latihan"}</span>
-          <span className="truncate text-[1.0625rem] font-bold">{session.label}</span>
+          <span className="eyebrow text-ink-subtle">
+            {exam ? "Simulasi · mode ujian" : "Latihan"}
+          </span>
+          <span className="truncate text-[1.0625rem] font-bold">
+            {session.label}
+          </span>
         </div>
         {index !== null ? (
           <span className="tnum ml-auto font-mono text-[0.9375rem] font-semibold text-ink-subtle sm:ml-0">
@@ -434,7 +530,9 @@ export function ToeflRunner({
                 aria-label={`Sisa waktu ${formatClock(left)}`}
                 className={cn(
                   "tnum flex h-11 items-center gap-2 rounded-control px-3.5 font-mono text-[1.0625rem] font-semibold",
-                  lowTime ? "bg-warning text-surface" : "bg-night text-night-ink",
+                  lowTime
+                    ? "bg-warning text-surface"
+                    : "bg-night text-night-ink",
                 )}
               >
                 <Timer className="size-4" aria-hidden />
@@ -457,22 +555,30 @@ export function ToeflRunner({
       <div
         role="progressbar"
         aria-label={`${answeredCount} dari ${questions.length} soal dijawab`}
-        aria-valuenow={Math.round((answeredCount / Math.max(1, questions.length)) * 100)}
+        aria-valuenow={Math.round(
+          (answeredCount / Math.max(1, questions.length)) * 100,
+        )}
         aria-valuemin={0}
         aria-valuemax={100}
         className="h-1.5 bg-surface-sunken sm:mx-6 sm:mb-3 sm:rounded-full"
       >
         <div
           className="h-full bg-accent transition-[width] duration-300 sm:rounded-full"
-          style={{ width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }}
+          style={{
+            width: `${(answeredCount / Math.max(1, questions.length)) * 100}%`,
+          }}
         />
       </div>
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
       {offline ? (
-        <p role="status" className="border-t border-hairline bg-warning-soft px-4 py-2 text-[0.9375rem] font-semibold text-warning-ink sm:px-6">
-          Kamu sedang offline. Jawaban disimpan sementara dan dikirim otomatis saat tersambung lagi.
+        <p
+          role="status"
+          className="border-t border-hairline bg-warning-soft px-4 py-2 text-[0.9375rem] font-semibold text-warning-ink sm:px-6"
+        >
+          Kamu sedang offline. Jawaban disimpan sementara dan dikirim otomatis
+          saat tersambung lagi.
         </p>
       ) : null}
     </div>
@@ -483,24 +589,38 @@ export function ToeflRunner({
       <div className="flex flex-col gap-6">
         {header}
         <section className="page-enter flex flex-col gap-4 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8">
-          <h1 className="font-display text-[2rem] font-extrabold">Bagian selesai</h1>
+          <h1 className="font-display text-[2rem] font-extrabold">
+            Bagian selesai
+          </h1>
           <p className="max-w-xl text-[1.0625rem] leading-relaxed text-ink-subtle">
             Skor dan pembahasan muncul setelah semua bagian simulasi selesai.
           </p>
           {error ? (
-            <p role="alert" className="text-[0.9375rem] font-semibold text-negative">
+            <p
+              role="alert"
+              className="text-[0.9375rem] font-semibold text-negative"
+            >
               {error}
             </p>
           ) : null}
           <div className="flex justify-end">
             {finished ? (
-              <Link href={basePath} className={cn(buttonVariants(), "h-14 px-7 text-lg")}>
+              <Link
+                href={basePath}
+                className={cn(buttonVariants(), "h-14 px-7 text-lg")}
+              >
                 Lanjut ke bagian berikutnya
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
             ) : (
-              <Button onClick={finish} disabled={busy} className="h-14 px-7 text-lg">
-                {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+              <Button
+                onClick={finish}
+                disabled={busy}
+                className="h-14 px-7 text-lg"
+              >
+                {busy ? (
+                  <Loader2 className="size-5 animate-spin" aria-hidden />
+                ) : null}
                 Simpan bagian ini
               </Button>
             )}
@@ -521,7 +641,43 @@ export function ToeflRunner({
         total: entry.total + 1,
       });
     });
-    const pct = questions.length ? Math.round((correct / questions.length) * 100) : 0;
+    const pct = questions.length
+      ? Math.round((correct / questions.length) * 100)
+      : 0;
+    // Urutan soal salah/tidak dijawab, untuk pembahasan di bawah rekap.
+    const wrong = questions
+      .map((item, i) => ({ item, i, answer: answers[i] }))
+      .filter(({ item, answer }) => answer !== item.answer);
+
+    // Tombol "Latihan ulang": jenis latihan sama dengan sesi ini.
+    const repeatKind = (() => {
+      if (session.section === "review") return "review";
+      if (session.section === "reading") return "reading";
+      if (session.section === "listening") {
+        const skill = questions[0]?.skill;
+        if (skill === "listen-long") return "listen-long";
+        if (skill === "listen-lecture") return "listen-lecture";
+        return questions.length > 10 ? "listening-15" : "listening";
+      }
+      return questions[0]?.type === "written" ? "written" : "drill";
+    })();
+    // Fokus ke topik terlemah sesi ini (akurasi < 50%) kalau ada.
+    const repeatSkill = (() => {
+      if (session.section !== "structure" && session.section !== "reading") return null;
+      const tally = new Map<SkillKey, { correct: number; total: number }>();
+      questions.forEach((item, i) => {
+        if (!item.skill) return;
+        const entry = tally.get(item.skill) ?? { correct: 0, total: 0 };
+        entry.total += 1;
+        if (answers[i] === item.answer) entry.correct += 1;
+        tally.set(item.skill, entry);
+      });
+      return (
+        [...tally.entries()]
+          .filter(([, entry]) => entry.correct * 2 < entry.total)
+          .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)[0]?.[0] ?? null
+      );
+    })();
 
     return (
       <div className="flex flex-col gap-6">
@@ -529,40 +685,64 @@ export function ToeflRunner({
         <section className="page-enter flex flex-col gap-6 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="flex flex-col gap-1">
-              <span className="text-[1.0625rem] font-bold text-ink-subtle">Hasil latihan</span>
+              <span className="text-[1.0625rem] font-bold text-ink-subtle">
+                Hasil latihan
+              </span>
               <p className="tnum font-display text-[4rem] font-extrabold leading-none tracking-[-0.03em]">
                 {correct}
                 <span className="text-ink-faint">/{questions.length}</span>
               </p>
-              <span className="text-[1.0625rem] text-ink-subtle">jawaban benar</span>
+              <span className="text-[1.0625rem] text-ink-subtle">
+                jawaban benar
+              </span>
             </div>
             <div className="flex gap-8">
               {session.score !== null ? (
                 <div className="flex flex-col gap-1">
-                  <span className="text-[0.9375rem] font-semibold text-ink-subtle">Skor bagian</span>
-                  <span className="tnum font-display text-[2.25rem] font-extrabold">{session.score}</span>
+                  <span className="text-[0.9375rem] font-semibold text-ink-subtle">
+                    Skor bagian
+                  </span>
+                  <span className="tnum font-display text-[2.25rem] font-extrabold">
+                    {session.score}
+                  </span>
                 </div>
               ) : null}
               <div className="flex flex-col gap-1">
-                <span className="text-[0.9375rem] font-semibold text-ink-subtle">Akurasi</span>
-                <span className="tnum font-display text-[2.25rem] font-extrabold text-accent">{pct}%</span>
+                <span className="text-[0.9375rem] font-semibold text-ink-subtle">
+                  Akurasi
+                </span>
+                <span className="tnum font-display text-[2.25rem] font-extrabold text-accent">
+                  {pct}%
+                </span>
               </div>
             </div>
           </div>
 
-          <ProgressRule value={pct} tone={pct >= 75 ? "success" : pct >= 50 ? "accent" : "danger"} className="h-3" />
+          <ProgressRule
+            value={pct}
+            tone={pct >= 75 ? "success" : pct >= 50 ? "accent" : "danger"}
+            className="h-3"
+          />
 
           <ul className="flex flex-col gap-2">
             {[...bySkill].map(([label, entry]) => {
               const weak = entry.correct * 2 < entry.total;
               return (
-                <li key={label} className="flex items-center justify-between gap-3 rounded-control bg-surface-muted px-4 py-3">
+                <li
+                  key={label}
+                  className="flex items-center justify-between gap-3 rounded-control bg-surface-muted px-4 py-3"
+                >
                   <span className="text-base font-semibold">{label}</span>
                   <span className="flex items-center gap-3">
                     <span className="tnum font-mono text-[0.9375rem]">
                       {entry.correct}/{entry.total}
                     </span>
-                    <span className={cn("text-[0.875rem] font-bold", weak ? "text-warning-ink" : "text-accent-ink")}>
+                    <span
+                      className={cn(
+                        "text-[0.875rem] font-bold",
+                        weak ? "text-warning-ink" : "text-accent-ink",
+                      )}
+                    >
                       {weak ? "Perlu latihan" : "Cukup"}
                     </span>
                   </span>
@@ -571,8 +751,80 @@ export function ToeflRunner({
             })}
           </ul>
 
-          <div className="flex justify-end">
-            <Link href={basePath} className={cn(buttonVariants(), "h-14 px-7 text-lg")}>
+          {wrong.length ? (
+            <div className="flex flex-col gap-3">
+              <h2 className="font-display text-[1.375rem] font-extrabold">
+                Pembahasan soal salah ({wrong.length})
+              </h2>
+              <ol className="flex flex-col gap-3">
+                {wrong.map(({ item, i, answer }) => {
+                  const unanswered = answer === null || answer < 0;
+                  return (
+                    <li
+                      key={i}
+                      className="flex flex-col gap-2 rounded-control border-2 border-hairline bg-surface-muted p-4"
+                    >
+                      <p className="text-base font-semibold leading-relaxed">
+                        <span className="mr-2 font-mono text-ink-subtle">
+                          {i + 1}.
+                        </span>
+                        {item.q}
+                      </p>
+                      <p className="text-[0.9375rem]">
+                        {unanswered ? (
+                          <span className="font-semibold text-warning-ink">
+                            Tidak dijawab
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-[#7e1d1d]">
+                            Jawabanmu: {LETTERS[answer]}. {item.options[answer]}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[0.9375rem] font-semibold text-accent-ink">
+                        Jawaban benar: {LETTERS[item.answer]}.{" "}
+                        {item.options[item.answer]}
+                      </p>
+                      {item.explain_id ? (
+                        <p className="text-[0.9375rem] leading-relaxed text-ink-muted">
+                          {item.explain_id}
+                        </p>
+                      ) : null}
+                      {item.skill ? (
+                        <p className="eyebrow text-ink-subtle">
+                          Skill · {SKILLS[item.skill].label} — {SKILLS[item.skill].hint}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-start justify-end gap-3">
+            {repeatState.status === "error" ? (
+              <p role="alert" className="w-full text-right text-[0.9375rem] font-semibold text-negative">
+                {repeatState.message}
+              </p>
+            ) : null}
+            <form action={repeatAction}>
+              <input type="hidden" name="kind" value={repeatKind} />
+              {repeatSkill ? (
+                <input type="hidden" name="skill" value={repeatSkill} />
+              ) : null}
+              <input type="hidden" name="track" value="eptr" />
+              <Button type="submit" disabled={repeatPending} className="h-14 px-7 text-lg">
+                {repeatPending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+                {repeatSkill
+                  ? `Latihan ulang: ${SKILLS[repeatSkill].label}`
+                  : "Latihan ulang"}
+              </Button>
+            </form>
+            <Link
+              href={basePath}
+              className={cn(buttonVariants({ variant: "secondary" }), "h-14 px-7 text-lg")}
+            >
               Kembali ke EPrT
             </Link>
           </div>
@@ -583,7 +835,8 @@ export function ToeflRunner({
 
   const right = chosen === question.answer;
   const selected = chosen ?? pending;
-  const lastOpen = chosen === null && answers.filter((answer) => answer === null).length === 1;
+  const lastOpen =
+    chosen === null && answers.filter((answer) => answer === null).length === 1;
   const last = answers.every((answer, i) => answer !== null || i === index);
   const isListening = Boolean(question.audio);
   const isWritten = question.type === "written";
@@ -595,7 +848,11 @@ export function ToeflRunner({
       : "grid gap-3 sm:grid-cols-2";
 
   const options = (
-    <div role="radiogroup" aria-labelledby="question-text" className={optionGrid}>
+    <div
+      role="radiogroup"
+      aria-labelledby="question-text"
+      className={optionGrid}
+    >
       {question.options.map((option, i) => {
         const isAnswer = i === question.answer;
         const isWrongPick = chosen === i && !right;
@@ -610,18 +867,31 @@ export function ToeflRunner({
             onClick={() => choose(i)}
             className={cn(
               "flex min-h-16 items-center gap-4 rounded-[16px] px-4 py-3 text-left text-[1.0625rem] transition-colors sm:text-lg",
-              !revealed && !isSelected && "cursor-pointer border-2 border-hairline bg-surface text-ink hover:border-primary/50",
-              !revealed && isSelected && "border-2 border-primary bg-primary-soft font-semibold text-primary-deep",
-              revealed && isAnswer && "border-2 border-positive bg-positive-soft font-bold text-accent-ink",
-              revealed && isWrongPick && "border-2 border-dashed border-negative bg-negative-soft font-bold text-[#7e1d1d]",
-              revealed && !isAnswer && !isWrongPick && "border-[1.5px] border-hairline bg-surface text-ink-faint",
+              !revealed &&
+                !isSelected &&
+                "cursor-pointer border-2 border-hairline bg-surface text-ink hover:border-primary/50",
+              !revealed &&
+                isSelected &&
+                "border-2 border-primary bg-primary-soft font-semibold text-primary-deep",
+              revealed &&
+                isAnswer &&
+                "border-2 border-positive bg-positive-soft font-bold text-accent-ink",
+              revealed &&
+                isWrongPick &&
+                "border-2 border-dashed border-negative bg-negative-soft font-bold text-[#7e1d1d]",
+              revealed &&
+                !isAnswer &&
+                !isWrongPick &&
+                "border-[1.5px] border-hairline bg-surface text-ink-faint",
             )}
           >
             <span
               aria-hidden
               className={cn(
                 "flex size-9 shrink-0 items-center justify-center rounded-[10px] font-mono text-base font-semibold",
-                !revealed && isSelected ? "bg-primary text-white" : "bg-surface-muted text-ink",
+                !revealed && isSelected
+                  ? "bg-primary text-white"
+                  : "bg-surface-muted text-ink",
                 revealed && (isAnswer || isWrongPick) && "bg-transparent",
               )}
             >
@@ -660,12 +930,14 @@ export function ToeflRunner({
           <Button
             onClick={() => {
               commit();
-              finish();
+              void finish();
             }}
             disabled={busy}
             className="h-14 px-7 text-lg"
           >
-            {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+            {busy ? (
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+            ) : null}
             Selesai
           </Button>
         ) : (
@@ -676,7 +948,9 @@ export function ToeflRunner({
         )
       ) : complete && !revealed ? (
         <Button onClick={finish} disabled={busy} className="h-14 px-7 text-lg">
-          {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+          {busy ? (
+            <Loader2 className="size-5 animate-spin" aria-hidden />
+          ) : null}
           Selesai
         </Button>
       ) : null}
@@ -684,46 +958,75 @@ export function ToeflRunner({
   );
 
   const feedback = revealed ? (
-    <div role="status" className="page-enter flex flex-col gap-3 rounded-plate border-2 border-hairline bg-surface p-5 sm:p-6">
+    <div
+      role="status"
+      className="page-enter flex flex-col gap-3 rounded-plate border-2 border-hairline bg-surface p-5 sm:p-6"
+    >
       <div className="flex flex-wrap items-center gap-3">
         <span
           className={cn(
             "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.9375rem] font-bold",
-            right ? "bg-positive-soft text-accent-ink" : "bg-negative-soft text-[#7e1d1d]",
+            right
+              ? "bg-positive-soft text-accent-ink"
+              : "bg-negative-soft text-[#7e1d1d]",
           )}
         >
-          {right ? <Check className="size-4" strokeWidth={3} aria-hidden /> : <X className="size-4" strokeWidth={3} aria-hidden />}
+          {right ? (
+            <Check className="size-4" strokeWidth={3} aria-hidden />
+          ) : (
+            <X className="size-4" strokeWidth={3} aria-hidden />
+          )}
           {right ? "Benar" : "Belum tepat"}
         </span>
         {!right ? (
           <span className="text-base">
-            Jawaban benar: <strong>{LETTERS[question.answer]}. {question.options[question.answer]}</strong>
+            Jawaban benar:{" "}
+            <strong>
+              {LETTERS[question.answer]}. {question.options[question.answer]}
+            </strong>
           </span>
         ) : null}
       </div>
       {question.explain_id ? (
-        <p className="text-[1.0625rem] leading-relaxed text-ink-muted">{question.explain_id}</p>
+        <p className="text-[1.0625rem] leading-relaxed text-ink-muted">
+          {question.explain_id}
+        </p>
       ) : null}
       {question.audio ? (
         <details className="rounded-control bg-surface-muted px-4 py-3">
-          <summary className="cursor-pointer text-[0.9375rem] font-semibold">Lihat transkrip</summary>
+          <summary className="cursor-pointer text-[0.9375rem] font-semibold">
+            Lihat transkrip
+          </summary>
           <div className="mt-2 flex flex-col gap-1 text-base leading-relaxed">
             {question.audio.map((line, i) => (
               <p key={i}>
-                <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
+                <span className="font-bold">{SPEAKER[line.speaker]}:</span>{" "}
+                {line.text}
               </p>
             ))}
           </div>
         </details>
       ) : null}
-      {question.skill ? <p className="eyebrow text-ink-subtle">Skill · {SKILLS[question.skill].label}</p> : null}
+      {question.skill ? (
+        <p className="eyebrow text-ink-subtle">
+          Skill · {SKILLS[question.skill].label}
+        </p>
+      ) : null}
       {error ? (
-        <p role="alert" className="text-[0.9375rem] font-semibold text-negative">
+        <p
+          role="alert"
+          className="text-[0.9375rem] font-semibold text-negative"
+        >
           {error}
         </p>
       ) : null}
       <div className="flex justify-end">
-        <Button autoFocus onClick={next} disabled={busy} className="h-14 px-7 text-lg">
+        <Button
+          autoFocus
+          onClick={next}
+          disabled={busy}
+          className="h-14 px-7 text-lg"
+        >
           {last ? "Lihat hasil" : "Soal berikutnya"}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
@@ -741,150 +1044,219 @@ export function ToeflRunner({
           : "text-[1.5rem] sm:text-[1.875rem]",
       )}
     >
-      {isListening ? question.q : <Sentence question={question} revealed={revealed} />}
+      {isListening ? (
+        question.q
+      ) : (
+        <Sentence question={question} revealed={revealed} />
+      )}
     </h1>
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      {header}
+    <AskAi
+      section={session.section}
+      context={[
+        session.passage ? `Teks bacaan:\n${session.passage}` : "",
+        // Transkrip audio hanya dikirim setelah jawaban diperiksa (bukan saat ujian).
+        revealed && question.audio
+          ? `Transkrip:\n${question.audio.map((line) => `${line.speaker}: ${line.text}`).join("\n")}`
+          : question.audio
+            ? "Ini soal Listening dan kamu tidak punya transkrip audionya. Jangan menebak isi rekaman; beri strategi mendengar saja."
+            : "",
+        `Soal (${session.section}): ${question.q}`,
+        ...question.options.map((option, i) => `${LETTERS[i]}. ${option}`),
+      ]
+        .filter(Boolean)
+        .join("\n")}
+    >
+      {(askOpen) => (
+        <div className="flex flex-col gap-6">
+          {header}
 
-      <div
-        key={index}
-        className={cn(
-          "page-enter grid gap-6 lg:gap-10",
-          (isListening || session.passage) && "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]",
-        )}
-      >
-        {isListening ? (
-          <section
-            aria-label="Audio"
-            className="flex flex-col justify-between gap-4 rounded-[24px] bg-night p-4 text-night-ink sm:gap-6 sm:rounded-[28px] sm:p-8 lg:min-h-[480px]"
+          <div
+            key={index}
+            className={cn(
+              "page-enter grid gap-6 lg:gap-10",
+              // Panel AI terbuka = ruang sempit: tumpuk teks/audio di atas soal.
+              (isListening || session.passage) &&
+                !askOpen &&
+                "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]",
+            )}
           >
-            <div className="hidden flex-col gap-2 sm:flex">
-              <span className="eyebrow text-[#bfe3cf]">{TYPE_LABEL.listening}</span>
-              <p className="text-[1.0625rem] leading-relaxed text-night-muted">
-                {exam
-                  ? "Dengarkan percakapan, lalu narator membacakan pertanyaan."
-                  : "Putar audio, dengarkan, lalu pilih jawaban."}
-              </p>
-            </div>
-            <div aria-hidden className={cn("h-28 items-center justify-center gap-1.5", speaking ? "flex" : "hidden sm:flex")}>
-              {[60, 100, 130, 80, 110, 70, 120, 50, 90].map((height, i) => (
-                <span
-                  key={i}
-                  className={cn("w-2 rounded bg-mint", speaking && !loadingAudio ? "wave-bar" : "opacity-40")}
-                  style={{ height: speaking && !loadingAudio ? height : 16, animationDelay: `${i * 0.08}s` }}
-                />
-              ))}
-            </div>
-            <div className="flex flex-col gap-3">
-              {speaking ? (
-                <p role="status" className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-raised text-lg font-bold">
-                  {loadingAudio ? (
-                    <Loader2 className="size-5 animate-spin text-mint" aria-hidden />
-                  ) : (
-                    <Volume2 className="size-5 text-mint" aria-hidden />
+            {isListening ? (
+              <section
+                aria-label="Audio"
+                className="flex flex-col justify-between gap-4 rounded-[24px] bg-night p-4 text-night-ink sm:gap-6 sm:rounded-[28px] sm:p-8 lg:min-h-[480px]"
+              >
+                <div className="hidden flex-col gap-2 sm:flex">
+                  <span className="eyebrow text-[#bfe3cf]">
+                    {TYPE_LABEL.listening}
+                  </span>
+                  <p className="text-[1.0625rem] leading-relaxed text-night-muted">
+                    {exam
+                      ? "Dengarkan percakapan, lalu narator membacakan pertanyaan."
+                      : "Putar audio, dengarkan, lalu pilih jawaban."}
+                  </p>
+                </div>
+                <div
+                  aria-hidden
+                  className={cn(
+                    "h-28 items-center justify-center gap-1.5",
+                    speaking ? "flex" : "hidden sm:flex",
                   )}
-                  {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={play}
-                  className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-ink text-lg font-bold text-ink hover:bg-white"
                 >
-                  <Volume2 className="size-5" aria-hidden />
-                  {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
-                </button>
-              )}
-              <p className="text-center text-[0.9375rem] text-night-muted">
-                {silent
-                  ? "Browser tanpa suara. Transkrip ditampilkan."
-                  : exam
-                    ? audioUsed
-                      ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
-                      : "Audio hanya diputar sekali, seperti tes asli."
-                    : "Transkrip muncul setelah jawaban diperiksa."}
-              </p>
-            </div>
-            {silent ? (
-              <div className="flex flex-col gap-1 rounded-control bg-night-raised p-4 text-base leading-relaxed">
-                {question.audio?.map((line, i) => (
-                  <p key={i}>
-                    <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-          </section>
-        ) : session.passage ? (
-          <article
-            aria-label="Teks bacaan"
-            className="flex flex-col gap-4 self-start rounded-plate border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-44"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="eyebrow text-ink-subtle">Teks bacaan</span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  aria-label="Perkecil teks bacaan"
-                  disabled={textSize === 0}
-                  onClick={() => changeTextSize(-1)}
-                  className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-[0.9375rem] font-bold disabled:opacity-40"
-                >
-                  A−
-                </button>
-                <button
-                  type="button"
-                  aria-label="Perbesar teks bacaan"
-                  disabled={textSize === TEXT_SIZES.length - 1}
-                  onClick={() => changeTextSize(1)}
-                  className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-lg font-bold disabled:opacity-40"
-                >
-                  A+
-                </button>
-              </div>
-            </div>
-            <div className={cn("flex max-h-[62dvh] max-w-[64ch] flex-col gap-4 overflow-y-auto leading-[1.75]", TEXT_SIZES[textSize])}>
-              {session.passage
-                .split(/\n\s*\n/)
-                .filter((paragraph) => paragraph.trim())
-                .map((paragraph, i) => (
-                  <p key={i}>
-                    <span className="mr-2.5 font-mono text-[0.9375rem] font-semibold text-ink-subtle">{i + 1}</span>
-                    {parseInline(paragraph.trim()).map((span, j) =>
-                      span.tone === "bold" ? (
-                        <strong key={j} className="rounded bg-highlight px-1">
-                          {span.text}
-                        </strong>
+                  {[60, 100, 130, 80, 110, 70, 120, 50, 90].map((height, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "w-2 rounded bg-mint",
+                        speaking && !loadingAudio ? "wave-bar" : "opacity-40",
+                      )}
+                      style={{
+                        height: speaking && !loadingAudio ? height : 16,
+                        animationDelay: `${i * 0.08}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-col gap-3">
+                  {speaking ? (
+                    <p
+                      role="status"
+                      className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-raised text-lg font-bold"
+                    >
+                      {loadingAudio ? (
+                        <Loader2
+                          className="size-5 animate-spin text-mint"
+                          aria-hidden
+                        />
                       ) : (
-                        span.text
-                      ),
-                    )}
+                        <Volume2 className="size-5 text-mint" aria-hidden />
+                      )}
+                      {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={play}
+                      className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-ink text-lg font-bold text-ink hover:bg-white"
+                    >
+                      <Volume2 className="size-5" aria-hidden />
+                      {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
+                    </button>
+                  )}
+                  <p className="text-center text-[0.9375rem] text-night-muted">
+                    {silent
+                      ? "Browser tanpa suara. Transkrip ditampilkan."
+                      : exam
+                        ? audioUsed
+                          ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
+                          : "Audio hanya diputar sekali, seperti tes asli."
+                        : "Transkrip muncul setelah jawaban diperiksa."}
                   </p>
-                ))}
-            </div>
-          </article>
-        ) : null}
+                </div>
+                {silent ? (
+                  <div className="flex flex-col gap-1 rounded-control bg-night-raised p-4 text-base leading-relaxed">
+                    {question.audio?.map((line, i) => (
+                      <p key={i}>
+                        <span className="font-bold">
+                          {SPEAKER[line.speaker]}:
+                        </span>{" "}
+                        {line.text}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : session.passage ? (
+              <article
+                aria-label="Teks bacaan"
+                className="flex flex-col gap-4 self-start rounded-plate border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-44"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="eyebrow text-ink-subtle">Teks bacaan</span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      aria-label="Perkecil teks bacaan"
+                      disabled={textSize === 0}
+                      onClick={() => changeTextSize(-1)}
+                      className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-[0.9375rem] font-bold disabled:opacity-40"
+                    >
+                      A−
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Perbesar teks bacaan"
+                      disabled={textSize === TEXT_SIZES.length - 1}
+                      onClick={() => changeTextSize(1)}
+                      className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-lg font-bold disabled:opacity-40"
+                    >
+                      A+
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "flex max-h-[62dvh] max-w-[64ch] flex-col gap-4 overflow-y-auto leading-[1.75]",
+                    TEXT_SIZES[textSize],
+                  )}
+                >
+                  {session.passage
+                    .split(/\n\s*\n/)
+                    .filter((paragraph) => paragraph.trim())
+                    .map((paragraph, i) => (
+                      <p key={i}>
+                        <span className="mr-2.5 font-mono text-[0.9375rem] font-semibold text-ink-subtle">
+                          {i + 1}
+                        </span>
+                        {parseInline(paragraph.trim()).map((span, j) =>
+                          span.tone === "bold" ? (
+                            <strong
+                              key={j}
+                              className="rounded bg-highlight px-1"
+                            >
+                              {span.text}
+                            </strong>
+                          ) : (
+                            span.text
+                          ),
+                        )}
+                      </p>
+                    ))}
+                </div>
+              </article>
+            ) : null}
 
-        <section className={cn("flex flex-col gap-6", !isListening && !session.passage && "mx-auto w-full max-w-5xl")}>
-          <div className="flex flex-col gap-3">
-            <span className="eyebrow text-ink-subtle">
-              {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
-            </span>
-            {questionHeading}
+            <section
+              className={cn(
+                "flex flex-col gap-6",
+                !isListening && !session.passage && "mx-auto w-full max-w-5xl",
+              )}
+            >
+              <div className="flex flex-col gap-3">
+                <span className="eyebrow text-ink-subtle">
+                  {isListening
+                    ? "Pertanyaan narator"
+                    : (TYPE_LABEL[question.type] ?? "Soal")}
+                </span>
+                {questionHeading}
+              </div>
+              {options}
+              {feedback}
+              {!revealed ? actionBar : null}
+              {!revealed && error ? (
+                <p
+                  role="alert"
+                  className="text-[0.9375rem] font-semibold text-negative"
+                >
+                  {error}
+                </p>
+              ) : null}
+            </section>
           </div>
-          {options}
-          {feedback}
-          {!revealed ? actionBar : null}
-          {!revealed && error ? (
-            <p role="alert" className="text-[0.9375rem] font-semibold text-negative">
-              {error}
-            </p>
-          ) : null}
-        </section>
-      </div>
-    </div>
+        </div>
+      )}
+    </AskAi>
   );
 }
