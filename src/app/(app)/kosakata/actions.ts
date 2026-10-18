@@ -7,7 +7,7 @@ import { addXp } from "@/db/queries/learning";
 import { getCardProgress, reviewCard } from "@/db/queries/vocabulary";
 
 import { requireUser } from "@/lib/session";
-import { todayISO } from "@/lib/srs";
+import { todayISO, type ReviewGrade } from "@/lib/srs";
 import { XP_REWARDS } from "@/lib/xp";
 
 export type ReviewState = { status: "idle" | "error"; message?: string };
@@ -19,6 +19,7 @@ export type ReviewState = { status: "idle" | "error"; message?: string };
 export async function reviewCardAction(
   vocabularyId: number,
   correct: boolean,
+  grade?: ReviewGrade,
 ): Promise<{ status: "idle" | "error"; dueAt?: string; box?: number; message?: string }> {
   const user = await requireUser();
   if (!Number.isInteger(vocabularyId)) {
@@ -26,7 +27,8 @@ export async function reviewCardAction(
   }
 
   const progress = await getCardProgress(user.id, vocabularyId);
-  const next = await reviewCard(user.id, vocabularyId, correct);
+  const safeGrade: ReviewGrade = grade === "hard" || grade === "easy" ? grade : "good";
+  const next = await reviewCard(user.id, vocabularyId, correct, safeGrade);
 
   // XP hanya untuk kartu yang pertama kali dikuasai (review pertama, jawab benar).
   if (correct && (progress?.reviewCount ?? 0) === 0) {

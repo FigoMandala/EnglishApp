@@ -7,7 +7,7 @@ import {
   type NewVocabulary,
   type Vocabulary,
 } from "@/db/schema";
-import { nextReviewFsrs, shiftDate, todayISO } from "@/lib/srs";
+import { nextReviewFsrs, shiftDate, todayISO, type ReviewGrade } from "@/lib/srs";
 
 export type VocabularyCard = Vocabulary & {
   box: number;
@@ -157,7 +157,12 @@ export async function listDueCards(userId: number, limit = 20): Promise<Vocabula
   }).slice(0, limit);
 }
 
-export async function reviewCard(userId: number, vocabularyId: number, correct: boolean) {
+export async function reviewCard(
+  userId: number,
+  vocabularyId: number,
+  correct: boolean,
+  grade?: ReviewGrade,
+) {
   const progress = await ensureProgress(userId, vocabularyId);
   const today = todayISO();
   const next = nextReviewFsrs({
@@ -167,6 +172,7 @@ export async function reviewCard(userId: number, vocabularyId: number, correct: 
     lapses: progress.lapses,
     correct,
     today,
+    grade,
   });
 
   await db

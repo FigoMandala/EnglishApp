@@ -3,6 +3,9 @@ export const MAX_REVIEW_BOX = REVIEW_INTERVALS.length - 1;
 
 export type ReviewState = { box: number; dueAt: string };
 
+/** Tingkat ingatan saat kartu dijawab benar: susah (hard), bisa (good), gampang (easy). */
+export type ReviewGrade = "hard" | "good" | "easy";
+
 /** State FSRS-lite: interval adaptif + faktor kemudahan (×100). */
 export type FsrsState = {
   box: number;
@@ -51,6 +54,8 @@ export function nextReviewFsrs(state: {
   lapses: number;
   correct: boolean;
   today: string;
+  /** Tingkat kemudahan saat benar. Bawaan "good". */
+  grade?: ReviewGrade;
 }): FsrsState {
   const ease = Math.max(MIN_EASE, Math.min(MAX_EASE, state.easeFactor || DEFAULT_EASE));
 
@@ -68,10 +73,23 @@ export function nextReviewFsrs(state: {
   const box = Math.min(state.box + 1, MAX_REVIEW_BOX);
   // Interval pertama 1 hari, lalu dikali ease bertahap.
   const base = state.intervalDays > 0 ? state.intervalDays : 1;
-  const raw = state.intervalDays > 0 ? Math.round(base * (ease / 100)) : 1;
+  const grade = state.grade ?? "good";
+  const good = state.intervalDays > 0 ? Math.round(base * (ease / 100)) : 1;
+  const raw =
+    grade === "hard"
+      ? Math.round(base * 1.2)
+      : grade === "easy"
+        ? Math.round((state.intervalDays > 0 ? good : 3) * 1.3)
+        : good;
   const intervalDays = Math.max(1, Math.min(365, raw));
-  // Ease naik sedikit kalau diulang dengan lancar (box tinggi).
-  const nextEase = box >= 4 ? Math.min(MAX_EASE, ease + 5) : ease;
+  // Ease naik sedikit kalau diulang dengan lancar (box tinggi); susah menurunkan, gampang menaikkan.
+  const nextEase = Math.max(
+    MIN_EASE,
+    Math.min(
+      MAX_EASE,
+      grade === "hard" ? ease - 15 : grade === "easy" ? ease + 15 : box >= 4 ? ease + 5 : ease,
+    ),
+  );
 
   return {
     box,

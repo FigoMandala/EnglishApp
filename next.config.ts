@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
+              // Audio suara AI diputar dari blob URL (hasil fetch /api/tts).
+              "media-src 'self' blob: data:",
               "font-src 'self' data:",
               "object-src 'none'",
               "base-uri 'self'",

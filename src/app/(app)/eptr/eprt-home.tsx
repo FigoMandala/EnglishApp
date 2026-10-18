@@ -4,7 +4,7 @@ import { ArrowRight, BookOpen, Clock, Headphones, Loader2, PenLine } from "lucid
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 
-import { ExamStack } from "@/components/exam-3d";
+import { Kaka } from "@/components/mascot";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input, Label } from "@/components/ui/field";
 import { formatDate } from "@/lib/dates";
@@ -13,6 +13,7 @@ import type { SkillKey, ToeflSection } from "@/lib/toefl";
 import { cn } from "@/lib/utils";
 
 import { saveToeflTarget, startToeflBlock, type ToeflState } from "../toefl/actions";
+import { PendingOverlay, SectionCountdown } from "./eprt-widgets";
 import { StartFastButton, StartSimulationButton } from "./simulasi/simulation-client";
 
 const initialState: ToeflState = { status: "idle" };
@@ -34,6 +35,7 @@ export type EprtHomeProps = {
     doneParts: number;
     totalParts: number;
     nextTitle: string | null;
+    msLeft: number | null;
     doneQuestions: number;
     totalQuestions: number;
   } | null;
@@ -196,68 +198,42 @@ export function EprtHome(props: EprtHomeProps) {
 
   return (
     <div className="flex flex-col gap-10">
-      {pending ? (
-        <div
-          aria-busy="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm"
-        >
-          <div
-            role="status"
-            className="flex flex-col items-center gap-4 rounded-plate border-2 border-hairline bg-surface px-10 py-8 shadow-overlay"
-          >
-            <Loader2 className="size-10 animate-spin text-primary" aria-hidden />
-            <div className="flex flex-col items-center gap-1 text-center">
-              <p className="text-lg font-bold">Menyiapkan soal…</p>
-              <p className="text-[0.9375rem] text-ink-subtle">
-                Latihan singkat biasanya di bawah 30 detik; simulasi penuh bisa 1–2 menit.
-                Jangan tutup halaman ini.
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <p className="eyebrow text-ink-subtle">EPrT · English Proficiency Test</p>
-          <h1 className="font-display text-[2rem] font-extrabold leading-[1.05] tracking-[-0.025em] sm:text-[3rem]">
-            {props.daysToTest !== null && props.daysToTest >= 0
-              ? `Halo ${props.username}, ${props.daysToTest === 0 ? "hari ini tesnya" : `${props.daysToTest} hari lagi menuju tes`}.`
-              : `Halo ${props.username}.`}
-          </h1>
-        </div>
-        <a href="#target" className="py-2 text-base font-bold text-accent hover:text-accent-ink">
-          Ubah target &amp; tanggal tes
-        </a>
-      </div>
-
+      {pending ? <PendingOverlay /> : null}
       <section
         aria-labelledby="sim-title"
-        className="hero-action grid gap-8 px-6 py-8 sm:px-12 sm:py-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+        className="rise relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[28px] bg-[#22242a] p-6 text-canvas shadow-[0_6px_0_#111215] sm:p-7"
       >
-        <div className="relative z-[1] flex flex-col justify-center gap-5">
-          <span className="eyebrow self-start rounded-full bg-white/10 px-3 py-1.5 text-[#bfe3cf]">
-            {activeSim
-              ? `Sedang berjalan · bagian ${Math.min(activeSim.doneParts + 1, activeSim.totalParts)} dari ${activeSim.totalParts}`
-              : "Simulasi penuh"}
-          </span>
-          <h2 id="sim-title" className="font-display text-[2rem] font-extrabold leading-[1.05] sm:text-[2.5rem]">
-            {activeSim?.scope
-              ? `Mini-test ${activeSim.scope[0].toUpperCase()}${activeSim.scope.slice(1)} ${activeSim.totalQuestions} soal`
-              : "Simulasi penuh 140 soal"}
-          </h2>
-          <p className="max-w-xl text-[1.0625rem] leading-relaxed text-[#cfe8d8]">
-            {activeSim?.nextTitle
-              ? `Berikutnya ${activeSim.nextTitle}. Timer section mulai saat bagian pertamanya dibuka.`
-              : "Listening 50, Structure 40, Reading 50 dengan timer tiap section. Skor dan pembahasan muncul di akhir."}
+        <div className="relative hidden shrink-0 items-end sm:flex">
+          <Kaka mood={props.daysToTest !== null && props.daysToTest <= 7 ? "warn" : "coach"} size={190} label="Kaka, pelatih EPrT-mu" />
+        </div>
+
+        <div className="relative min-w-[280px] flex-1">
+          <p className="text-[0.875rem] font-extrabold tracking-[0.08em] text-[#f2c878]">
+            {activeSim ? `SEDANG BERJALAN · BAGIAN ${Math.min(activeSim.doneParts + 1, activeSim.totalParts)} DARI ${activeSim.totalParts}` : "KAKA, PELATIH EPrT-MU"}
           </p>
+          <h1 id="sim-title" className="mt-1.5 font-display text-[1.75rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.125rem]">
+            {activeSim
+              ? activeSim.scope
+                ? `Mini-test ${activeSim.scope[0].toUpperCase()}${activeSim.scope.slice(1)} belum selesai.`
+                : "Simulasi penuh kamu belum selesai."
+              : props.weakest
+                ? `Kejar ${props.weakest.label}: baru ${props.weakest.pct}% benar.`
+                : props.estimate !== null
+                  ? `Perkiraan skormu ${props.estimate}. Terus asah.`
+                  : `Halo ${props.username}. Mulai dari satu simulasi untuk tahu posisimu.`}
+          </h1>
+          <p className="mt-2.5 text-[1rem] text-[#d3ccbe]">
+            {activeSim?.nextTitle
+              ? `Berikutnya ${activeSim.nextTitle}. ${activeSim.doneQuestions} dari ${activeSim.totalQuestions} soal sudah dikerjakan.`
+              : props.weakest
+                ? `Dari ${props.weakest.answered} soal yang kamu jawab, di sinilah kebocoran terbesar. Latihan per topik di bawah bisa menolong.`
+                : "Listening 50, Structure 40, Reading 50 dengan timer tiap section. Skor dan pembahasan muncul di akhir."}
+          </p>
+
+          {activeSim?.msLeft != null ? <SectionCountdown msLeft={activeSim.msLeft} /> : null}
+
           {activeSim ? (
-            <div className="flex max-w-xl flex-col gap-2">
-              <div className="flex justify-between text-[0.9375rem] text-[#cfe8d8]">
-                <span>Progres</span>
-                <span className="tnum font-mono">
-                  {activeSim.doneQuestions} / {activeSim.totalQuestions} soal
-                </span>
-              </div>
+            <div className="mt-3 flex max-w-xl flex-col gap-1.5">
               <div
                 role="progressbar"
                 aria-label="Progres simulasi"
@@ -266,46 +242,94 @@ export function EprtHome(props: EprtHomeProps) {
                 aria-valuemax={100}
                 className="h-2.5 overflow-hidden rounded-full bg-white/15"
               >
-                <div className="h-full rounded-full bg-mint" style={{ width: `${progress}%` }} />
+                <div className="h-full rounded-full bg-mango" style={{ width: `${progress}%` }} />
               </div>
             </div>
           ) : null}
-          <div className="mt-2 grid max-w-xl items-start gap-3 sm:grid-cols-2">
+
+          <div className="mt-4 flex flex-wrap items-start gap-3">
             {activeSim ? (
               <Link
                 href={`/eptr/simulasi?id=${activeSim.id}`}
-                className="flex h-[3.25rem] items-center justify-center gap-2.5 rounded-control bg-white px-7 text-[1.0625rem] font-bold text-primary-deep shadow-card transition-transform hover:-translate-y-0.5 sm:col-span-2"
+                className="ledge flex min-h-14 items-center gap-2.5 rounded-[16px] bg-mango px-6 font-display text-[1.0625rem] font-black text-[#3a2400] [--ledge:var(--color-mango-deep)]"
               >
-                {activeSim.scope ? "Lanjutkan mini-test" : "Lanjutkan simulasi"}
+                {activeSim.scope ? "LANJUTKAN MINI-TEST" : "LANJUTKAN SIMULASI"}
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
             ) : null}
             <StartSimulationButton
               disabled={!props.configured}
-              label={activeSim ? "Mulai simulasi penuh baru" : "Mulai simulasi"}
+              label={activeSim ? "Simulasi penuh baru" : "SIMULASI PENUH · 115 MNT"}
               className={cn(
-                "h-[3.25rem] w-full rounded-control px-6 text-[1.0625rem]",
+                "h-14 rounded-[16px] px-6 text-[1.0625rem] font-black",
                 activeSim
-                  ? "bg-white/10 text-white shadow-none ring-2 ring-inset ring-white/25 hover:bg-white/20"
-                  : "bg-white text-primary-deep hover:bg-white",
+                  ? "border-2 border-[#4a4e58] bg-[#2e3138] text-canvas [--ledge:#15161a]"
+                  : "bg-mango text-[#3a2400] [--ledge:var(--color-mango-deep)]",
               )}
             />
             <StartFastButton
               disabled={!props.configured}
               label="Siapkan dulu 140 soal"
-              className="h-[3.25rem] w-full bg-white/10 px-6 text-[1.0625rem] text-white ring-2 ring-inset ring-white/25 hover:bg-white/20"
+              className="h-14 rounded-[16px] border-2 border-[#4a4e58] bg-[#2e3138] px-5 text-[1rem] text-canvas [--ledge:#15161a] hover:bg-[#3a3d46]"
             />
           </div>
           {!props.configured ? (
-            <p className="text-[0.9375rem] text-[#cfe8d8]">Pembuatan soal belum aktif. Hubungi admin.</p>
+            <p className="mt-3 text-[0.9375rem] text-[#d3ccbe]">Pembuatan soal belum aktif. Hubungi admin.</p>
           ) : (
-            <p className="max-w-[34rem] text-[0.8125rem] leading-relaxed text-[#cfe8d8]">
-              <strong className="text-white">Mulai simulasi</strong>: soal dibuat per bagian sambil kamu mengerjakan.{" "}
+            <p className="mt-3 max-w-[34rem] text-[0.8125rem] leading-relaxed text-[#d3ccbe]">
+              <strong className="text-white">Simulasi</strong>: soal dibuat per bagian sambil kamu mengerjakan.{" "}
               <strong className="text-white">Siapkan dulu</strong>: tunggu semua soal jadi, lalu kerjakan tanpa jeda.
             </p>
           )}
         </div>
-        <ExamStack size="md" labels={false} className="relative z-[1] hidden h-[320px] lg:flex" />
+
+        <div className="relative flex basis-[280px] flex-col gap-3.5">
+          <div
+            className="flex items-center gap-2"
+            aria-label={props.daysToTest !== null ? `${props.daysToTest} hari lagi menuju tes` : "Tanggal tes belum diatur"}
+          >
+            {props.daysToTest !== null && props.daysToTest >= 0 ? (
+              <>
+                {String(props.daysToTest)
+                  .padStart(2, "0")
+                  .split("")
+                  .map((digit, i) => (
+                    <span
+                      key={i}
+                      className="pop grid h-[76px] w-[62px] place-items-center rounded-[12px] bg-canvas font-display text-[3rem] font-black text-ink shadow-[0_4px_0_#8f8574]"
+                      style={{ "--i": i * 2 } as React.CSSProperties}
+                    >
+                      {digit}
+                    </span>
+                  ))}
+                <span className="ml-1.5">
+                  <strong className="block font-display text-[1.25rem]">hari lagi</strong>
+                  <span className="text-[0.875rem] text-[#d3ccbe]">{target?.testDate ? formatDate(target.testDate) : ""}</span>
+                </span>
+              </>
+            ) : (
+              <a href="#target" className="rounded-[12px] border-2 border-[#4a4e58] bg-[#2e3138] px-4 py-3 text-[0.9375rem] font-extrabold text-[#f2c878]">
+                Atur tanggal tes
+              </a>
+            )}
+          </div>
+          <div className="rounded-[18px] bg-[#2e3138] px-4 py-3.5">
+            <p className="text-[0.8125rem] font-bold text-[#d3ccbe]">Perkiraan skor</p>
+            <p className="font-display text-[2.375rem] font-black leading-none">{props.estimate ?? "–"}</p>
+            <p className="mt-1 text-[0.8125rem] text-[#d3ccbe]">
+              {props.estimate === null
+                ? "muncul setelah ±10 soal Structure & Reading"
+                : target
+                  ? target.score - props.estimate > 0
+                    ? `target ${target.score} · kurang ${target.score - props.estimate} poin`
+                    : `target ${target.score} · tercapai`
+                  : "atur target di bawah"}
+            </p>
+          </div>
+          <a href="#target" className="text-[0.875rem] font-extrabold text-[#f2c878] hover:underline">
+            Ubah target &amp; tanggal tes →
+          </a>
+        </div>
       </section>
 
       <section aria-label="Ringkasan" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

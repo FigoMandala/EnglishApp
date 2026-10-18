@@ -15,7 +15,14 @@ import { AiError } from "@/lib/ai-client";
 export type MateriState = { status: "idle" | "error"; message?: string };
 
 export type SubmitResult =
-  | { status: "idle"; correct: boolean; explanation: string | null; firstCorrect: boolean }
+  | {
+      status: "idle";
+      correct: boolean;
+      explanation: string | null;
+      firstCorrect: boolean;
+      /** Kunci jawaban pertama (null untuk soal compose yang dinilai AI). */
+      answerKey: string | null;
+    }
   | { status: "error"; message: string };
 
 /**
@@ -66,5 +73,11 @@ export async function submitExerciseAction(
     await logActivity(user.id, "grammar", exercise.type, todayISO());
     revalidatePath("/materi");
   }
-  return { status: "idle", correct, explanation, firstCorrect };
+  return {
+    status: "idle",
+    correct,
+    explanation,
+    firstCorrect,
+    answerKey: exercise.type === "compose" ? null : (keys[0] ?? null),
+  };
 }

@@ -113,8 +113,9 @@ async function fetchAi(line: Line) {
   return URL.createObjectURL(await response.blob());
 }
 
-function playUrl(url: string) {
+function playUrl(url: string, rate: number) {
   const audio = new Audio(url);
+  audio.playbackRate = rate;
   current = audio;
   return new Promise<void>((resolve, reject) => {
     audio.onended = () => resolve();
@@ -141,16 +142,21 @@ export async function speakLines(lines: Line[], prefs: VoicePrefs, onEnd?: () =>
   }
   onReady?.();
   if (id !== run) return urls.forEach((url) => URL.revokeObjectURL(url));
+  let failed = false;
   for (const url of urls) {
     if (id !== run) break;
     try {
-      await playUrl(url);
+      await playUrl(url, prefs.rate);
     } catch {
+      failed = true;
       break;
     }
   }
   urls.forEach((url) => URL.revokeObjectURL(url));
-  if (id === run) onEnd?.();
+  if (id !== run) return;
+  // Audio AI tidak bisa diputar (diblokir browser, format, dll.): jangan diam, bacakan dengan suara browser.
+  if (failed && "speechSynthesis" in window) return browserSpeak(lines, prefs, onEnd);
+  onEnd?.();
 }
 
 /** Bacakan baris-baris dialog dengan suara browser (cadangan). */

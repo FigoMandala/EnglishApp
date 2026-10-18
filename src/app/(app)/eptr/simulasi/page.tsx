@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ScoreBars3D } from "@/components/exam-3d";
+import { CountUp } from "@/components/fx/count-up";
+import { Kaka } from "@/components/mascot";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -262,6 +264,8 @@ function Result({ sim, home, previous }: { sim: SimulationView; home: string; pr
   const shown = sim.scope ? score[sim.scope] : score.total;
   const diff = previous === null ? null : shown - previous;
   const bars = SECTIONS.filter((section) => !sim.scope || section.key === sim.scope);
+  const scaleMin = sim.scope ? 31 : 310;
+  const scaleMax = sim.scope ? 68 : 677;
 
   return (
     <div className="flex flex-col gap-8">
@@ -274,32 +278,75 @@ function Result({ sim, home, previous }: { sim: SimulationView; home: string; pr
 
       <section
         aria-label="Skor"
-        className="grid gap-8 rounded-[28px] border border-hairline bg-surface p-6 sm:p-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+        className="rise relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[28px] bg-[#22242a] p-6 text-canvas shadow-[0_6px_0_#111215] sm:p-7"
       >
-        <div className="flex flex-col justify-center gap-3">
-          <span className="text-[1.0625rem] font-bold text-ink-subtle">{sim.scope ? "Skor section" : "Skor total"}</span>
-          <span className="tnum font-display text-[5.5rem] font-extrabold leading-[0.9] tracking-[-0.04em] sm:text-[7.5rem]">
-            {shown}
-          </span>
-          <span className="text-[1.0625rem] text-ink-subtle">{sim.scope ? "skala 31–68" : "skala 310–677"}</span>
-          {diff !== null && diff !== 0 ? (
-            <span
-              className={cn(
-                "flex items-center gap-2 self-start rounded-[14px] px-4 py-3 text-base font-semibold",
-                diff > 0 ? "bg-accent-soft text-accent-ink" : "bg-warning-soft text-warning-ink",
-              )}
-            >
-              <ArrowUp className={cn("size-4", diff < 0 && "rotate-180")} aria-hidden />
-              {diff > 0 ? "Naik" : "Turun"} {Math.abs(diff)} poin dari {sim.scope ? "mini-test" : "simulasi"} sebelumnya
+        <div className="relative hidden shrink-0 sm:block">
+          <Kaka mood={diff !== null && diff < 0 ? "coach" : "proud"} size={180} label="Kaka melihat hasilmu" />
+        </div>
+        <div className="relative min-w-[260px] flex-1">
+          <p className="text-[0.875rem] font-extrabold tracking-[0.08em] text-[#f2c878]">
+            {sim.scope ? `MINI-TEST ${bars[0].label.toUpperCase()}` : "SIMULASI PENUH"} · {formatDate(sim.createdAt).toUpperCase()}
+          </p>
+          <div className="flex flex-wrap items-baseline gap-4">
+            <span className="font-display text-[4.5rem] font-black leading-none tracking-[-0.04em] sm:text-[6rem]">
+              <CountUp to={shown} ms={1200} className="tabular-nums" />
             </span>
-          ) : null}
-          <p className="max-w-sm text-[0.9375rem] leading-relaxed text-ink-subtle">
+            {diff !== null && diff !== 0 ? (
+              <span
+                className={cn(
+                  "pop inline-flex items-center gap-1 rounded-[10px] px-3 py-1.5 font-display text-[1.25rem] font-black [animation-delay:900ms]",
+                  diff > 0 ? "bg-primary text-white" : "bg-brick text-white",
+                )}
+              >
+                <ArrowUp className={cn("size-4", diff < 0 && "rotate-180")} aria-hidden />
+                {diff > 0 ? "+" : "−"}
+                {Math.abs(diff)}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1.5 text-[1.0625rem] text-[#d3ccbe]">
+            {diff === null
+              ? "Ini simulasi pertamamu. Jadikan patokan, lalu kejar bagian yang paling lemah."
+              : diff > 0
+                ? `Naik ${diff} poin dari ${sim.scope ? "mini-test" : "simulasi"} sebelumnya. Pertahankan ritmenya.`
+                : diff < 0
+                  ? `Turun ${Math.abs(diff)} poin. Tenang, cek pembahasan dan ulang bagian yang meleset.`
+                  : "Sama dengan sebelumnya. Latihan per topik bisa menggesernya."}
+          </p>
+          <div className="mt-3.5 max-w-[460px]">
+            <div className="relative h-3.5 rounded-full bg-[#3a3d46]">
+              <div
+                className="grow-x h-full rounded-full bg-mango [animation-delay:400ms]"
+                style={{ width: `${Math.max(2, Math.min(100, ((shown - scaleMin) / (scaleMax - scaleMin)) * 100))}%` }}
+              />
+            </div>
+            <div className="mt-1.5 flex justify-between text-[0.8125rem] font-bold text-[#d3ccbe]">
+              <span>{scaleMin}</span>
+              <span>{scaleMax}</span>
+            </div>
+          </div>
+          <p className="mt-2 max-w-md text-[0.8125rem] leading-relaxed text-[#d3ccbe]">
             Perkiraan dengan tabel konversi mirip TOEFL ITP, bukan skor resmi.{" "}
-            {sim.scope
-              ? "Satu section saja belum cukup untuk memperkirakan skor total."
-              : "Selisih dengan tes asli bisa sekitar ±20 poin."}
+            {sim.scope ? "Satu section belum cukup untuk memperkirakan skor total." : "Selisih dengan tes asli bisa sekitar ±20 poin."}
           </p>
         </div>
+        <div className="relative flex flex-col gap-2.5">
+          <Link
+            href="/latihan/kesalahan"
+            className="ledge flex min-h-[54px] items-center justify-center rounded-[16px] bg-mango px-5 font-display text-[1rem] font-black text-[#3a2400] [--ledge:var(--color-mango-deep)]"
+          >
+            BUKA BANK KESALAHAN
+          </Link>
+          <Link
+            href="/eptr"
+            className="flex min-h-[50px] items-center justify-center rounded-[16px] border-2 border-[#4a4e58] bg-[#2e3138] px-5 font-display text-[0.9375rem] font-extrabold text-canvas"
+          >
+            Kembali ke dashboard EPrT
+          </Link>
+        </div>
+      </section>
+
+      <section aria-label="Skor per bagian" className="rounded-plate border-2 border-hairline bg-surface p-5 shadow-card sm:p-7">
         <ScoreBars3D
           bars={bars.map((section) => ({
             key: section.key,

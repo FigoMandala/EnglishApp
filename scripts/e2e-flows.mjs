@@ -86,12 +86,12 @@ async function main() {
     check("halaman belajar menampilkan peta unit", (await page.locator("ol > li").count()) > 0);
     check(
       "streak untuk user baru jujur (bukan 'Streak aktif' palsu)",
-      belajarText.includes("Mulai streak hari ini"),
+      belajarText.includes("hari streak") && !belajarText.includes("Streak aktif"),
     );
     check("target harian tampil", belajarText.includes("Target harian"));
 
-    // Buka unit yang sedang aktif (tombol pertama yang tidak terkunci).
-    const unitButton = page.locator("ol > li button:not([disabled])").first();
+    // Buka unit yang sedang aktif (tautan pertama; unit terkunci bukan tautan).
+    const unitButton = page.locator('ol > li a[href^="/belajar/"]').first();
     await unitButton.click();
     await page.waitForURL("**/belajar/**", { timeout: WAIT });
     check("klik unit aktif membuka halaman unit", true, page.url());
@@ -106,15 +106,20 @@ async function main() {
     await page.waitForURL("**/materi/**", { timeout: WAIT });
     const lessonText = (await page.textContent("body")) ?? "";
     check("halaman materi punya latihan", lessonText.includes("Latihan"));
-    const exerciseCount = await page.locator("form button[type=submit], button:has-text('Periksa')").count();
-    check("latihan soal dirender", exerciseCount > 0, `${exerciseCount} elemen jawaban`);
+    // Materi tampil per langkah; langkah terakhir berisi tombol mulai latihan (layar penuh, satu soal per layar).
+    await page.getByRole("tab", { name: /Latihan/ }).click();
+    await page.getByRole("button", { name: /MULAI LATIHAN|ULANGI LATIHAN/ }).click();
+    const checkButton = page.getByRole("button", { name: "PERIKSA" });
+    await checkButton.waitFor({ timeout: WAIT });
+    check("latihan soal dirender", (await checkButton.count()) > 0, "tombol PERIKSA tampil");
 
     // Jawab soal pilihan ganda pertama kalau ada, lalu cek umpan balik.
-    // Umpan balik materi: opsi terkunci (disabled) setelah dinilai + panel penjelasan.
+    // Umpan balik: opsi terkunci (disabled) setelah dinilai + bar hasil dengan tombol LANJUT.
     const choiceGroup = page.getByRole("radiogroup", { name: "Pilihan jawaban" });
     if ((await choiceGroup.count()) > 0) {
       await choiceGroup.getByRole("radio").first().click();
-      await page.waitForTimeout(5000); // tunggu server action menilai
+      await checkButton.click();
+      await page.getByRole("button", { name: "LANJUT" }).waitFor({ timeout: WAIT }); // tunggu server action menilai
       const locked = await choiceGroup.getByRole("radio").first().isDisabled();
       check("jawaban latihan dinilai (opsi terkunci)", locked);
     }
@@ -150,35 +155,36 @@ async function main() {
 
       // Jawab 3 kartu pertama: buka arti lalu pilih benar/salah bergantian.
       for (let i = 0; i < 3; i += 1) {
-        const reveal = page.locator("button:has-text('Lihat arti')");
+        const reveal = page.locator("button:has-text('TAMPILKAN ARTI')");
         if ((await reveal.count()) === 0) break;
         await reveal.click();
-        const know = page.locator("button:has-text('Sudah hafal')");
-        const dont = page.locator("button:has-text('Belum hafal')");
+        const know = page.getByRole("button", { name: /^Bisa/ });
+        const dont = page.getByRole("button", { name: /^Lupa/ });
         const pick = i % 2 === 0 ? know : dont;
         await pick.click();
         await page.waitForTimeout(1200); // tunggu server action selesai
         const progressText = (await page.textContent("body")) ?? "";
+        const bar = page.getByRole("progressbar", { name: "Kartu diulang" });
+        const done = (await bar.count()) > 0 ? Number(await bar.getAttribute("aria-valuenow")) : -1;
         check(
           `kartu ${i + 1} terjawab, progres bertambah`,
-          progressText.includes(`Kartu ${i + 2} dari`) || progressText.includes("Sesi selesai"),
+          done === i + 1 || progressText.includes("Sesi selesai"),
         );
       }
 
-      // Shortcut keyboard: Spasi buka arti, 2 = sudah hafal.
-      const reveal2 = page.locator("button:has-text('Lihat arti')");
+      // Shortcut keyboard: Spasi buka arti, 3 = "Bisa".
+      const reveal2 = page.locator("button:has-text('TAMPILKAN ARTI')");
       if ((await reveal2.count()) > 0) {
         await page.keyboard.press(" ");
         await page.waitForTimeout(300);
-        const meaningVisible = (await page.locator("button:has-text('Sudah hafal')").count()) > 0;
+        const meaningVisible = (await page.getByRole("button", { name: /^Bisa/ }).count()) > 0;
         check("shortcut Spasi membuka arti", meaningVisible);
-        await page.keyboard.press("2");
+        await page.keyboard.press("3");
         await page.waitForTimeout(1200);
+        const bar = page.getByRole("progressbar", { name: "Kartu diulang" });
+        const done = (await bar.count()) > 0 ? Number(await bar.getAttribute("aria-valuenow")) : -1;
         const bodyText = (await page.textContent("body")) ?? "";
-        check(
-          "shortcut '2' menjawab kartu",
-          bodyText.includes("Kartu 5 dari") || bodyText.includes("Sesi selesai") || bodyText.includes("Kartu 4 dari"),
-        );
+        check("shortcut '3' menjawab kartu", done >= 4 || bodyText.includes("Sesi selesai"));
       }
     }
 

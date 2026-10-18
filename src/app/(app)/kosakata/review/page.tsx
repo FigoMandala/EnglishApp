@@ -1,5 +1,6 @@
-import { listDueCards } from "@/db/queries/vocabulary";
+import { dueForecast, listDueCards } from "@/db/queries/vocabulary";
 import { requireUser } from "@/lib/session";
+import { todayISO } from "@/lib/srs";
 
 import { ReviewSession } from "./review-session";
 
@@ -15,10 +16,14 @@ export default async function ReviewPage({
   const requested = Number(params.n);
   const limit = Number.isInteger(requested) && requested > 0 && requested <= 60 ? requested : 20;
 
-  const cards = await listDueCards(user.id, limit);
+  const [cards, forecast] = await Promise.all([
+    listDueCards(user.id, limit),
+    dueForecast(user.id, todayISO(), 7),
+  ]);
 
   return (
     <ReviewSession
+      forecast={forecast}
       cards={cards.map((card) => ({
         id: card.id,
         word: card.word,

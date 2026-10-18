@@ -1,11 +1,7 @@
-"use client";
+import { Check, Lock, Star } from "lucide-react";
+import Link from "next/link";
 
-import { CheckCircle2, Lock, PlayCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-import { Loader2 } from "lucide-react";
-
+import { Lori } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 
 export type UnitView = {
@@ -18,92 +14,84 @@ export type UnitView = {
   items: { id: number; kind: "grammar" | "vocab"; title: string }[];
 };
 
-const LEVEL_LABEL = { basic: "Dasar", intermediate: "Menengah", advanced: "Lanjut" } as const;
+/** Pergeseran horizontal (px) tiap node: jalur berkelok seperti pada mockup. */
+const ZIGZAG = [0, 64, 96, 64, 0, -64, -96, -64];
+
+const STYLE = {
+  done: "bg-primary text-white [--ledge:#145536]",
+  current: "bg-primary text-white [--ledge:#145536]",
+  locked: "bg-hairline text-[#8f8574] [--ledge:#c9bba2]",
+} as const;
 
 export function UnitMap({ units }: { units: UnitView[] }) {
   return (
-    <ol className="mx-auto flex max-w-2xl flex-col gap-2">
-      {units.map((unit) => (
-        <UnitNode key={unit.id} unit={unit} />
-      ))}
-    </ol>
-  );
-}
-
-function UnitNode({ unit }: { unit: UnitView }) {
-  const router = useRouter();
-  const [opening, setOpening] = useState(false);
-  const locked = unit.state === "locked";
-
-  function open() {
-    if (locked || opening) return;
-    setOpening(true);
-    router.push(`/belajar/${unit.slug}`);
-  }
-
-  return (
-    <li aria-current={unit.state === "current" ? "step" : undefined}>
-      <button
-        type="button"
-        onClick={open}
-        disabled={locked}
-        className={cn(
-          "group flex w-full items-center gap-4 rounded-plate border-2 p-4 text-left transition-all",
-          unit.state === "done" && "border-hairline bg-surface shadow-card hover:border-primary",
-          unit.state === "current" &&
-            "border-primary bg-primary-soft shadow-card ring-2 ring-primary/25 hover:-translate-y-0.5",
-          locked && "cursor-not-allowed border-dashed border-hairline-strong bg-surface-muted opacity-70",
-        )}
-      >
-        <span
-          className={cn(
-            "flex size-12 shrink-0 items-center justify-center rounded-full border-2",
-            unit.state === "done" && "border-primary bg-primary text-white",
-            unit.state === "current" && "border-primary bg-white text-primary",
-            locked && "border-hairline-strong bg-canvas-deep text-ink-faint",
-          )}
-        >
-          {unit.state === "done" ? (
-            <CheckCircle2 className="size-6" aria-hidden />
-          ) : locked ? (
-            <Lock className="size-5" aria-hidden />
-          ) : opening ? (
-            <Loader2 className="size-5 animate-spin" aria-hidden />
-          ) : (
-            <PlayCircle className="size-6" aria-hidden />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate font-display text-[1.0625rem] font-extrabold text-ink">{unit.title}</span>
+    <ol className="mx-auto mt-16 flex w-full max-w-[680px] flex-col items-center gap-[22px] overflow-x-clip">
+      {units.map((unit, i) => {
+        const current = unit.state === "current";
+        const locked = unit.state === "locked";
+        const size = current ? 96 : 80;
+        const Icon = unit.state === "done" ? Check : locked ? Lock : Star;
+        const aria = `${unit.title}: ${unit.state === "done" ? "selesai" : locked ? "terkunci" : "mulai"}`;
+        const node = (
+          <Icon className={cn(current ? "size-10 fill-white" : "size-8")} strokeWidth={2.6} aria-hidden />
+        );
+        return (
+          <li
+            key={unit.id}
+            aria-current={current ? "step" : undefined}
+            className="rise relative flex flex-col items-center left-[calc(var(--dx)*0.45)] sm:left-[var(--dx)]"
+            style={{ "--dx": `${ZIGZAG[i % ZIGZAG.length]}px`, "--i": i } as React.CSSProperties}
+          >
+            <div className="relative">
+            {current ? (
+              <>
+                <span className="bob absolute left-1/2 -top-[52px] w-24 -translate-x-1/2 rounded-[12px] border-2 border-hairline bg-surface py-2 text-center font-display text-[0.9375rem] font-black tracking-[0.04em] text-primary shadow-[0_3px_0_var(--color-hairline)]">
+                  MULAI
+                </span>
+                <span aria-hidden className="ping absolute -inset-1.5 rounded-full border-[6px] border-mint" />
+              </>
+            ) : null}
+            {locked ? (
+              <span
+                role="img"
+                aria-label={aria}
+                className={cn("ledge relative grid place-items-center rounded-full", STYLE.locked)}
+                style={{ width: size, height: size }}
+              >
+                {node}
+              </span>
+            ) : (
+              <Link
+                href={`/belajar/${unit.slug}`}
+                aria-label={aria}
+                className={cn("ledge relative grid place-items-center rounded-full", STYLE[unit.state])}
+                style={{ width: size, height: size }}
+              >
+                {node}
+              </Link>
+            )}
+            </div>
+            {current ? (
+              <div className="absolute left-[118px] -top-[46px] hidden w-[330px] items-end gap-1 lg:flex">
+                <Lori mood="wave" size={130} label="Lori duduk di samping pelajaran berikutnya, melambai" />
+                <div className="pop mb-16 rounded-[16px_16px_16px_4px] border-2 border-hairline bg-surface px-3.5 py-3 text-[0.875rem] leading-[1.4] shadow-[0_3px_0_var(--color-hairline)] [animation-delay:600ms]">
+                  <strong className="block text-[0.9375rem]">{unit.title}</strong>
+                  {unit.description ?? "Yuk, mulai unit ini!"}
+                </div>
+              </div>
+            ) : null}
             <span
               className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-bold uppercase tracking-wide",
-                unit.level === "basic" && "bg-primary-soft text-primary-deep",
-                unit.level === "intermediate" && "bg-data-soft text-data",
-                unit.level === "advanced" && "bg-warning-soft text-warning-ink",
+                "mt-2 w-[150px] text-center text-[0.875rem] font-bold leading-tight sm:absolute sm:left-full sm:top-1/2 sm:ml-4 sm:mt-0 sm:w-44 sm:-translate-y-1/2 sm:text-left",
+                current && "lg:hidden",
+                locked ? "text-ink-faint" : "text-ink-muted",
               )}
             >
-              {LEVEL_LABEL[unit.level]}
+              {unit.title}
             </span>
-          </span>
-          <span className="mt-0.5 block truncate text-[0.875rem] text-ink-subtle">{unit.description}</span>
-          <span className="mt-1 flex flex-wrap gap-1.5">
-            {unit.items.map((item) => (
-              <span
-                key={item.id}
-                className={cn(
-                  "rounded-[8px] px-2 py-0.5 text-[0.6875rem] font-semibold",
-                  item.kind === "grammar" ? "bg-surface-muted text-ink-subtle" : "bg-data-soft text-data",
-                )}
-              >
-                {item.kind === "vocab" ? "Kosakata" : "Materi"}
-              </span>
-            ))}
-          </span>
-        </span>
-        {locked ? <span className="shrink-0 text-[0.8125rem] font-semibold text-ink-faint">Terkunci</span> : null}
-      </button>
-    </li>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

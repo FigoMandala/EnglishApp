@@ -5,6 +5,7 @@ import { chatCompletionStream, AiError } from "@/lib/ai-client";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { guardUserInput } from "@/lib/moderation";
 import { getCurrentUser } from "@/lib/session";
+import { getScenario, scenarioSystemPrompt, type CorrectionMode } from "@/lib/tutor-scenarios";
 
 export const maxDuration = 60;
 
@@ -26,9 +27,20 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
-  const body = (await request.json().catch(() => null)) as { message?: unknown; context?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    message?: unknown;
+    context?: unknown;
+    scenario?: unknown;
+    correction?: unknown;
+    history?: unknown;
+  } | null;
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 2_000) : "";
   const context = typeof body?.context === "string" ? body.context.trim().slice(0, 4_000) : "";
+  const scenario = body?.scenario === undefined ? null : getScenario(body.scenario);
+  if (body?.scenario !== undefined && !scenario) {
+    return Response.json({ message: "Skenario tidak dikenal." }, { status: 400 });
+  }
+  const correction: CorrectionMode = body?.correction === "end" ? "end" : "live";
   if (!message) {
     return Response.json({ message: "Pesan masih kosong." }, { status: 400 });
   }
@@ -50,12 +62,29 @@ export async function POST(request: Request) {
     return Response.json({ message: "Kuota AI harian habis. Coba lagi besok." }, { status: 429 });
   }
 
-  await createChatMessage(user.id, "user", message);
-  const history = await listChatMessages(user.id, 20);
-  const messages = [
-    { role: "system" as const, content: context ? `${SYSTEM} ${QUESTION_RULES}\n\n[SOAL]\n${context}` : SYSTEM },
-    ...history.map((row) => ({ role: row.role as "user" | "assistant", content: row.content })),
-  ];
+  // Role-play skenario tidak disimpan ke riwayat chat biasa: riwayatnya dikirim klien (dibatasi).
+  let messages: { role: "system" | "user" | "assistant"; content: string }[];
+  if (scenario) {
+    const sent = Array.isArray(body?.history) ? body.history.slice(-12) : [];
+    const past = sent
+      .filter((entry): entry is { role: "user" | "assistant"; content: string } => {
+        const e = entry as { role?: unknown; content?: unknown };
+        return (e.role === "user" || e.role === "assistant") && typeof e.content === "string";
+      })
+      .map((entry) => ({ role: entry.role, content: entry.content.slice(0, 2_000) }));
+    messages = [
+      { role: "system", content: scenarioSystemPrompt(scenario, correction) },
+      ...past,
+      { role: "user", content: message },
+    ];
+  } else {
+    await createChatMessage(user.id, "user", message);
+    const history = await listChatMessages(user.id, 20);
+    messages = [
+      { role: "system", content: context ? `${SYSTEM} ${QUESTION_RULES}\n\n[SOAL]\n${context}` : SYSTEM },
+      ...history.map((row) => ({ role: row.role as "user" | "assistant", content: row.content })),
+    ];
+  }
 
   const encoder = new TextEncoder();
   const startedAt = Date.now();
@@ -71,7 +100,7 @@ export async function POST(request: Request) {
           full += delta;
           send("delta", { text: delta });
         });
-        await createChatMessage(user.id, "assistant", result.content || full);
+        if (!scenario) await createChatMessage(user.id, "assistant", result.content || full);
         await logAiUsage({
           userId: user.id,
           feature: "tutor",

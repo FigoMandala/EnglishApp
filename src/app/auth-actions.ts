@@ -9,6 +9,7 @@ import {
   findUserByUsername,
   purgeExpiredSessions,
 } from "@/db/queries/auth";
+import { applyOnboarding } from "@/db/queries/onboarding";
 import type { User } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -67,6 +68,10 @@ export async function register(_prev: AuthState, formData: FormData): Promise<Au
   }
 
   await logAudit({ actorId: user.id, action: "register", detail: username });
+  // Hasil onboarding (opsional) dari /mulai: nama panggilan, tujuan, level, target harian.
+  await applyOnboarding(user.id, formData.get("onboarding"), formData.get("displayName")).catch((error) => {
+    console.error("[onboarding] gagal menyimpan hasil, akun tetap dibuat", error);
+  });
   const sessionId = await createSession(user.id);
   await setSessionCookie(sessionId, SESSION_MAX_AGE);
   redirect(homePath());

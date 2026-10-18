@@ -485,6 +485,14 @@ export function ToeflRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline, finished]);
 
+  // Timer section jalan di server; peringatkan sebelum tab ditutup selagi waktu masih berjalan.
+  useEffect(() => {
+    if (deadline === null || finished) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [deadline, finished]);
+
   const lowTime = left !== null && left <= LOW_TIME_MS;
   const timerVisible = !hideTimer || lowTime;
   const answeredCount = answers.filter((answer) => answer !== null).length;

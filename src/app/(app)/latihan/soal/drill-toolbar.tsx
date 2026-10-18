@@ -20,7 +20,7 @@ export function DrillToolbar({ level }: { level: string }) {
 
   function newSet() {
     const query = level === "all" ? `n=${Date.now()}` : `t=${level}&n=${Date.now()}`;
-    startTransition(() => router.push(`/latihan?${query}`));
+    startTransition(() => router.push(`/latihan/soal?${query}`));
   }
 
   return (
@@ -28,7 +28,7 @@ export function DrillToolbar({ level }: { level: string }) {
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tingkat kesulitan">
         {OPTIONS.map((option) => {
           const active = option.key === level;
-          const href = option.key === "all" ? "/latihan" : `/latihan?t=${option.key}`;
+          const href = option.key === "all" ? "/latihan/soal" : `/latihan/soal?t=${option.key}`;
           return (
             <Link
               key={option.key}

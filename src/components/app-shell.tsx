@@ -3,6 +3,7 @@
 import {
   BookOpen,
   Dumbbell,
+  Flame,
   GraduationCap,
   Layers,
   LogOut,
@@ -11,12 +12,14 @@ import {
   PenLine,
   ShieldCheck,
   SpellCheck,
+  Trophy,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { SoundToggle } from "@/components/fx/sound-toggle";
 import { cn } from "@/lib/utils";
 
 export type NavLink = { href: string; label: string; icon: typeof GraduationCap; short?: string };
@@ -36,8 +39,12 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "Tes",
-    items: [{ href: "/eptr", label: "EPrT", short: "EPrT", icon: GraduationCap }],
+    title: "Tes & motivasi",
+    items: [
+      { href: "/eptr", label: "EPrT", short: "EPrT", icon: GraduationCap },
+      { href: "/liga", label: "Liga mingguan", short: "Liga", icon: Trophy },
+      { href: "/streak", label: "Streak", short: "Streak", icon: Flame },
+    ],
   },
 ];
 
@@ -54,6 +61,9 @@ function isFocusMode(pathname: string, params: URLSearchParams) {
   if (pathname === "/kosakata" && params.has("review")) return true;
   return false;
 }
+
+/** Mode latihan layar penuh (tanpa sidebar), seperti mockup: header progres + footer aksi. */
+const BARE_ROUTES = ["/latihan/dengar", "/latihan/ucapkan", "/latihan/pasangan"];
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -110,7 +120,7 @@ export function AppShell({
     groups.map((group, index) => (
       <div key={group.title ?? index} className={cn(index > 0 && "mt-5")}>
         {group.title ? (
-          <p className="px-3 pb-1.5 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-ink-faint">
+          <p className="px-3 pb-1.5 text-[0.75rem] font-extrabold uppercase tracking-[0.08em] text-ink-faint">
             {group.title}
           </p>
         ) : null}
@@ -123,15 +133,12 @@ export function AppShell({
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-[0.9375rem] font-semibold transition-colors",
+                  "group relative flex min-h-12 items-center gap-3.5 rounded-control border-2 px-3 py-2 text-[1rem] transition-colors",
                   active
-                    ? "bg-primary-soft font-bold text-primary-deep"
-                    : "text-ink-subtle hover:bg-surface-muted hover:text-ink",
+                    ? "border-[#9FD0B3] bg-[#EAF5EE] font-extrabold text-primary-deep"
+                    : "border-transparent font-bold text-ink-muted hover:bg-[#EFE8DA]",
                 )}
               >
-                {active ? (
-                  <span aria-hidden className="absolute inset-y-2 left-0 w-1 rounded-full bg-primary" />
-                ) : null}
                 <link.icon
                   className={cn("size-[1.125rem] shrink-0", active ? "text-primary" : "text-ink-faint group-hover:text-ink-subtle")}
                   aria-hidden
@@ -156,16 +163,23 @@ export function AppShell({
         </Link>
       ) : null}
       <div className="flex items-center gap-2.5 rounded-control px-2 py-1.5">
-        <span
-          aria-hidden
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-deep text-[0.8125rem] font-extrabold text-white"
+        <Link
+          href="/progres"
+          aria-label="Profil dan progres"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-control hover:bg-surface"
         >
-          {initials}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[0.875rem] font-bold text-ink">@{username}</span>
-          <span className="block text-[0.75rem] font-semibold text-ink-faint">{isAdmin ? "Admin" : "Murid"}</span>
-        </span>
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-mango font-display text-[0.8125rem] font-black text-[#3a2400]"
+          >
+            {initials}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.875rem] font-bold text-ink">@{username}</span>
+            <span className="block text-[0.75rem] font-semibold text-ink-faint">{isAdmin ? "Admin" : "Murid"}</span>
+          </span>
+        </Link>
+        <SoundToggle />
         <form action={logoutAction}>
           <button
             type="submit"
@@ -182,12 +196,13 @@ export function AppShell({
 
   const brand = (
     <Link href="/belajar" className="flex items-center gap-2.5 font-display text-lg font-extrabold text-ink">
-      <span className="flex size-9 items-center justify-center rounded-[12px] bg-primary-deep font-extrabold text-white shadow-card">
-        E
-      </span>
       EnglishApp
     </Link>
   );
+
+  if (BARE_ROUTES.some((route) => pathname === route)) {
+    return <div className="min-h-screen bg-canvas">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen lg:flex">
@@ -199,7 +214,7 @@ export function AppShell({
       </a>
 
       {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r-2 border-hairline bg-surface lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r-2 border-hairline bg-surface-muted lg:flex">
         <div className="flex h-16 items-center border-b-2 border-hairline px-4">{brand}</div>
         <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navigasi utama">
           {navList()}
@@ -273,7 +288,7 @@ export function AppShell({
           aria-label="Navigasi cepat"
           className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-hairline bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
         >
-          <div className="mx-auto grid max-w-lg grid-cols-2">
+          <div className="mx-auto grid max-w-lg grid-cols-4">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href);
               return (

@@ -69,6 +69,11 @@ export default async function EptrPage({
               scope: active.scope,
               totalParts: active.parts.length,
               nextTitle: active.parts.find((part) => part.status !== "done")?.title ?? null,
+              // Timer section jalan di server sejak dibuka, tetap berjalan walau browser ditutup.
+              msLeft: (() => {
+                const section = active.parts.find((part) => part.status !== "done")?.section;
+                return section ? active.remaining[section] : null;
+              })(),
               doneQuestions: active.parts.reduce(
                 (sum, part) => sum + (part.status === "done" ? part.count : part.answered),
                 0,

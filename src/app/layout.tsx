@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import {
-  Atkinson_Hyperlegible_Next,
   Baloo_2,
+  Figtree,
   Gabarito,
   JetBrains_Mono,
 } from "next/font/google";
 
 import "./globals.css";
 
-// Atkinson Hyperlegible dirancang untuk keterbacaan (low vision, disleksia).
-const body = Atkinson_Hyperlegible_Next({
+// Figtree: teks isi pada mockup desktop redesign.
+const body = Figtree({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",

@@ -151,7 +151,8 @@ export function StartFastButton({
             />
           </div>
           <p className="tnum text-[0.8125rem] opacity-80">
-            {progress.done} dari {progress.total} paket soal siap. Jangan tutup halaman ini.
+            {progress.done} dari {progress.total} paket soal siap (bagian {progress.part} dari {SIM_PARTS.length}).
+            Jangan tutup halaman ini.
           </p>
         </div>
       ) : null}

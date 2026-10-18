@@ -82,6 +82,18 @@ describe("nextReviewFsrs", () => {
     assert.equal(state.easeFactor, 130);
   });
 
+  it("grade hard/easy menggeser interval dan ease", () => {
+    const base = { box: 2, easeFactor: 250, intervalDays: 4, lapses: 0, correct: true, today: "2026-09-24" };
+    const hard = nextReviewFsrs({ ...base, grade: "hard" });
+    const good = nextReviewFsrs(base);
+    const easy = nextReviewFsrs({ ...base, grade: "easy" });
+    assert.equal(hard.intervalDays, 5); // 4 * 1.2
+    assert.equal(good.intervalDays, 10);
+    assert.equal(easy.intervalDays, 13); // 10 * 1.3
+    assert.equal(hard.easeFactor, 235);
+    assert.equal(easy.easeFactor, 265);
+  });
+
   it("deteksi leech", () => {
     assert.equal(isLeech(4, 2), true);
     assert.equal(isLeech(3, 2), false);
