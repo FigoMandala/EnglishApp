@@ -109,6 +109,17 @@ export function correctCount(questions: ToeflQuestion[], answers: (number | null
   return questions.filter((question, index) => answers[index] === question.answer).length;
 }
 
+/**
+ * Jawaban benar yang jelas paling panjang gampang ditebak tanpa membaca soal.
+ * True kalau opsi benar terpanjang dan lebih dari 1,15x opsi terpanjang lainnya (selisih min. 5 karakter).
+ */
+export function longestAnswerGiveaway(options: string[], answer: number) {
+  const others = options.filter((_, index) => index !== answer).map((option) => option.length);
+  const longestOther = Math.max(...others);
+  const correct = options[answer]?.length ?? 0;
+  return correct - longestOther >= 5 && correct > longestOther * 1.15;
+}
+
 export function isComplete(answers: (number | null)[]) {
   return answers.length > 0 && answers.every((answer) => answer !== null && answer >= 0);
 }

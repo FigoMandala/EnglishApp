@@ -62,6 +62,7 @@ import {
   focusSkills,
   isComplete,
   isSkill,
+  longestAnswerGiveaway,
   parseAnswers,
   parseQuestions,
   renumber,
@@ -128,10 +129,14 @@ function skillList(section: ToeflSection) {
     .join("; ");
 }
 
+const OPTION_RULES =
+  "Aturan opsi supaya jawaban tidak mudah ditebak: keempat opsi HARUS mirip panjang dan struktur kalimatnya (selisih panjang paling banyak sekitar 20%); jawaban benar JANGAN yang paling panjang, paling rinci, atau paling lengkap, dan sering buat distraktor yang sama panjang atau lebih panjang dari jawaban benar. Distraktor harus masuk akal: memakai kata atau fakta dari teks/percakapan tetapi salah makna, salah detail, terlalu umum, atau berlawanan. Jangan buat distraktor yang absurd, tidak nyambung topik, atau memakai kata ekstrem (always, never, only, all) hanya di distraktor. Jangan biarkan jawaban benar satu-satunya yang mengulang kata di pertanyaan.";
+
 const BASE_SYSTEM = [
   "Kamu pembuat soal TOEFL ITP (paper-based, gaya ETS).",
   "Ikuti skenario/topik yang diminta di pesan pengguna supaya soal selalu bervariasi.",
   "Urutan opsi akan diacak, jadi jangan pakai opsi yang merujuk opsi lain (All of the above, Both A and B) dan jangan sebut huruf opsi di penjelasan; sebut isi opsinya.",
+  OPTION_RULES,
   "Penjelasan jawaban SELALU dalam Bahasa Indonesia, ringkas dan jelas. Jangan pakai karakter em dash.",
   'Jangan tulis nomor soal di "q" (misalnya "Number 6." atau "3."); penomoran diatur aplikasi.',
   "Balas HANYA dengan objek JSON valid tanpa pagar kode dan tanpa teks lain.",
@@ -191,6 +196,7 @@ const EPRT_BASE = [
   "Posisi jawaban benar harus acak di antara A-D.",
   "Contoh yang diberikan hanya acuan gaya: JANGAN memakai nama, kalimat, atau topik dari contoh. Ikuti skenario/topik yang diminta di pesan pengguna.",
   "Urutan opsi akan diacak, jadi jangan pakai opsi yang merujuk opsi lain (All of the above, Both A and B) dan jangan sebut huruf opsi di penjelasan; sebut isi opsinya.",
+  OPTION_RULES,
   "Penjelasan jawaban SELALU dalam Bahasa Indonesia, ringkas dan jelas. Jangan pakai karakter em dash.",
   'Jangan tulis nomor soal di "q" (misalnya "Number 6." atau "3."); penomoran diatur aplikasi.',
   "Balas HANYA dengan objek JSON valid tanpa pagar kode dan tanpa teks lain.",
@@ -305,6 +311,8 @@ function sanitizeQuestions(value: unknown, type: QuestionType, grouped = false):
     if (!q || options.length < 4 || options.some((option) => !option)) return [];
     if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) return [];
     if (type === "listening" && !lines) return [];
+    // Written Expression berisi potongan kalimat, jadi panjangnya tidak bisa diseragamkan.
+    if (type !== "written" && longestAnswerGiveaway(options, answer)) return [];
     // Written Expression options must stay in sentence order; everything else is
     // shuffled so the correct answer is not always where the model put it.
     const order = type === "written" ? [0, 1, 2, 3] : shuffle([0, 1, 2, 3]);

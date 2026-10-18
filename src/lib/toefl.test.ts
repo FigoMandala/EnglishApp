@@ -9,6 +9,7 @@ import {
   stripQuestionNumber,
   isComplete,
   isSkill,
+  longestAnswerGiveaway,
   parseAnswers,
   parseQuestions,
   renumber,
@@ -276,5 +277,13 @@ describe("stripQuestionNumber", () => {
   it("tidak mengubah kalimat yang memang diawali angka", () => {
     assert.equal(stripQuestionNumber("1,000 people ___ the city."), "1,000 people ___ the city.");
     assert.equal(stripQuestionNumber("1990 was the year ___."), "1990 was the year ___.");
+  });
+});
+
+describe("longestAnswerGiveaway", () => {
+  it("menandai jawaban benar yang jauh lebih panjang, bukan yang sebanding", () => {
+    assert.equal(longestAnswerGiveaway(["To ask about his lab partner for the class.", "To pay", "To leave", "To book"], 0), true);
+    assert.equal(longestAnswerGiveaway(["To ask about a lab", "To pay a fee late", "To leave a note", "To book a room"], 0), false);
+    assert.equal(longestAnswerGiveaway(["Yes", "No", "Maybe", "Never"], 3), false);
   });
 });
