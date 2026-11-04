@@ -6,6 +6,7 @@ import { db } from "./index";
 import { BEGINNER_EXERCISES, BEGINNER_LESSONS } from "./seed-beginner";
 import { MAIN_EXERCISES } from "./seed-exercises";
 import { ADVANCED_LESSONS } from "./seed-grammar-advanced";
+import { EXTRA_LESSONS } from "./seed-grammar-extra";
 import { LEARNING_PATH } from "./seed-path";
 import type { ExerciseSeed, LessonSeed } from "./seed-types";
 import { EXTRA_EXERCISES, TENSE_LESSONS } from "./seed-tenses";
@@ -324,7 +325,7 @@ async function seedMainExercises() {
 /** Materi & soal baru (tenses & gramatika lanjutan). Aman diulang: membuat lesson
  *  yang belum ada, lalu menyisipkan soal yang prompt-nya belum terdaftar. */
 async function seedExpansion() {
-  const groups: LessonSeed[] = [...TENSE_LESSONS, ...ADVANCED_LESSONS];
+  const groups: LessonSeed[] = [...TENSE_LESSONS, ...ADVANCED_LESSONS, ...EXTRA_LESSONS];
   let lessonsAdded = 0;
   let exercisesAdded = 0;
 

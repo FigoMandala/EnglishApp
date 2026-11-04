@@ -14,6 +14,7 @@ import {
 } from "@/components/drill/parts";
 import { DrillSummary } from "@/components/drill/summary";
 import { Lori } from "@/components/mascot";
+import { SpeechBubble } from "@/components/ui/bubble";
 import { sfx } from "@/lib/sfx";
 import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
 import { cn } from "@/lib/utils";
@@ -68,7 +69,19 @@ function grade(sentence: string, heard: string) {
 
 type Phase = "idle" | "recording" | "result";
 
-export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
+export function SpeakingDrill({
+  items,
+  context,
+  topicId,
+  onRestart,
+}: {
+  items: SpeakingItem[];
+  /** Judul topik bank prompt, ditampilkan di atas instruksi. */
+  context?: string;
+  /** Id topik katalog; kalau ada, skor terbaik topik ini ikut disimpan. */
+  topicId?: string;
+  onRestart?: () => void;
+}) {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
   const [heard, setHeard] = useState("");
@@ -146,7 +159,7 @@ export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
     if (!saved.current) {
       saved.current = true;
       const avg = Math.round(all.reduce((a, b) => a + b, 0) / all.length);
-      const res = await finishDrillAction("speaking", avg, 100);
+      const res = await finishDrillAction("speaking", avg, 100, topicId);
       if (res.xp) setXp(res.xp);
     }
   }
@@ -176,12 +189,11 @@ export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
       <DrillSummary
         title="Suaramu makin jelas!"
         subtitle={`Rata-rata skor pelafalan ${avg}.`}
-        onAgain={() => window.location.reload()}
+        onAgain={onRestart ?? (() => window.location.reload())}
         stats={[
           { label: "SKOR", value: avg, bg: "bg-sky", ink: "text-sky-deep" },
-          { label: "KALIMAT", value: items.length, bg: "bg-primary", ink: "text-primary-deep" },
-          { label: "TERBAIK", value: Math.max(...scores, 0), bg: "bg-[#8c5bb5]", ink: "text-[#5d2e86]" },
-          { label: "TOTAL XP", value: xp, bg: "bg-mango", ink: "text-[#a86a12]" },
+          { label: "TERBAIK", value: Math.max(...scores, 0), bg: "bg-primary", ink: "text-primary-deep" },
+          { label: "TOTAL XP", value: xp, bg: "bg-mango", ink: "text-mango-ink" },
         ]}
       />
     );
@@ -191,9 +203,10 @@ export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
     ? result.score >= 80
       ? { text: "Jelas dimengerti!", mood: "cheer" as const }
       : result.score >= 50
-        ? { text: "Hampir, ulangi bagian yang merah.", mood: "idle" as const }
-        : { text: "Belum terbaca. Coba lebih pelan.", mood: "sad" as const }
+        ? { text: "Hampir, ulangi bagian yang merah.", mood: "talk" as const }
+        : { text: "Belum terbaca. Coba lebih pelan.", mood: "think" as const }
     : null;
+  const words = result?.words ?? item.sentence.split(/\s+/).map((raw) => ({ raw, ok: null as boolean | null }));
 
   return (
     <DrillPage>
@@ -201,114 +214,132 @@ export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
         exitHref="/latihan"
         value={index + (phase === "result" ? 1 : 0)}
         max={items.length}
-        barClass="bg-sky shadow-[inset_0_-5px_0_var(--color-sky-deep)]"
+        xp={xp || undefined}
       />
-      <DrillMain className="flex flex-col items-center gap-6">
-        <h1 className="rise font-display text-[2rem] font-black tracking-[-0.02em]">Ucapkan kalimat ini</h1>
+      <DrillMain className="flex flex-col items-center gap-7">
+        {context ? (
+          <p className="rise -mb-3 text-center text-[0.75rem] font-extrabold uppercase tracking-[0.08em] text-ink-subtle">
+            {context}
+          </p>
+        ) : null}
+        <h1 className="rise text-center font-display text-[1.75rem] font-black tracking-[-0.02em]">Ucapkan kalimat ini</h1>
 
-        <div
-          aria-live="polite"
-          className="rise flex flex-wrap justify-center gap-x-3.5 gap-y-2.5 rounded-[24px] border-2 border-hairline bg-surface px-7 py-[22px] shadow-[0_5px_0_var(--color-hairline)] [--i:1]"
-        >
-          {(result?.words ?? item.sentence.split(/\s+/).map((raw) => ({ raw, ok: null as boolean | null }))).map((w, i) => (
-            <span
-              key={i}
-              className={cn(
-                "rounded-[12px] border-b-4 px-2.5 py-1.5 font-display text-[1.75rem] font-black sm:text-[2.125rem]",
-                w.ok === null && "border-transparent",
-                w.ok === true && "pop border-primary bg-primary-soft text-primary-deep",
-                w.ok === false && "pop border-brick bg-brick-soft text-brick-deep",
-              )}
-              style={{ animationDelay: `${i * 0.06}s` }}
+        <div className="rise flex w-full flex-col gap-4 rounded-hero border-2 border-hairline bg-surface px-6 py-6 shadow-card [--i:1] sm:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={playModel}
+              aria-label="Dengarkan contoh"
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[12px] bg-sky text-white shadow-[0_3px_0_var(--color-sky-deep)] transition-transform active:translate-y-[3px] active:shadow-none"
             >
-              {w.raw}
-            </span>
-          ))}
-        </div>
-        {item.translation ? <p className="-mt-3 text-[1.0625rem] text-ink-subtle">{item.translation}</p> : null}
-
-        <div className="flex w-full flex-wrap items-stretch justify-center gap-7">
-          <section aria-label="Lori" className="flex max-w-[420px] flex-1 basis-[340px] flex-col items-center gap-2">
-            <div className="pop rounded-[18px] border-2 border-hairline bg-surface px-[18px] py-3.5 text-[1rem] font-semibold leading-snug shadow-[0_3px_0_var(--color-hairline)]">
-              {verdict
-                ? verdict.text
-                : phase === "recording"
-                  ? "Aku dengerin… ucapkan sekarang."
-                  : `Tekan mic lalu ucapkan. Fokus kata “${item.focus}”${item.phonetic ? ` ${item.phonetic}` : ""}.`}
+              <Volume2 className="size-5" aria-hidden />
+            </button>
+            <span className="text-[0.875rem] font-bold text-ink-subtle">Dengar contoh dulu kalau ragu</span>
+          </div>
+          <p aria-live="polite" className="flex flex-wrap gap-x-2.5 gap-y-2 text-[1.625rem] font-semibold leading-[1.6] sm:text-[1.75rem]">
+            {words.map((w, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "transition-colors duration-200",
+                  w.ok === true && "border-b-4 border-primary text-primary-deep",
+                  w.ok === false && "rounded-[8px] border-b-4 border-dotted border-brick bg-brick-soft px-1.5 text-brick-deep",
+                )}
+              >
+                {w.raw}
+              </span>
+            ))}
+          </p>
+          {item.translation ? <p className="text-[0.9375rem] text-ink-subtle">{item.translation}</p> : null}
+          {result ? (
+            <div className="flex flex-wrap gap-4 text-[0.8125rem] font-extrabold">
+              <span className="inline-flex items-center gap-1.5 text-primary-deep">
+                <span aria-hidden className="h-1 w-[18px] rounded-sm bg-primary" />
+                terdengar jelas
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-brick-deep">
+                <span aria-hidden className="w-[18px] border-b-4 border-dotted border-brick" />
+                belum terdengar
+              </span>
             </div>
-            <Lori mood={verdict?.mood ?? (phase === "recording" ? "talk" : "wave")} size={190} label="Lori mendengarkan" />
-          </section>
-
-          <section
-            aria-label="Rekam"
-            className="flex max-w-[480px] flex-1 basis-[380px] flex-col items-center justify-center gap-4 rounded-[28px] border-2 border-hairline bg-surface p-6 shadow-[0_5px_0_var(--color-hairline)]"
-          >
-            {phase !== "result" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={toggle}
-                  disabled={!supported}
-                  aria-label={phase === "recording" ? "Berhenti merekam" : "Mulai merekam"}
-                  className={cn(
-                    "ledge relative grid size-[120px] cursor-pointer place-items-center rounded-full text-white disabled:cursor-not-allowed disabled:opacity-50",
-                    phase === "recording" ? "bg-brick [--ledge:var(--color-brick-deep)]" : "bg-sky [--ledge:var(--color-sky-deep)]",
-                  )}
-                >
-                  {phase === "recording" ? <Square className="size-10 fill-current" aria-hidden /> : <Mic className="size-12" aria-hidden />}
-                  {phase === "recording" ? <span aria-hidden className="ping absolute inset-0 rounded-full border-[5px] border-[#efb4a2]" /> : null}
-                </button>
-                <div aria-hidden className="flex h-10 w-[260px] items-center gap-1">
-                  {Array.from({ length: 28 }, (_, i) => (
-                    <span
-                      key={i}
-                      className={cn("h-full flex-1 rounded-[3px]", phase === "recording" ? "wave-bar bg-brick" : "scale-y-[0.2] bg-hairline-strong")}
-                      style={{ animationDelay: `${(i % 7) * 0.12}s` }}
-                    />
-                  ))}
-                </div>
-                <p className="text-center text-[1rem] font-extrabold text-ink-subtle">
-                  {!supported
-                    ? "Browser ini belum mendukung pengenalan suara (Brave memblokirnya). Coba Chrome atau Edge, atau lewati."
-                    : phase === "recording"
-                      ? "Merekam… tekan lagi untuk selesai"
-                      : "Tekan mic, lalu ucapkan seluruh kalimat"}
-                </p>
-                {error ? <p role="alert" className="rounded-[12px] bg-brick-soft px-3 py-2 text-[0.875rem] font-semibold text-brick-deep">{error}</p> : null}
-              </>
-            ) : result ? (
-              <div className="pop flex w-full flex-col items-center gap-3">
-                <p className="font-display text-[3.5rem] font-black leading-none text-sky-deep">{result.score}</p>
-                <p className="font-display text-[1.375rem] font-black">{verdict?.text}</p>
-                <p className="w-full rounded-[12px] bg-canvas px-3.5 py-2.5 text-[0.9375rem] text-ink-muted">
-                  <strong className="text-ink">Terdengar:</strong> {heard}
-                </p>
-                {result.words.some((w) => !w.ok) ? (
-                  <ul className="flex w-full flex-col gap-2">
-                    {result.words.filter((w) => !w.ok).slice(0, 4).map((w, i) => (
-                      <li key={i} className="flex items-center gap-2.5 rounded-[12px] bg-brick-soft px-3 py-2.5 text-[0.9375rem]">
-                        <span className="font-display font-black text-brick-deep">{w.raw}</span>
-                        <span className="text-ink-subtle">belum terdengar</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
+          ) : (
+            <p className="text-[0.875rem] text-ink-subtle">
+              Fokus kata <strong className="text-ink">“{item.focus}”</strong>
+              {item.phonetic ? ` ${item.phonetic}` : ""}.
+            </p>
+          )}
         </div>
+
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={!supported}
+            aria-pressed={phase === "recording"}
+            aria-label={phase === "recording" ? "Berhenti merekam" : "Mulai merekam"}
+            className={cn(
+              "relative grid size-[104px] cursor-pointer place-items-center rounded-full text-white transition-transform active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-50",
+              phase === "recording"
+                ? "bg-brick shadow-[0_0_0_10px_var(--color-brick-soft),0_6px_0_10px_var(--color-brick-line)]"
+                : "bg-sky shadow-[0_0_0_10px_var(--color-sky-soft),0_6px_0_10px_var(--color-sky-line)]",
+            )}
+          >
+            {phase === "recording" ? <Square className="size-9 fill-current" aria-hidden /> : <Mic className="size-11" strokeWidth={2.2} aria-hidden />}
+            {phase === "recording" ? <span aria-hidden className="ping absolute inset-0 rounded-full border-[5px] border-brick-line" /> : null}
+          </button>
+          {phase === "recording" ? (
+            <div aria-hidden className="mt-3 flex h-8 w-[220px] items-center gap-1">
+              {Array.from({ length: 24 }, (_, i) => (
+                <span key={i} className="wave-bar h-full flex-1 rounded-[3px] bg-brick" style={{ animationDelay: `${(i % 7) * 0.12}s` }} />
+              ))}
+            </div>
+          ) : null}
+          <p role="status" className={cn("mt-3 text-center text-[0.9375rem] font-extrabold", phase === "recording" ? "text-brick-deep" : "text-ink-muted")}>
+            {!supported
+              ? "Browser ini belum mendukung pengenalan suara (Brave memblokirnya). Coba Chrome atau Edge, atau lewati."
+              : phase === "recording"
+                ? "Merekam… tekan lagi untuk selesai"
+                : "Tekan mic, lalu ucapkan seluruh kalimat"}
+          </p>
+          {error ? (
+            <p role="alert" className="rounded-[12px] bg-brick-soft px-3 py-2 text-[0.875rem] font-bold text-brick-deep">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        {phase === "result" && result ? (
+          <div className="flex w-full items-end gap-2">
+            <Lori mood={verdict?.mood ?? "talk"} size={88} label="Lori mendengarkan" className="shrink-0" />
+            <SpeechBubble className="pop mb-7 flex-1">
+              <strong className="block text-primary-deep">
+                {verdict?.text} · skor {result.score}
+              </strong>
+              <span className="text-ink-muted">Terdengar: “{heard}”.</span>
+              {result.words.some((w) => !w.ok) ? (
+                <span className="mt-1 block text-ink-muted">
+                  Ulangi bagian:{" "}
+                  {result.words
+                    .filter((w) => !w.ok)
+                    .slice(0, 4)
+                    .map((w) => w.raw)
+                    .join(", ")}
+                </span>
+              ) : null}
+            </SpeechBubble>
+          </div>
+        ) : null}
       </DrillMain>
 
       <DrillFooter>
+        <button
+          type="button"
+          onClick={next}
+          className="h-[54px] cursor-pointer rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display font-extrabold text-ink-muted shadow-[0_4px_0_var(--color-hairline)] transition-transform active:translate-y-1 active:shadow-none"
+        >
+          LEWATI (MIK MATI)
+        </button>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={playModel}
-            className="ledge flex min-h-14 cursor-pointer items-center gap-2.5 rounded-[16px] bg-sky px-5 font-display text-[1rem] font-extrabold text-white [--ledge:var(--color-sky-deep)]"
-          >
-            <Volume2 className="size-5" aria-hidden />
-            DENGARKAN CONTOH
-          </button>
           {phase === "result" ? (
             <SecondaryButton
               onClick={() => {
@@ -319,20 +350,10 @@ export function SpeakingDrill({ items }: { items: SpeakingItem[] }) {
               ULANGI
             </SecondaryButton>
           ) : null}
-        </div>
-        {phase === "result" ? (
-          <PrimaryButton onClick={next} autoFocus>
+          <PrimaryButton onClick={next} disabled={phase !== "result"} autoFocus={phase === "result"}>
             {index + 1 < items.length ? "LANJUT" : "SELESAI"}
           </PrimaryButton>
-        ) : (
-          <button
-            type="button"
-            onClick={next}
-            className="flex min-h-11 cursor-pointer items-center font-extrabold text-ink-subtle hover:text-ink"
-          >
-            NGGAK BISA BICARA SEKARANG
-          </button>
-        )}
+        </div>
       </DrillFooter>
     </DrillPage>
   );

@@ -1,4 +1,5 @@
-import { GraduationCap } from "lucide-react";
+import { ChevronRight, GraduationCap } from "lucide-react";
+import Link from "next/link";
 
 import { ExerciseRunner } from "@/app/(app)/materi/[slug]/exercise-runner";
 import {
@@ -40,11 +41,17 @@ export default async function LatihanPage({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1.5">
-        <p className="eyebrow text-ink-subtle">Latihan Bebas</p>
-        <h1 className="font-display text-[2rem] font-extrabold leading-[1.05] tracking-[-0.025em] sm:text-[2.5rem]">
+        <nav aria-label="Remah roti" className="mb-2 flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
+          <Link href="/latihan" className="text-ink-muted hover:text-primary-deep hover:underline">
+            Latihan Bebas
+          </Link>
+          <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
+          <span aria-current="page">Susun kalimat &amp; soal</span>
+        </nav>
+        <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">
           Asah grammar lintas materi
         </h1>
-        <p className="max-w-2xl text-[0.9375rem] text-ink-subtle">
+        <p className="max-w-2xl text-ink-subtle">
           {LIMIT} soal acak {LEVEL_NOTE[level ?? "all"]}. Semua dinilai otomatis dan langsung,
           tanpa perlu membuka satu materi. Tekan &ldquo;Ganti soal&rdquo; untuk set baru.
         </p>
@@ -54,7 +61,7 @@ export default async function LatihanPage({
 
       <div key={params.n ?? "default"} className="flex flex-col gap-4">
         {exercises.length === 0 ? (
-          <div className="clay flex flex-col items-start gap-2 p-6">
+          <div className="flex flex-col items-start gap-2 rounded-plate border-2 border-hairline bg-surface p-6 shadow-card">
             <GraduationCap className="size-6 text-primary" aria-hidden />
             <p className="text-[0.9375rem] text-ink-subtle">
               Belum ada soal untuk tingkat ini. Jalankan{" "}

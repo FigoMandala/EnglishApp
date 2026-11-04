@@ -1,8 +1,7 @@
-import { ArrowLeft, CheckCircle2, Lightbulb, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronRight, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Card } from "@/components/ui/card";
 import { getWritingSubmission } from "@/db/queries/writing";
 import { formatDate } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
@@ -24,31 +23,26 @@ export default async function EssayResultPage({ params }: { params: Promise<{ id
 
   const score = parseStoredScore(submission.feedback);
 
+  const title = submission.prompt || "Esai tanpa topik";
+
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/writing"
-          className="flex items-center gap-1.5 text-[0.875rem] font-bold text-ink-subtle transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
+      <nav aria-label="Remah roti" className="flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
+        <Link href="/writing" className="text-ink-muted hover:text-primary">
           Writing Coach
         </Link>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-[1.75rem] font-extrabold leading-tight tracking-[-0.02em]">
-              {submission.prompt || "Esai tanpa topik"}
-            </h1>
-            <p className="text-[0.875rem] text-ink-subtle">
-              {formatDate(submission.createdAt)} · {submission.wordCount} kata
-            </p>
-          </div>
-        </div>
-      </div>
+        <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
+        <span aria-current="page" className="truncate">
+          {title}
+        </span>
+      </nav>
 
       {score ? (
         <>
           <EssayReview
+            title={title}
+            meta={`${formatDate(submission.createdAt)} · ${submission.wordCount} kata · dinilai Lori`}
+            summary={score.summary || null}
             essay={submission.essay}
             corrections={score.corrections}
             total={submission.total}
@@ -58,92 +52,68 @@ export default async function EssayResultPage({ params }: { params: Promise<{ id
             }))}
           />
 
-          <section aria-labelledby="aspek-title" className="flex flex-col gap-3">
-            <h2 id="aspek-title" className="font-display text-[1.375rem] font-extrabold">
-              Nilai per aspek
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {score.aspects.map((aspect) => (
-                <Card key={aspect.aspect} className="flex flex-col gap-2 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-display text-[1.0625rem] font-extrabold text-ink">
-                        {ASPECT_LABEL[aspect.aspect as WritingAspect] ?? aspect.aspect}
-                      </p>
-                      <p className="text-[0.75rem] text-ink-faint">
-                        {ASPECT_HINT[aspect.aspect as WritingAspect]}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "tnum font-round text-[1.75rem] font-extrabold leading-none",
-                        aspect.score >= 70 ? "text-primary" : aspect.score >= 50 ? "text-warning" : "text-negative",
-                      )}
-                    >
-                      {aspect.score}
-                    </span>
+          {score.aspects.some((aspect) => aspect.note) ? (
+            <section aria-labelledby="aspek-title" className="flex flex-col gap-3">
+              <h2 id="aspek-title" className="font-display text-[1.25rem] font-extrabold">
+                Catatan per aspek
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {score.aspects.map((aspect) => (
+                  <div key={aspect.aspect} className="flex flex-col gap-1 rounded-[20px] border-2 border-hairline bg-surface p-5">
+                    <p className="flex items-baseline justify-between gap-3 font-display text-[1.0625rem] font-extrabold">
+                      {ASPECT_LABEL[aspect.aspect as WritingAspect] ?? aspect.aspect}
+                      <span
+                        className={cn(
+                          "tnum font-round",
+                          aspect.score >= 70 ? "text-primary-deep" : aspect.score >= 50 ? "text-mango-ink" : "text-brick-deep",
+                        )}
+                      >
+                        {aspect.score}
+                      </span>
+                    </p>
+                    <p className="text-[0.75rem] text-ink-subtle">{ASPECT_HINT[aspect.aspect as WritingAspect]}</p>
+                    {aspect.note ? <p className="mt-1 text-[0.875rem] leading-snug text-ink-muted">{aspect.note}</p> : null}
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-canvas-deep">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        aspect.score >= 70 ? "bg-primary" : aspect.score >= 50 ? "bg-warning" : "bg-negative",
-                      )}
-                      style={{ width: `${aspect.score}%` }}
-                    />
-                  </div>
-                  {aspect.note ? <p className="text-[0.875rem] leading-snug text-ink-subtle">{aspect.note}</p> : null}
-                </Card>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             {score.strengths.length ? (
-              <Card className="flex flex-col gap-2 p-5">
-                <h2 className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold">
-                  <CheckCircle2 className="size-4 text-primary" aria-hidden />
+              <div className="flex flex-col gap-2 rounded-[20px] border-2 border-primary-line bg-primary-soft p-5">
+                <h2 className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold text-primary-deep">
+                  <CheckCircle2 className="size-4" aria-hidden />
                   Kekuatan
                 </h2>
-                <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[0.875rem] leading-snug text-ink-muted">
+                <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[0.9375rem] leading-snug text-ink-muted">
                   {score.strengths.map((item, index) => (
                     <li key={index}>{item}</li>
                   ))}
                 </ul>
-              </Card>
+              </div>
             ) : null}
             {score.improvements.length ? (
-              <Card className="flex flex-col gap-2 p-5">
-                <h2 className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold">
-                  <Lightbulb className="size-4 text-warning" aria-hidden />
+              <div className="flex flex-col gap-2 rounded-[20px] border-2 border-mango-line bg-mango-soft p-5">
+                <h2 className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold text-mango-ink">
+                  <Lightbulb className="size-4" aria-hidden />
                   Saran perbaikan
                 </h2>
-                <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[0.875rem] leading-snug text-ink-muted">
+                <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[0.9375rem] leading-snug text-ink-muted">
                   {score.improvements.map((item, index) => (
                     <li key={index}>{item}</li>
                   ))}
                 </ul>
-              </Card>
+              </div>
             ) : null}
           </div>
-
-          {score.summary ? (
-            <Card className="flex flex-col gap-1.5 border-primary/40 bg-primary-soft/50 p-5">
-              <h2 className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold">
-                <Sparkles className="size-4 text-primary" aria-hidden />
-                Ringkasan penilai
-              </h2>
-              <p className="text-[0.9375rem] leading-relaxed text-ink-muted">{score.summary}</p>
-            </Card>
-          ) : null}
-
         </>
       ) : (
-        <Card className="p-6">
+        <div className="rounded-[20px] border-2 border-hairline bg-surface p-6">
+          <h1 className="font-display text-[1.5rem] font-extrabold">{title}</h1>
           <p className="text-[0.9375rem] text-ink-subtle">Hasil penilaian tidak bisa dibaca.</p>
-        </Card>
+        </div>
       )}
-
     </div>
   );
 }

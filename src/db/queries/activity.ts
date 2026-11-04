@@ -2,6 +2,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { activityLog, userSettings } from "@/db/schema";
+import type { SpeakingBest } from "@/lib/speaking-scores";
 import { todayISO } from "@/lib/srs";
 
 export type ActivityKind = "vocab" | "grammar" | "toefl" | "chat" | "writing";
@@ -61,6 +62,7 @@ export const SETTING_KEYS = {
   eptrTarget: "eptr_target",
   eptrTrend: "eptr_trend",
   questionSeeds: "question_seeds",
+  speakingBest: "speaking_topic_best",
 } as const;
 
 export async function getSetting<T>(userId: number, key: string, fallback: T): Promise<T> {
@@ -106,4 +108,13 @@ export function getEptrTarget(userId: number) {
 
 export function getEptrTrend(userId: number) {
   return getSetting<ToeflTrendPoint[]>(userId, SETTING_KEYS.eptrTrend, []);
+}
+
+/** Skor terbaik per topik speaking; peta kecil (12 topik), jadi aman di JSON. */
+export function getSpeakingBest(userId: number) {
+  return getSetting<SpeakingBest>(userId, SETTING_KEYS.speakingBest, {});
+}
+
+export function setSpeakingBest(userId: number, best: SpeakingBest) {
+  return setSetting(userId, SETTING_KEYS.speakingBest, best);
 }

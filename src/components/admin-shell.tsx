@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { LoriIconBadge } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -33,10 +34,11 @@ export function AdminShell({ username, children }: { username: string; children:
         Lewati ke konten
       </a>
       <aside className="flex shrink-0 flex-col gap-1 bg-charcoal px-3 py-4 text-night-muted lg:sticky lg:top-0 lg:h-screen lg:w-64">
-        <div className="flex items-center gap-2 px-2 pb-3">
+        <div className="flex items-center gap-2.5 px-2 pb-3">
+          <LoriIconBadge size={28} />
           <span className="font-display text-lg font-extrabold text-white">EnglishApp</span>
-          <span className="rounded-md bg-mango px-2 py-0.5 text-[0.6875rem] font-black tracking-[0.08em] text-mango-ink">
-            MODE ADMIN
+          <span className="rounded-md bg-mango px-2 py-0.5 text-[0.6875rem] font-black tracking-[0.08em] text-mango-on">
+            ADMIN
           </span>
         </div>
         <nav aria-label="Navigasi admin" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">

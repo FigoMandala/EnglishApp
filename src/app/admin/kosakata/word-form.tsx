@@ -43,7 +43,7 @@ export function WordForm({
 
       {leech ? (
         <div className="flex items-center gap-3 rounded-control border-2 border-brick/30 bg-brick-soft p-3 text-[0.8125rem] text-brick-deep">
-          <Lori mood="sad" size={56} />
+          <Lori mood="sad" size={56} still />
           <p>
             <strong>Kata leech:</strong> {leech.learners} pelajar sudah lupa {leech.lapses}× atau lebih (ditandai mulai {leech.minLearners} pelajar). Tambahkan jembatan keledai dan contoh yang dekat dengan keseharian.
           </p>

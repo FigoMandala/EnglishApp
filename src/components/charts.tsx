@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -121,17 +124,32 @@ export function GaugeRing({
   value,
   label,
   caption,
+  display,
+  tone = "primary",
   size = 104,
 }: {
   value: number;
   label?: string;
   caption?: string;
+  /** Teks di tengah; default persen. */
+  display?: string;
+  tone?: "primary" | "mango" | "brick";
   size?: number;
 }) {
   const clamped = Math.max(0, Math.min(100, Math.round(value)));
   const r = 42;
   const circ = 2 * Math.PI * r;
-  const offset = circ - (clamped / 100) * circ;
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setSettled(true);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const target = circ - (clamped / 100) * circ;
+  const offset = settled ? target : circ;
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg
@@ -149,18 +167,18 @@ export function GaugeRing({
           cy="50"
           r={r}
           fill="none"
-          stroke="var(--color-primary)"
+          stroke={`var(--color-${tone === "primary" ? "primary" : tone})`}
           strokeWidth={11}
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1)" }}
+          style={{ transition: "stroke-dashoffset 800ms var(--ease-out)" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-round text-[1.45rem] font-extrabold leading-none text-primary-deep">{clamped}%</span>
+        <span className="font-round text-[1.5rem] font-extrabold leading-none text-ink">{display ?? `${clamped}%`}</span>
         {caption ? (
-          <span className="mt-0.5 font-mono text-[0.5625rem] tracking-[0.06em] text-ink-subtle">{caption}</span>
+          <span className="mt-0.5 text-[0.6875rem] font-bold text-ink-subtle">{caption}</span>
         ) : null}
       </div>
     </div>

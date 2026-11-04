@@ -33,8 +33,8 @@ export default function TargetPage() {
       nextLabel="LANJUT"
     >
       <div className="rise">
-        <h1 className="font-display text-[2.25rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[2.75rem]">Sehari mau berapa menit?</h1>
-        <p className="mt-2.5 text-[1.125rem] text-ink-subtle">Kecil tapi rutin lebih ampuh daripada maraton seminggu sekali.</p>
+        <h1 className="font-display text-[1.625rem] font-black leading-[1.15] tracking-[-0.02em] sm:text-[2.75rem] sm:leading-[1.05]">Sehari mau berapa menit?</h1>
+        <p className="mt-1 text-[0.875rem] text-ink-subtle sm:mt-2.5 sm:text-[1.125rem]">Kecil tapi rutin lebih ampuh daripada maraton seminggu sekali.</p>
       </div>
       <div role="radiogroup" aria-label="Target harian" className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
         {DAILY_MINUTES.map((min, i) => {
@@ -53,13 +53,13 @@ export default function TargetPage() {
               className={cn(
                 CHOICE,
                 "flex-col gap-2 px-3 pb-[18px] pt-[22px]",
-                sel ? "border-primary bg-[#eaf5ee] shadow-[0_4px_0_var(--color-primary)]" : "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)]",
+                sel ? "border-primary bg-primary-soft shadow-[0_4px_0_var(--color-primary)]" : "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)]",
               )}
               style={{ "--i": i } as React.CSSProperties}
             >
               <span aria-hidden className="flex h-[26px] items-end gap-0.5">
                 {Array.from({ length: o.flames }, (_, f) => (
-                  <Flame key={f} className="size-5" style={{ color: sel ? "#f2a93b" : "#d9cdb6", fill: sel ? "#f2a93b" : "#d9cdb6" }} />
+                  <Flame key={f} className="size-5" style={{ color: sel ? "var(--color-mango)" : "var(--color-hairline-strong)", fill: sel ? "var(--color-mango)" : "var(--color-hairline-strong)" }} />
                 ))}
               </span>
               <span className="font-display text-[2.5rem] font-black leading-none tracking-[-0.02em]">{min}</span>

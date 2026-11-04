@@ -49,7 +49,7 @@ export function TutorChat({
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    bottomRef.current?.scrollIntoView({ behavior: streaming ? "auto" : "smooth", block: "end" });
   }, [messages, streaming]);
 
   // Textarea tumbuh mengikuti isi (maksimal ±8 baris) lalu scroll sendiri.
@@ -216,100 +216,136 @@ export function TutorChat({
 
   if (!compact) {
     return (
-      <div className={cn("flex flex-col gap-6 lg:flex-row", className)}>
-        <section aria-label="Lori sedang berbicara" className="flex flex-col gap-3.5 lg:w-[420px] lg:shrink-0">
-          <div className="rise relative min-h-[420px] flex-1 overflow-hidden rounded-[28px] border-2 border-[#b9d6be] bg-[#dcebdd] lg:min-h-[560px]">
-            <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-2 text-[0.875rem] font-extrabold">
-                <span className="relative size-2.5">
-                  {streaming ? <span className="ping absolute inset-0 rounded-full bg-primary" /> : null}
-                  <span className="absolute inset-0 rounded-full bg-primary" />
-                </span>
-                {streaming ? "Lori sedang mengetik" : scenario ? `Skenario: ${scenario.title}` : "Mode teks"}
-              </span>
-            </div>
-            <div className="absolute inset-x-0 bottom-[70px] flex justify-center">
-              <Lori mood={streaming ? "talk" : messages.length > 0 ? "idle" : "wave"} size={340} label="Lori, tutor AI-mu" />
-            </div>
-            <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-white/90 p-4">
-              <div aria-hidden className="flex h-9 flex-1 items-center gap-1">
-                {Array.from({ length: 24 }, (_, i) => (
-                  <span
-                    key={i}
-                    className={cn("h-full flex-1 rounded-[3px] bg-primary", streaming ? "wave-bar" : "scale-y-[0.2]")}
-                    style={streaming ? { animationDelay: `${(i % 8) * 0.11}s` } : undefined}
-                  />
-                ))}
-              </div>
-              <span className="text-[0.875rem] font-extrabold text-primary-deep">{streaming ? "Lori menjawab…" : "Siap mendengarkan"}</span>
-            </div>
-          </div>
-        </section>
+      <section
+        aria-label={scenario ? `Skenario: ${scenario.title}` : "Percakapan dengan Lori"}
+        className={cn(
+          "flex h-[calc(100dvh-180px)] min-h-[560px] min-w-0 flex-col overflow-hidden rounded-[28px] border-2 border-hairline bg-surface lg:h-[calc(100dvh-64px)]",
+          className,
+        )}
+      >
+        <header className="flex flex-wrap items-center gap-3 border-b-2 border-hairline-soft px-[18px] py-3.5">
+          <span className="flex size-12 shrink-0 items-end justify-center overflow-hidden rounded-full bg-primary-soft">
+            <Lori mood={streaming ? "talk" : "wave"} size={56} className="-mb-2.5" />
+          </span>
+          <span className="min-w-40 flex-1 leading-tight">
+            <strong className="block font-display text-[1.125rem]">{scenario ? scenario.title : "Ngobrol dengan Lori"}</strong>
+            <span className="text-[0.8125rem] text-ink-subtle">
+              {streaming ? "Lori sedang mengetik…" : scenario ? `Lori jadi ${scenario.persona}` : "Penjelasan Indonesia, contoh Inggris"}
+            </span>
+          </span>
+          {messages.length > 0 ? (
+            <button
+              type="button"
+              aria-label={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
+              title={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
+              onClick={() => void clearChat()}
+              className="flex size-10 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle hover:border-brick-line hover:text-brick"
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
+          ) : null}
+        </header>
 
-        <section
-          aria-label="Transkrip percakapan"
-          className="flex min-h-[560px] min-w-0 flex-1 flex-col overflow-hidden rounded-[28px] border-2 border-hairline bg-surface shadow-[0_5px_0_var(--color-hairline)]"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#f1ece2] px-5 py-4">
-            <h2 className="font-display text-[1.375rem] font-black">{scenario ? scenario.title : "Ngobrol dengan Lori"}</h2>
-            <span className="text-[0.8125rem] font-bold text-ink-subtle">{scenario ? `Lori jadi ${scenario.persona}` : "Penjelasan Indonesia, contoh Inggris"}</span>
-          </div>
-
-          <ol className="flex max-h-[520px] min-h-[320px] flex-1 list-none flex-col gap-4 overflow-y-auto p-5">
-            {messages.length === 0 ? (
-              <li className="pop self-start rounded-[6px_18px_18px_18px] bg-primary-soft px-4 py-3.5 text-[1.0625rem] leading-normal">
+        <ol role="log" aria-label="Transkrip percakapan" className="flex min-h-0 flex-1 list-none flex-col gap-3.5 overflow-y-auto bg-surface-muted px-[18px] py-5">
+          {messages.length === 0 ? (
+            <li className="pop flex max-w-[82%] items-end gap-2.5 self-start">
+              <Lori mood="wave" size={36} className="shrink-0" />
+              <span className="rounded-[20px_20px_20px_6px] border-2 border-hairline bg-surface px-4 py-3.5 text-[0.9375rem]">
                 Hai! Aku Lori. Tanya grammar, minta contoh kalimat, atau latihan percakapan. Salah dikit nggak apa-apa.
-              </li>
-            ) : (
-              messages.map((entry, index) => {
-                const typing = !entry.content && streaming && index === messages.length - 1;
-                return (
-                  <li
-                    key={index}
-                    className={cn(
-                      "rise max-w-[85%] whitespace-pre-wrap px-4 py-3.5 text-[1.0625rem] leading-normal",
-                      entry.role === "user"
-                        ? "self-end rounded-[18px_6px_18px_18px] bg-[#2a2c33] text-canvas"
-                        : "self-start rounded-[6px_18px_18px_18px] bg-primary-soft text-ink",
-                    )}
-                  >
+              </span>
+            </li>
+          ) : (
+            messages.map((entry, index) => {
+              const typing = !entry.content && streaming && index === messages.length - 1;
+              return entry.role === "user" ? (
+                <li
+                  key={index}
+                  className="pop-in max-w-[72%] self-end whitespace-pre-wrap rounded-[20px_20px_6px_20px] bg-primary px-4 py-3 text-[0.9375rem] text-white"
+                >
+                  {entry.content}
+                </li>
+              ) : (
+                <li key={index} className="pop-in flex max-w-[82%] items-end gap-2.5 self-start">
+                  <Lori mood={typing ? "think" : "talk"} size={36} className="shrink-0" />
+                  <span className="whitespace-pre-wrap rounded-[20px_20px_20px_6px] border-2 border-hairline bg-surface px-4 py-3.5 text-[0.9375rem] leading-relaxed">
                     {typing ? (
-                      <span role="img" aria-label="Lori sedang mengetik" className="flex gap-1.5 py-1">
+                      <span role="img" aria-label="Lori sedang mengetik" className="flex gap-1 py-1">
                         {[0, 1, 2].map((i) => (
-                          <span key={i} className="dot-wave size-[9px] rounded-full bg-[#8f8574]" style={{ "--i": i } as React.CSSProperties} />
+                          <span key={i} className="dot-wave size-2 rounded-full bg-ink-faint" style={{ "--i": i } as React.CSSProperties} />
                         ))}
                       </span>
-                    ) : entry.role === "assistant" ? (
-                      plain(entry.content) || "…"
                     ) : (
-                      entry.content
+                      plain(entry.content) || "…"
                     )}
-                  </li>
-                );
-              })
-            )}
-            <div ref={bottomRef} />
-          </ol>
+                  </span>
+                </li>
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </ol>
 
-          <div className="flex flex-col gap-3 border-t-2 border-[#f1ece2] px-5 pb-[18px] pt-3.5">
-            <div className="flex flex-wrap gap-2">
-              {suggestions.slice(0, 3).map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  disabled={streaming}
-                  onClick={() => send(suggestion)}
-                  className="min-h-10 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3.5 text-[0.875rem] font-bold shadow-[0_2px_0_var(--color-hairline)] transition-[transform,box-shadow] hover:border-primary active:translate-y-0.5 active:shadow-none disabled:opacity-50"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-            {errorBox}
-            {form}
+        <div className="flex flex-col gap-2.5 border-t-2 border-hairline-soft px-4 pb-4 pt-3">
+          <div className="flex flex-wrap gap-2">
+            {suggestions.slice(0, 3).map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={streaming}
+                onClick={() => send(suggestion)}
+                className="min-h-9 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-muted hover:border-primary-line hover:text-primary-deep disabled:opacity-50"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
-        </section>
-      </div>
+          {errorBox}
+          <form
+            className="flex items-end gap-2.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              send(input);
+            }}
+          >
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              rows={1}
+              maxLength={2000}
+              placeholder="Tulis pertanyaanmu…"
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  send(input);
+                }
+              }}
+              className="min-h-[52px] resize-none rounded-[16px] bg-surface-muted py-3.5"
+              aria-label="Pesan untuk tutor"
+            />
+            {streaming ? (
+              <button
+                type="button"
+                onClick={stop}
+                aria-label="Hentikan jawaban"
+                title="Hentikan jawaban"
+                className="flex size-[52px] shrink-0 cursor-pointer items-center justify-center rounded-[16px] border-2 border-hairline bg-surface text-ink"
+              >
+                <Square className="size-5" aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                aria-label="Kirim"
+                disabled={!input.trim()}
+                className="flex size-[52px] shrink-0 cursor-pointer items-center justify-center rounded-[16px] bg-primary text-white shadow-[0_4px_0_var(--color-primary-deep)] transition-transform active:translate-y-1 active:shadow-none disabled:opacity-50"
+              >
+                <Send className="size-5" aria-hidden />
+              </button>
+            )}
+          </form>
+        </div>
+      </section>
     );
   }
 

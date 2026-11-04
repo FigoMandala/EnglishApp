@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { xpEvents } from "@/db/schema";
-import { logActivity } from "@/db/queries/activity";
+import { getSpeakingBest, logActivity, setSpeakingBest } from "@/db/queries/activity";
 import { addXp } from "@/db/queries/learning";
 import { requireUser } from "@/lib/session";
+import { SPEAKING_PROMPTS } from "@/lib/speaking-prompts";
+import { normalizeSpeakingBest, recordSpeakingScore } from "@/lib/speaking-scores";
 import { todayISO } from "@/lib/srs";
 
 /** Batas total XP dari mode latihan per hari, supaya liga dan streak tidak bisa dipompa. */
@@ -27,14 +29,21 @@ export type DrillResult = { status: "idle" | "error"; xp?: number; message?: str
 /**
  * Catat satu sesi mode latihan bebas dan beri XP.
  * `score` = jumlah benar (listening, pairs) atau skor 0–100 (speaking).
+ * `topicId` (opsional, hanya speaking) menyimpan skor terbaik per topik katalog.
  */
-export async function finishDrillAction(kind: DrillKind, score: number, total: number): Promise<DrillResult> {
+export async function finishDrillAction(
+  kind: DrillKind,
+  score: number,
+  total: number,
+  topicId?: string,
+): Promise<DrillResult> {
   const user = await requireUser();
   const rule = RULES[kind];
   if (!rule || !Number.isInteger(score) || !Number.isInteger(total) || total <= 0 || total > rule.maxTotal) {
     return { status: "error", message: "Data sesi tidak valid." };
   }
   const clamped = Math.max(0, Math.min(score, kind === "speaking" ? 100 : total));
+  const topic = kind === "speaking" && topicId ? SPEAKING_PROMPTS.find((prompt) => prompt.id === topicId) : undefined;
   const today = todayISO();
   const [earned] = await db
     .select({ n: sql<number>`coalesce(sum(${xpEvents.amount}), 0)` })
@@ -44,10 +53,20 @@ export async function finishDrillAction(kind: DrillKind, score: number, total: n
   const xp = Math.min(rule.cap, room, Math.round(clamped * rule.perPoint));
 
   if (xp > 0) await addXp(user.id, xp, "drill", today);
+
+  if (topic) {
+    const stored = normalizeSpeakingBest(
+      await getSpeakingBest(user.id),
+      SPEAKING_PROMPTS.map((prompt) => prompt.id),
+    );
+    const next = recordSpeakingScore(stored, topic.id, clamped);
+    if (next !== stored) await setSpeakingBest(user.id, next);
+  }
+
   await logActivity(
     user.id,
     rule.log,
-    `${rule.label}: ${kind === "speaking" ? `skor ${clamped}` : `${clamped}/${total}`}`,
+    `${rule.label}${topic ? ` · ${topic.topic}` : ""}: ${kind === "speaking" ? `skor ${clamped}` : `${clamped}/${total}`}`,
     today,
   );
   revalidatePath("/belajar");

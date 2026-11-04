@@ -40,8 +40,8 @@ export function OnboardingStep({
   skipLabel?: string;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="mx-auto flex w-full max-w-[1280px] items-center gap-6 px-6 py-6 sm:px-14">
+    <div className="page-enter flex min-h-dvh flex-col">
+      <header className="mx-auto flex w-full max-w-[1280px] items-center gap-3 px-3 py-3 sm:gap-6 sm:px-14 sm:py-6">
         <Link
           href={backHref}
           aria-label={closeInstead ? "Keluar dari pengaturan awal" : "Kembali ke langkah sebelumnya"}
@@ -51,49 +51,57 @@ export function OnboardingStep({
         </Link>
         <div
           role="progressbar"
-          aria-label="Langkah pengaturan"
+          aria-label={`Langkah ${step} dari ${total}`}
           aria-valuemin={1}
           aria-valuemax={total}
           aria-valuenow={step}
-          className="h-4 flex-1 overflow-hidden rounded-full bg-hairline"
+          className="grid flex-1 gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
         >
-          <div
-            className="grow-x h-full rounded-full bg-primary shadow-[inset_0_-4px_0_var(--color-primary-deep)]"
-            style={{ width: `${(step / total) * 100}%` }}
-          />
+          {Array.from({ length: total }, (_, i) => (
+            <span key={i} className={cn("h-2 rounded-full", i < step ? "bg-primary" : "bg-hairline")} />
+          ))}
         </div>
-        <span className="shrink-0 text-[0.9375rem] font-bold text-ink-subtle">
-          Langkah {step} dari {total}
+        <span className="w-11 shrink-0 text-center text-[0.8125rem] font-extrabold text-ink-subtle">
+          {step}/{total}
         </span>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-wrap items-center gap-14 px-6 pb-8 pt-2 sm:px-14">
-        <section aria-live="polite" className="flex w-full max-w-[420px] flex-col items-start gap-3 lg:flex-1">
-          <div key={bubble.title} className="pop relative rounded-[22px] border-2 border-hairline bg-surface px-[22px] py-5 shadow-[0_4px_0_var(--color-hairline)] [animation-delay:200ms]">
-            <p className="font-display text-[1.375rem] font-extrabold leading-tight">{bubble.title}</p>
-            <p className="mt-2 text-[1rem] leading-normal text-ink-subtle">{bubble.body}</p>
+      <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col gap-4 px-4 pb-6 pt-1 sm:px-14 lg:flex-row lg:flex-wrap lg:items-center lg:gap-14 lg:pt-2">
+        <section aria-live="polite" className="flex items-end gap-1 lg:max-w-[420px] lg:flex-1 lg:flex-col-reverse lg:items-start lg:gap-3">
+          <div className={cn("shrink-0 lg:ml-2", hop && "m-hop")}>
+            <Lori mood={mood} size={88} label="Lori memperhatikan pilihanmu" className="lg:hidden" />
+            <Lori mood={mood} size={240} className="hidden lg:block" />
           </div>
-          <div className={cn("ml-2", hop && "m-hop")}>
-            <Lori mood={mood} size={240} label="Lori memperhatikan pilihanmu" />
+          <div
+            key={bubble.title}
+            className="pop mb-6 rounded-[16px_16px_16px_4px] border-2 border-hairline bg-surface px-3 py-2.5 shadow-[0_3px_0_var(--color-hairline)] lg:mb-0 lg:rounded-[22px_22px_22px_6px] lg:px-[22px] lg:py-5"
+            style={{ "--delay": "200ms" } as React.CSSProperties}
+          >
+            <p className="font-display text-[0.9375rem] font-extrabold leading-tight lg:text-[1.375rem]">{bubble.title}</p>
+            <p className="mt-0.5 text-[0.8125rem] leading-snug text-ink-subtle lg:mt-2 lg:text-base">{bubble.body}</p>
           </div>
         </section>
-        <section className="flex min-w-0 flex-1 basis-[560px] flex-col gap-6">{children}</section>
+        <section className="flex min-w-0 flex-1 flex-col gap-4 lg:basis-[560px] lg:gap-6">{children}</section>
       </main>
 
-      <footer className="border-t-2 border-hairline bg-surface-muted">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-14">
+      <footer className="sticky bottom-0 border-t-2 border-hairline bg-canvas">
+        <div className="mx-auto flex max-w-[1280px] flex-col-reverse gap-2 px-4 pb-5 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-14 sm:py-5">
           {skipHref ? (
-            <Link href={skipHref} className="flex min-h-11 items-center font-bold text-primary-deep hover:underline">
+            <Link
+              href={skipHref}
+              className="flex min-h-9 items-center justify-center text-[0.875rem] font-extrabold text-ink-muted hover:underline sm:min-h-11 sm:text-base"
+            >
               {skipLabel}
             </Link>
           ) : (
-            <span />
+            <span className="hidden sm:block" />
           )}
           {canNext ? (
             <Link
               href={nextHref}
               onClick={onNext}
-              className="ledge pop flex min-h-14 min-w-[220px] items-center justify-center rounded-[16px] bg-primary px-7 font-display text-[1.1875rem] font-extrabold tracking-[0.02em] text-white"
+              className="flex h-[54px] items-center justify-center rounded-[16px] bg-primary px-7 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] text-white shadow-[0_5px_0_var(--color-primary-deep)] transition-transform active:translate-y-[5px] active:shadow-none sm:min-w-[220px]"
             >
               {nextLabel}
             </Link>
@@ -101,7 +109,7 @@ export function OnboardingStep({
             <button
               type="button"
               disabled
-              className="min-h-14 min-w-[220px] cursor-not-allowed rounded-[16px] bg-hairline px-7 font-display text-[1.1875rem] font-extrabold tracking-[0.02em] text-[#6a6f73]"
+              className="h-[54px] cursor-not-allowed rounded-[16px] bg-hairline px-7 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] text-ink-faint shadow-[0_5px_0_var(--color-hairline-strong)] sm:min-w-[220px]"
             >
               {nextLabel}
             </button>
@@ -113,4 +121,4 @@ export function OnboardingStep({
 }
 
 export const CHOICE =
-  "rise flex w-full cursor-pointer items-center gap-4 rounded-[20px] border-2 px-5 py-[18px] text-left transition-[transform,box-shadow,background-color] active:translate-y-1 active:shadow-none";
+  "rise flex w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2 text-left transition-[transform,box-shadow,background-color] active:translate-y-1 active:shadow-none sm:gap-4 sm:rounded-[20px] sm:px-5 sm:py-[18px]";

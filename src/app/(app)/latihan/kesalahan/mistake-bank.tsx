@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -7,12 +8,11 @@ import { Lori } from "@/components/mascot";
 import type { MistakeGroup } from "@/db/queries/drills";
 import { cn } from "@/lib/utils";
 
-const TONES = [
-  { c: "bg-brick", soft: "bg-brick-soft", ink: "text-brick-deep", bc: "border-brick" },
-  { c: "bg-mango", soft: "bg-mango-soft", ink: "text-mango-ink", bc: "border-mango" },
-  { c: "bg-sky", soft: "bg-sky-soft", ink: "text-sky-deep", bc: "border-sky" },
-  { c: "bg-[#8c5bb5]", soft: "bg-[#f1e8f7]", ink: "text-[#5d2e86]", bc: "border-[#8c5bb5]" },
-];
+const KIND_TONE = {
+  grammar: "bg-brick-soft text-brick-deep",
+  eptr: "bg-brick-soft text-brick-deep",
+  vocab: "bg-mango-soft text-mango-ink",
+} as const;
 
 export function MistakeBank({
   groups,
@@ -26,134 +26,154 @@ export function MistakeBank({
   const [sel, setSel] = useState(0);
   const cur = groups[sel];
 
+  const crumb = (
+    <nav aria-label="Remah roti" className="flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
+      <Link href="/latihan" className="text-ink-muted hover:text-primary-deep hover:underline">
+        Latihan Bebas
+      </Link>
+      <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
+      <span aria-current="page">Bank Kesalahan</span>
+    </nav>
+  );
+
   if (groups.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <Lori mood="cheer" size={180} label="Lori bersorak" />
-        <h1 className="font-display text-[2.25rem] font-black tracking-[-0.03em]">Bank Kesalahan kosong</h1>
-        <p className="max-w-md text-[1.0625rem] text-ink-subtle">
-          Belum ada jawaban salah yang menunggu. Setiap kesalahan baru akan masuk ke sini, dikelompokkan per pola.
-        </p>
-        <Link href="/latihan" className="ledge flex min-h-14 items-center rounded-[16px] bg-primary px-7 font-display text-[1.1875rem] font-extrabold text-white">
-          KEMBALI KE LATIHAN
-        </Link>
+      <div className="flex flex-col gap-6">
+        {crumb}
+        <div className="flex min-h-[55vh] flex-col items-center justify-center gap-4 text-center">
+          <Lori mood="cheer" size={180} label="Lori bersorak" />
+          <h1 className="font-display text-[2.25rem] font-black tracking-[-0.03em]">Bank Kesalahan kosong</h1>
+          <p className="max-w-md text-[1.0625rem] text-ink-subtle">
+            Belum ada jawaban salah yang menunggu. Setiap kesalahan baru akan masuk ke sini, dikelompokkan per pola.
+          </p>
+          <Link
+            href="/latihan"
+            className="flex h-[54px] items-center rounded-[16px] bg-primary px-7 font-display text-[1.0625rem] font-extrabold text-white shadow-[0_5px_0_var(--color-primary-deep)]"
+          >
+            KEMBALI KE LATIHAN
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const tone = TONES[sel % TONES.length];
-
   return (
-    <div className="flex flex-col gap-5">
-      <div className="rise flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <h1 className="font-display text-[2.25rem] font-black tracking-[-0.03em] sm:text-[2.625rem]">Bank Kesalahan</h1>
-          <p className="mt-1.5 text-[1.0625rem] text-ink-subtle">
-            Setiap jawaban salah masuk ke sini, dikelompokkan per pola. Bukan daftar dosa, ini peta.
+    <div className="flex flex-col gap-6">
+      {crumb}
+      <header className="rise flex flex-wrap items-center justify-between gap-5">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Bank Kesalahan</h1>
+          <p className="max-w-[560px] text-ink-subtle">
+            Setiap jawaban salah disimpan di sini, dikelompokkan per pola. Jawab benar sekali lagi, dan kesalahannya
+            otomatis ditebus.
           </p>
         </div>
-        <div className="flex gap-2.5">
-          <div className="rounded-[16px] border-2 border-hairline bg-surface px-4 py-3 text-center">
-            <p className="font-display text-[1.625rem] font-black text-brick-deep">{openTotal}</p>
-            <p className="text-[0.8125rem] font-extrabold text-ink-subtle">belum ditebus</p>
+        <dl className="flex flex-wrap gap-3">
+          <div className="rounded-[18px] border-2 border-brick-line bg-brick-soft px-[18px] py-3 text-brick-deep">
+            <dt className="text-[0.75rem] font-extrabold">BELUM DITEBUS</dt>
+            <dd className="font-round text-[1.875rem] font-extrabold leading-tight">{openTotal}</dd>
           </div>
-          <div className="rounded-[16px] border-2 border-hairline bg-surface px-4 py-3 text-center">
-            <p className="font-display text-[1.625rem] font-black text-primary-deep">{correctTotal}</p>
-            <p className="text-[0.8125rem] font-extrabold text-ink-subtle">soal benar</p>
+          <div className="rounded-[18px] border-2 border-primary-line bg-primary-soft px-[18px] py-3 text-primary-deep">
+            <dt className="text-[0.75rem] font-extrabold">JAWABAN BENAR</dt>
+            <dd className="font-round text-[1.875rem] font-extrabold leading-tight">{correctTotal}</dd>
           </div>
-        </div>
-      </div>
+        </dl>
+      </header>
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        <section aria-label="Pola kesalahan" className="flex w-full flex-col gap-3 lg:w-[420px] lg:shrink-0">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <nav aria-label="Pola kesalahan" className="flex w-full flex-col gap-2.5 lg:w-[320px] lg:shrink-0">
           {groups.map((g, i) => {
-            const t = TONES[i % TONES.length];
-            const mastery = g.total > 0 ? Math.round(((g.total - g.open) / g.total) * 100) : 0;
             const active = i === sel;
+            const mastery = g.total > 0 ? Math.round(((g.total - g.open) / g.total) * 100) : 0;
             return (
               <button
                 key={g.key}
                 type="button"
-                aria-pressed={active}
+                aria-current={active ? "true" : undefined}
                 onClick={() => setSel(i)}
                 className={cn(
-                  "rise flex cursor-pointer flex-col gap-2.5 rounded-[20px] border-2 bg-surface px-[18px] py-4 text-left transition-[transform,box-shadow] active:translate-y-1 active:shadow-none",
-                  active ? cn(t.bc, "shadow-[0_4px_0_currentColor]") : "border-hairline shadow-[0_4px_0_var(--color-hairline)]",
-                  active && t.ink,
+                  "rise flex cursor-pointer flex-col gap-2.5 rounded-[18px] border-2 bg-surface p-4 text-left transition-transform active:translate-y-0.5",
+                  active ? "border-brick shadow-[0_4px_0_var(--color-brick-line)]" : "border-hairline",
                 )}
                 style={{ "--i": i } as React.CSSProperties}
               >
-                <span className="flex w-full items-center gap-3 text-ink">
-                  <span className={cn("grid size-11 shrink-0 place-items-center rounded-[14px] font-display text-[1.0625rem] font-black", t.soft, t.ink)}>
-                    {g.open}×
+                <span className="flex w-full items-center gap-3">
+                  <span className={cn("grid size-10 shrink-0 place-items-center rounded-[12px] font-round text-[1.25rem] font-extrabold", KIND_TONE[g.kind])}>
+                    {g.open}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-display text-[1.125rem] font-black">{g.title}</span>
-                    <span className="block text-[0.875rem] text-ink-subtle">{g.tag}</span>
+                    <strong className="block text-[0.9375rem]">{g.title}</strong>
+                    <span className="block text-[0.8125rem] text-ink-subtle">{g.tag.toLowerCase()}</span>
                   </span>
                 </span>
-                <span className="flex w-full items-center gap-2.5 text-ink">
-                  <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#f1ece2]">
-                    <span className={cn("grow-x block h-full rounded-full", t.c)} style={{ width: `${mastery}%` }} />
+                <span className="flex w-full items-center gap-2.5">
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-canvas-deep">
+                    <span className="grow-x block h-full rounded-full bg-primary" style={{ width: `${mastery}%` }} />
                   </span>
-                  <span className="text-[0.8125rem] font-extrabold text-ink-subtle">{mastery}% dikuasai</span>
+                  <span className="text-[0.75rem] font-extrabold text-ink-subtle">{mastery}% dikuasai</span>
                 </span>
               </button>
             );
           })}
-        </section>
+        </nav>
 
         {cur ? (
-          <section
-            key={cur.key}
-            aria-live="polite"
-            aria-label="Detail pola"
-            className="rise flex min-w-0 flex-1 flex-col gap-4 rounded-[26px] border-2 border-hairline bg-surface p-6 shadow-[0_5px_0_var(--color-hairline)]"
-          >
-            <div>
-              <p className={cn("text-[0.8125rem] font-extrabold tracking-[0.08em]", tone.ink)}>{cur.tag}</p>
-              <h2 className="mt-0.5 font-display text-[1.75rem] font-black">{cur.title}</h2>
+          <section key={cur.key} aria-live="polite" aria-label="Detail pola" className="pop-in flex min-w-0 flex-1 flex-col gap-4">
+            <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-6 shadow-card">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <span className="eyebrow text-brick-deep">
+                    {cur.tag} · {cur.open} {cur.kind === "vocab" ? "kata" : "soal"} menunggu
+                  </span>
+                  <h2 className="font-display text-[1.625rem] font-black">{cur.title}</h2>
+                </div>
+                <Link
+                  href={cur.href}
+                  className="flex h-[52px] items-center rounded-[16px] bg-primary px-5 font-display text-[0.9375rem] font-extrabold tracking-[0.03em] text-white shadow-[0_5px_0_var(--color-primary-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
+                >
+                  {cur.hrefLabel}
+                </Link>
+              </div>
               {cur.rule ? (
-                <p className="mt-2.5 rounded-[6px_18px_18px_18px] bg-canvas px-4 py-3.5 text-[1.0625rem] font-semibold leading-normal">{cur.rule}</p>
+                <div className="flex items-start gap-3 rounded-[16px] border-2 border-hairline-soft bg-surface-muted p-4">
+                  <Lori mood="talk" size={48} className="shrink-0" />
+                  <p className="text-[0.9375rem] text-ink-muted">
+                    <strong className="text-primary-deep">Aturannya:</strong> {cur.rule}
+                  </p>
+                </div>
               ) : null}
             </div>
 
-            <div>
-              <p className="mb-2.5 text-[0.8125rem] font-extrabold tracking-[0.08em] text-ink-subtle">
-                {cur.kind === "vocab" ? "KATA YANG SERING LUPA" : cur.kind === "eptr" ? "SOAL MENUNGGU" : "JAWABANMU YANG SALAH"}
-              </p>
-              <ul className="flex flex-col gap-2.5">
-                {cur.items.map((it, i) => (
-                  <li key={i} className="rise flex flex-col gap-1.5 rounded-[16px] border-2 border-[#f1ece2] px-4 py-3.5" style={{ "--i": i + 1 } as React.CSSProperties}>
-                    <p className="text-[1.125rem] leading-normal">{it.prompt}</p>
-                    {it.yours ? (
-                      <p className="text-[1rem]">
-                        <span className="rounded-[6px] bg-brick-soft px-1.5 text-brick-deep line-through decoration-brick decoration-2">{it.yours}</span>
-                        {it.key ? (
-                          <>
-                            {" "}
-                            → <span className="rounded-[6px] bg-primary-soft px-1.5 font-bold text-primary-deep">{it.key}</span>
-                          </>
-                        ) : null}
-                      </p>
-                    ) : it.key ? (
-                      <p className="text-[1rem] font-bold text-primary-deep">{it.key}</p>
-                    ) : null}
-                    {it.note ? <p className="text-[0.875rem] text-ink-subtle">{it.note}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-hairline pt-3.5">
-              <p className="text-[0.9375rem] text-ink-subtle">Jawab benar soal ini lagi, dan kesalahan ini otomatis ditebus.</p>
-              <Link
-                href={cur.href}
-                className="ledge flex min-h-[52px] items-center rounded-[14px] bg-primary px-5 font-display text-[1.0625rem] font-extrabold text-white"
-              >
-                {cur.hrefLabel}
-              </Link>
-            </div>
+            <h3 className="eyebrow mt-2 text-ink-subtle">
+              {cur.kind === "vocab" ? "Kata yang sering lupa" : cur.kind === "eptr" ? "Soal menunggu" : "Jawabanmu yang salah"}
+            </h3>
+            <ul className="flex flex-col gap-3">
+              {cur.items.map((it, i) => (
+                <li
+                  key={i}
+                  className="flex flex-col gap-3 rounded-plate border-2 border-hairline bg-surface p-5"
+                >
+                  <p className="text-[1.125rem] font-semibold leading-normal">{it.prompt}</p>
+                  {it.yours || it.key ? (
+                    <div className="flex flex-wrap gap-2.5 text-[0.875rem] font-bold">
+                      {it.yours ? (
+                        <span className="rounded-[12px] bg-brick-soft px-3 py-1.5 text-brick-deep">
+                          <span className="block text-[0.6875rem] font-extrabold tracking-[0.06em]">JAWABANMU</span>
+                          <s>{it.yours}</s>
+                        </span>
+                      ) : null}
+                      {it.key ? (
+                        <span className="rounded-[12px] bg-primary-soft px-3 py-1.5 text-primary-deep">
+                          <span className="block text-[0.6875rem] font-extrabold tracking-[0.06em]">YANG BENAR</span>
+                          {it.key}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {it.note ? <p className="text-[0.875rem] text-ink-subtle">{it.note}</p> : null}
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </div>

@@ -25,7 +25,7 @@ export function StartSimulationButton({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col items-stretch gap-2">
       <Button
         className={className}
         disabled={disabled || pending}
@@ -146,8 +146,8 @@ export function StartFastButton({
         <div role="status" className="flex w-full flex-col gap-1.5">
           <div className="h-1.5 overflow-hidden rounded-full bg-current/15">
             <div
-              className="h-full rounded-full bg-mint transition-[width] duration-500"
-              style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+              className="h-full w-full origin-left rounded-full bg-mint transition-transform duration-300 ease-out"
+              style={{ transform: `scaleX(${progress.total ? progress.done / progress.total : 0})` }}
             />
           </div>
           <p className="tnum text-[0.8125rem] opacity-80">

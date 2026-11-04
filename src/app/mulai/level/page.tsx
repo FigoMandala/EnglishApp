@@ -36,8 +36,8 @@ export default function LevelPage() {
       nextHref="/mulai/target"
     >
       <div className="rise">
-        <h1 className="font-display text-[2.25rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[2.75rem]">Bahasa Inggrismu sekarang segini?</h1>
-        <p className="mt-2.5 text-[1.125rem] text-ink-subtle">Jujur aja, nggak ada yang nilai. Ini cuma titik mulai jalurmu.</p>
+        <h1 className="font-display text-[1.625rem] font-black leading-[1.15] tracking-[-0.02em] sm:text-[2.75rem] sm:leading-[1.05]">Bahasa Inggrismu sekarang segini?</h1>
+        <p className="mt-1 text-[0.875rem] text-ink-subtle sm:mt-2.5 sm:text-[1.125rem]">Jujur aja, nggak ada yang nilai. Ini cuma titik mulai jalurmu.</p>
       </div>
       <div role="radiogroup" aria-label="Level bahasa Inggris saat ini" className="flex flex-col gap-3">
         {LEVELS.map((l, i) => {
@@ -56,7 +56,7 @@ export default function LevelPage() {
               className={cn(
                 CHOICE,
                 "min-h-[72px] py-3.5",
-                sel ? "border-primary bg-[#eaf5ee] shadow-[0_4px_0_var(--color-primary)]" : "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)]",
+                sel ? "border-primary bg-primary-soft shadow-[0_4px_0_var(--color-primary)]" : "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)]",
               )}
               style={{ "--i": i } as React.CSSProperties}
             >
@@ -80,7 +80,7 @@ export default function LevelPage() {
       </div>
       <Link
         href="/mulai/penempatan"
-        className="rise flex items-center gap-4 rounded-[18px] border-2 border-dashed border-mango-deep bg-mango-soft px-5 py-4 text-mango-ink [--i:6]"
+        className="rise flex items-center gap-4 rounded-[18px] border-2 border-dashed border-mango-deep bg-mango-soft px-5 py-4 text-mango-ink transition-transform duration-150 active:translate-y-1 [--i:6]"
       >
         <HelpCircle className="size-7 shrink-0" aria-hidden />
         <span className="flex-1">

@@ -7,21 +7,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Confetti } from "@/components/fx/confetti";
-import { Kaka, Lori } from "@/components/mascot";
+import { Lori } from "@/components/mascot";
 import { SpeakButton } from "@/components/speak-button";
+import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
 import { FieldError, Input, Textarea } from "@/components/ui/field";
-import {
-  EXERCISE_TYPE_HINT,
-  MAX_ANSWER_CHARS,
-  parseOptions,
-  shuffleWords,
-} from "@/lib/grammar-exercise";
 import type { GrammarExerciseType } from "@/db/schema";
+import { EXERCISE_TYPE_HINT, MAX_ANSWER_CHARS, parseOptions, shuffleWords } from "@/lib/grammar-exercise";
 import { sfx } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 
-import { submitExerciseAction } from "../actions";
 import { markLessonDoneAction } from "../../belajar/actions";
+import { submitExerciseAction } from "../actions";
 
 export type RunnerExercise = {
   id: number;
@@ -35,9 +31,17 @@ export type RunnerExercise = {
 type Result = { correct: boolean; explanation: string | null; answerKey: string | null; xp: number };
 type Phase = "idle" | "right" | "wrong";
 
-const PRESS =
-  "transition-[transform,box-shadow,filter] duration-150 hover:brightness-[1.03] active:translate-y-1 active:shadow-none disabled:cursor-default";
-const CHIP = `${PRESS} rounded-[14px] border-2 border-hairline bg-surface text-ink shadow-[0_4px_0_var(--color-hairline)]`;
+const PRESS = "transition-[transform,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default";
+const CHIP = `${PRESS} rounded-[12px] border-2 border-hairline bg-surface text-ink shadow-[0_3px_0_var(--color-hairline)]`;
+const KEYS = ["A", "B", "C", "D", "E", "F"];
+
+const TYPE_LABEL: Record<GrammarExerciseType, string> = {
+  fill: "Isi rumpang",
+  choice: "Pilihan ganda",
+  arrange: "Susun kata",
+  translate: "Terjemahkan",
+  compose: "Tulis kalimat",
+};
 
 export function ExerciseRunner({
   lessonId,
@@ -57,10 +61,12 @@ export function ExerciseRunner({
   const [answer, setAnswer] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [hintOpen, setHintOpen] = useState(false);
+  const [explainOpen, setExplainOpen] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
+  const [xpFloat, setXpFloat] = useState<{ gain: number; n: number } | null>(null);
   const [seconds, setSeconds] = useState(0);
   // id soal -> benar pada percobaan pertama
   const [firstTry, setFirstTry] = useState<Record<number, boolean>>({});
@@ -68,10 +74,7 @@ export function ExerciseRunner({
   const startedAt = useRef(0);
 
   const current = queue[index] ?? null;
-  const wrongList = useMemo(
-    () => exercises.filter((e) => firstTry[e.id] === false),
-    [exercises, firstTry],
-  );
+  const wrongList = useMemo(() => exercises.filter((e) => firstTry[e.id] === false), [exercises, firstTry]);
   const allSolved = exercises.every((e) => e.answered?.correct || solved.includes(e.id));
 
   useEffect(() => {
@@ -93,6 +96,7 @@ export function ExerciseRunner({
     setResult(null);
     setAnswer("");
     setHintOpen(false);
+    setExplainOpen(true);
     setError(null);
     setAttempt((n) => n + 1);
   }
@@ -165,6 +169,7 @@ export function ExerciseRunner({
       setFirstTry((prev) => (current.id in prev ? prev : { ...prev, [current.id]: response.correct }));
       if (response.correct) {
         setStreak((n) => n + 1);
+        if (gain > 0) setXpFloat((f) => ({ gain, n: (f?.n ?? 0) + 1 }));
         setXp((n) => n + gain);
         setSolved((prev) => (prev.includes(current.id) ? prev : [...prev, current.id]));
         sfx.correct();
@@ -180,224 +185,286 @@ export function ExerciseRunner({
   }
 
   const solvedAtOnce = exercises.filter((e) => firstTry[e.id]).length;
+  const segments = queue.map((exercise, i) => {
+    if (i < index || (i === index && phase !== "idle")) {
+      const ok = i === index ? phase === "right" : firstTry[exercise.id] !== false;
+      return ok ? "bg-primary" : "bg-brick";
+    }
+    return i === index ? "bg-sky" : "bg-hairline";
+  });
 
   return (
     <>
-      <div className="clay flex flex-wrap items-center justify-between gap-4 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-plate border-2 border-dashed border-hairline-strong bg-surface-muted p-5">
         <p className="text-[0.9375rem] text-ink-subtle">
-          {exercises.length} soal · satu soal per layar, dengan penjelasan Lori kalau salah.
+          <strong className="text-ink">{exercises.length} soal</strong> · satu soal per layar. Kalau salah, Lori bedah
+          kalimatnya.
         </p>
         <button
           type="button"
           onClick={start}
-          className="ledge flex h-14 items-center gap-2 rounded-[16px] bg-primary px-7 font-display text-[1.0625rem] font-extrabold tracking-[0.02em] text-white"
+          className={`${PRESS} flex h-[52px] cursor-pointer items-center gap-2 rounded-[16px] bg-primary px-6 font-display text-[1rem] font-extrabold tracking-[0.03em] text-white shadow-[0_5px_0_var(--color-primary-deep)]`}
         >
-          <Play className="size-5" aria-hidden />
+          <Play className="size-5 fill-white" aria-hidden />
           {exercises.every((e) => e.answered?.correct) ? "ULANGI LATIHAN" : "MULAI LATIHAN"}
         </button>
       </div>
 
       {open
         ? createPortal(
-        <div role="dialog" aria-modal="true" aria-label="Latihan soal" className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-canvas">
-          {done ? (
-            <DoneScreen
-              xp={xp}
-              total={exercises.length}
-              good={solvedAtOnce}
-              seconds={seconds}
-              wrongCount={wrongList.length}
-              onReview={() => begin(wrongList, false)}
-              onClose={close}
-            />
-          ) : current ? (
-            <>
-              <header className="mx-auto flex w-full max-w-[1180px] items-center gap-5 px-6 py-6 sm:px-14">
-                <button
-                  type="button"
-                  onClick={close}
-                  aria-label="Keluar dari pelajaran"
-                  className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[12px] text-ink-subtle hover:bg-surface-muted"
-                >
-                  <X className="size-6" strokeWidth={2.6} aria-hidden />
-                </button>
-                <div
-                  role="progressbar"
-                  aria-label="Kemajuan pelajaran"
-                  aria-valuemin={0}
-                  aria-valuemax={queue.length}
-                  aria-valuenow={index + (phase === "idle" ? 0 : 1)}
-                  className="h-[18px] flex-1 overflow-hidden rounded-full bg-hairline"
-                >
-                  <div
-                    className="h-full rounded-full bg-primary shadow-[inset_0_-5px_0_var(--color-primary-deep)] transition-[width] duration-700 ease-out"
-                    style={{ width: `${((index + (phase === "idle" ? 0 : 1)) / queue.length) * 100}%` }}
-                  />
-                </div>
-                {streak >= 2 ? (
-                  <span className="pop flex shrink-0 items-center gap-1.5 rounded-[12px] bg-mango-soft px-3 py-2 text-[0.9375rem] font-extrabold text-mango-ink">
-                    <Zap className="size-4" aria-hidden />
-                    {streak} benar beruntun
-                  </span>
-                ) : null}
-              </header>
-
-              <main className="mx-auto flex w-full max-w-[980px] flex-1 flex-col gap-7 px-6 pb-10 pt-2 sm:px-14">
-                <div className="rise flex flex-wrap items-center justify-between gap-4">
-                  <h1 className="font-display text-[1.625rem] font-black tracking-[-0.02em] sm:text-[2.125rem]">
-                    {EXERCISE_TYPE_HINT[current.type]}
-                  </h1>
-                  {current.hint ? (
-                    <button
-                      type="button"
-                      aria-expanded={hintOpen}
-                      onClick={() => setHintOpen((v) => !v)}
-                      className={`${PRESS} flex min-h-11 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-[#f2c878] bg-mango-soft px-4 text-[0.9375rem] font-extrabold text-mango-ink shadow-[0_3px_0_#f2c878]`}
-                    >
-                      <Lightbulb className="size-4" aria-hidden />
-                      Petunjuk
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="rise flex items-end gap-3 [--i:1]">
-                  <Lori
-                    mood={phase === "right" ? "cheer" : phase === "wrong" ? "sad" : "talk"}
-                    size={150}
-                    className="shrink-0"
-                  />
-                  <div className="mb-14 flex items-center gap-3.5 rounded-[20px_20px_20px_4px] border-2 border-hairline bg-surface px-5 py-[18px] shadow-[0_4px_0_var(--color-hairline)]">
-                    {current.type === "translate" || current.type === "compose" ? null : (
-                      <SpeakButton
-                        text={current.prompt.replace(/_+/g, "blank")}
-                        label="Putar audio kalimat"
-                        className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-sky text-white shadow-[0_4px_0_var(--color-sky-deep)]"
-                      />
-                    )}
-                    <p className="text-[1.25rem] font-semibold leading-[1.4] sm:text-[1.375rem]">{current.prompt}</p>
-                  </div>
-                </div>
-
-                {hintOpen && current.hint ? (
-                  <p className="pop -mt-3 rounded-[14px] border-2 border-dashed border-mango-deep bg-mango-soft px-[18px] py-3.5 text-[1rem] text-mango-ink">
-                    <strong>Petunjuk Lori:</strong> {current.hint}
-                  </p>
-                ) : null}
-
-                <StepInput
-                  key={`${current.id}-${attempt}`}
-                  exercise={current}
-                  disabled={phase !== "idle" || pending}
-                  phase={phase}
-                  onChange={setAnswer}
-                  onSubmit={check}
+            <div role="dialog" aria-modal="true" aria-label="Latihan soal" className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-canvas">
+              {done ? (
+                <DoneScreen
+                  xp={xp}
+                  total={exercises.length}
+                  good={solvedAtOnce}
+                  seconds={seconds}
+                  wrongCount={wrongList.length}
+                  onReview={() => begin(wrongList, false)}
+                  onClose={close}
                 />
-                <FieldError>{error}</FieldError>
-
-                {phase === "wrong" && result ? <Explain answer={answer} result={result} /> : null}
-              </main>
-
-              {phase === "idle" ? (
-                <footer className="sticky bottom-0 border-t-2 border-hairline bg-surface-muted">
-                  <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-14">
-                    <button
-                      type="button"
-                      onClick={next}
-                      className="flex min-h-11 cursor-pointer items-center text-[1rem] font-extrabold text-ink-subtle hover:text-ink"
-                    >
-                      LEWATI
-                    </button>
-                    <button
-                      type="button"
-                      onClick={check}
-                      disabled={!answer.trim() || pending}
-                      className={cn(
-                        "ledge flex min-h-14 min-w-[220px] items-center justify-center gap-2 rounded-[16px] px-7 font-display text-[1.1875rem] font-extrabold tracking-[0.02em]",
-                        answer.trim()
-                          ? "bg-primary text-white"
-                          : "bg-hairline text-[#6a6f73] [--ledge:transparent]",
-                      )}
-                    >
-                      {pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-                      PERIKSA
-                    </button>
-                  </div>
-                </footer>
-              ) : (
-                <footer
-                  aria-live="assertive"
-                  className={cn(
-                    "rise sticky bottom-0 border-t-2",
-                    phase === "right" ? "border-[#9fd0b3] bg-primary-soft" : "border-[#efb4a2] bg-brick-soft",
-                  )}
-                >
-                  <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-6 px-6 py-5 sm:px-14">
-                    <div className={phase === "right" ? "text-primary-deep" : "text-brick-deep"}>
-                      <p className="font-display text-[1.5rem] font-black">
-                        {phase === "right" ? `Sempurna!${result && result.xp ? ` +${result.xp} XP` : ""}` : "Hampir!"}
-                      </p>
-                      <p className="mt-1 text-[1rem]">
-                        {phase === "right"
-                          ? (result?.explanation ?? "Jawabanmu tepat.")
-                          : result?.answerKey
-                            ? `Jawaban: ${result.answerKey}`
-                            : "Lihat penjelasan Lori di atas."}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      {phase === "wrong" ? (
-                        <button
-                          type="button"
-                          onClick={resetStep}
-                          className={`${PRESS} min-h-14 cursor-pointer rounded-[16px] border-2 border-[#efb4a2] bg-surface px-[22px] font-display text-[1.0625rem] font-extrabold text-brick-deep shadow-[0_4px_0_#efb4a2]`}
-                        >
-                          COBA LAGI
-                        </button>
-                      ) : null}
+              ) : current ? (
+                <>
+                  <header className="border-b-2 border-hairline">
+                    <div className="mx-auto flex w-full max-w-[1040px] items-center gap-[18px] px-6 py-4">
                       <button
                         type="button"
-                        onClick={next}
-                        autoFocus
-                        className={cn(
-                          "ledge min-h-14 min-w-[200px] cursor-pointer rounded-[16px] px-7 font-display text-[1.1875rem] font-extrabold tracking-[0.02em] text-white",
-                          phase === "right" ? "bg-primary" : "bg-brick [--ledge:var(--color-brick-deep)]",
-                        )}
+                        onClick={close}
+                        aria-label="Keluar dari pelajaran"
+                        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"
                       >
-                        LANJUT
+                        <X className="size-6" strokeWidth={2.6} aria-hidden />
                       </button>
+                      <div
+                        role="progressbar"
+                        aria-label={`Kemajuan pelajaran, soal ${index + 1} dari ${queue.length}`}
+                        aria-valuemin={0}
+                        aria-valuemax={queue.length}
+                        aria-valuenow={index + (phase === "idle" ? 0 : 1)}
+                        className="grid flex-1 gap-1"
+                        style={{ gridTemplateColumns: `repeat(${queue.length}, minmax(0, 1fr))` }}
+                      >
+                        {segments.map((tone, i) => (
+                          <span key={i} className={cn("h-3 rounded-[4px] transition-colors", tone)} />
+                        ))}
+                      </div>
+                      {streak >= 2 ? (
+                        <span className="pop hidden shrink-0 items-center gap-1 rounded-full bg-charcoal px-3 py-1 text-[0.8125rem] font-extrabold text-mango-line sm:flex">
+                          {streak} beruntun
+                        </span>
+                      ) : null}
+                      <span className="relative flex shrink-0 items-center gap-1 font-round text-[1.25rem] font-extrabold text-mango-deep">
+                        <Zap className="size-[18px] fill-mango text-mango" aria-hidden />
+                        {xp}
+                        {xpFloat?.gain ? (
+                          <span
+                            key={xpFloat.n}
+                            aria-hidden
+                            className="xp-float absolute -top-2 right-0 font-round text-[0.9375rem] font-extrabold text-mango"
+                          >
+                            +{xpFloat.gain}
+                          </span>
+                        ) : null}
+                      </span>
                     </div>
-                  </div>
-                </footer>
-              )}
-            </>
-          ) : null}
-        </div>,
-        document.body,
-      )
+                  </header>
+
+                  <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-6 px-6 pb-10 pt-10">
+                    <div className="rise flex flex-wrap items-center justify-between gap-3">
+                      <span className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-hairline bg-surface px-3 py-1 text-[0.8125rem] font-extrabold text-ink-muted">
+                          <span aria-hidden className="size-2 rounded-full bg-primary" />
+                          {TYPE_LABEL[current.type]}
+                        </span>
+                        <span className="text-[0.875rem] font-bold text-ink-subtle">{EXERCISE_TYPE_HINT[current.type]}</span>
+                      </span>
+                      {current.hint ? (
+                        <button
+                          type="button"
+                          aria-expanded={hintOpen}
+                          onClick={() => setHintOpen((v) => !v)}
+                          className={`${PRESS} flex min-h-10 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-mango-line bg-mango-soft px-3.5 text-[0.875rem] font-extrabold text-mango-ink shadow-[0_3px_0_var(--color-mango-line)]`}
+                        >
+                          <Lightbulb className="size-4" aria-hidden />
+                          Petunjuk
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="rise flex items-start gap-3 [--i:1]">
+                      {current.type === "translate" || current.type === "compose" ? null : (
+                        <SpeakButton
+                          text={current.prompt.replace(/_+/g, "blank")}
+                          label="Putar audio kalimat"
+                          className="mt-1 size-11 rounded-[12px] bg-sky text-white shadow-[0_3px_0_var(--color-sky-deep)] hover:bg-sky hover:text-white"
+                        />
+                      )}
+                      <p className="text-[1.5rem] font-semibold leading-[1.45] sm:text-[1.75rem]">{current.prompt}</p>
+                    </div>
+
+                    {hintOpen && current.hint ? (
+                      <p className="pop rounded-[14px] border-2 border-dashed border-mango-deep bg-mango-soft px-[18px] py-3.5 text-[1rem] text-mango-ink">
+                        <strong>Petunjuk Lori:</strong> {current.hint}
+                      </p>
+                    ) : null}
+
+                    <StepInput
+                      key={`${current.id}-${attempt}`}
+                      exercise={current}
+                      disabled={phase !== "idle" || pending}
+                      phase={phase}
+                      answerKey={result?.answerKey ?? null}
+                      onChange={setAnswer}
+                      onSubmit={check}
+                    />
+                    <FieldError>{error}</FieldError>
+
+                    {phase === "wrong" && result && explainOpen ? (
+                      <Explain prompt={current.prompt} answer={answer} result={result} />
+                    ) : null}
+                  </main>
+
+                  {phase === "idle" ? (
+                    <footer className="sticky bottom-0 border-t-2 border-hairline bg-canvas">
+                      <div className="mx-auto flex max-w-[1040px] flex-wrap items-center justify-between gap-4 px-6 py-5">
+                        <button
+                          type="button"
+                          onClick={next}
+                          className={`${PRESS} h-[54px] cursor-pointer rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display text-[1rem] font-extrabold text-ink-muted shadow-[0_4px_0_var(--color-hairline)]`}
+                        >
+                          LEWATI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={check}
+                          disabled={!answer.trim() || pending}
+                          className={cn(
+                            PRESS,
+                            "flex h-[54px] min-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-[16px] px-10 font-display text-[1.0625rem] font-extrabold tracking-[0.03em]",
+                            answer.trim()
+                              ? "bg-primary text-white shadow-[0_5px_0_var(--color-primary-deep)]"
+                              : "bg-hairline text-ink-faint shadow-[0_5px_0_var(--color-hairline-strong)]",
+                          )}
+                        >
+                          {pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+                          PERIKSA
+                        </button>
+                      </div>
+                    </footer>
+                  ) : (
+                    <footer
+                      aria-live="assertive"
+                      className={cn(
+                        "pop-in sticky bottom-0 border-t-2",
+                        phase === "right" ? "border-primary-line bg-primary-soft" : "border-brick-line bg-brick-soft",
+                      )}
+                    >
+                      <div className="mx-auto flex max-w-[1040px] flex-wrap items-center gap-4 px-6 py-5">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "grid size-[52px] shrink-0 place-items-center rounded-full text-white",
+                            phase === "right" ? "bg-primary" : "bg-brick",
+                          )}
+                        >
+                          {phase === "right" ? <Check className="size-7" strokeWidth={3} /> : <X className="size-7" strokeWidth={3} />}
+                        </span>
+                        <div className={cn("min-w-0 flex-[1_1_260px]", phase === "right" ? "text-primary-deep" : "text-brick-deep")}>
+                          <p className="font-display text-[1.5rem] font-black">
+                            {phase === "right" ? `Mantap, tepat!${result && result.xp ? ` +${result.xp} XP` : ""}` : "Hampir!"}
+                          </p>
+                          <p className="text-[0.9375rem]">
+                            {phase === "right"
+                              ? (result?.explanation ?? "Jawabanmu tepat.")
+                              : result?.answerKey
+                                ? `Yang benar: ${result.answerKey}. Soal ini masuk Bank Kesalahan.`
+                                : "Lihat penjelasan Lori di atas."}
+                          </p>
+                        </div>
+                        {phase === "wrong" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setExplainOpen((v) => !v)}
+                              className="h-[54px] cursor-pointer rounded-[16px] border-2 border-brick-line bg-surface px-[18px] text-[0.9375rem] font-extrabold text-brick-deep"
+                            >
+                              {explainOpen ? "Sembunyikan penjelasan" : "Lori jelaskan"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={resetStep}
+                              className={`${PRESS} h-[54px] cursor-pointer rounded-[16px] border-2 border-brick-line bg-surface px-[18px] font-display text-[1rem] font-extrabold text-brick-deep shadow-[0_4px_0_var(--color-brick-line)]`}
+                            >
+                              COBA LAGI
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={next}
+                          autoFocus
+                          className={cn(
+                            PRESS,
+                            "h-[54px] min-w-[160px] cursor-pointer rounded-[16px] px-9 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] text-white",
+                            phase === "right"
+                              ? "bg-primary shadow-[0_5px_0_var(--color-primary-deep)]"
+                              : "bg-brick shadow-[0_5px_0_var(--color-brick-deep)]",
+                          )}
+                        >
+                          {phase === "right" ? "LANJUT" : "MENGERTI"}
+                        </button>
+                      </div>
+                    </footer>
+                  )}
+                </>
+              ) : null}
+            </div>,
+            document.body,
+          )
         : null}
     </>
   );
 }
 
-/** Panel "Lori jelaskan" setelah jawaban salah. */
-function Explain({ answer, result }: { answer: string; result: Result }) {
+/** Panel "Lori bedah kalimatnya" setelah jawaban salah. */
+function Explain({ prompt, answer, result }: { prompt: string; answer: string; result: Result }) {
+  const parts = blankAnatomy(prompt, answer, result.answerKey);
   return (
-    <section aria-label="Lori jelaskan" className="rise flex flex-col gap-3 rounded-[20px] border-2 border-hairline bg-surface p-5 shadow-[0_4px_0_var(--color-hairline)]">
-      <p className="text-[0.8125rem] font-extrabold tracking-[0.08em] text-brick-deep">JAWABANMU</p>
-      <p className="w-fit rounded-[8px] bg-brick-soft px-2 py-0.5 text-[1.25rem] font-bold text-brick-deep line-through decoration-brick decoration-[3px]">
-        {answer}
-      </p>
-      {result.answerKey ? (
-        <>
-          <p className="text-[0.8125rem] font-extrabold tracking-[0.08em] text-primary-deep">YANG BENAR</p>
-          <p className="w-fit rounded-[8px] bg-primary-soft px-2 py-0.5 text-[1.25rem] font-bold text-primary-deep">
-            {result.answerKey}
+    <section
+      aria-label="Penjelasan Lori"
+      className="rise flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-6 shadow-card"
+    >
+      <div className="flex items-center gap-3">
+        <Lori mood="talk" size={56} />
+        <div>
+          <strong className="block font-display text-[1.1875rem]">Lori bedah kalimatnya</strong>
+          <span className="text-[0.875rem] text-ink-subtle">Bandingkan jawabanmu dengan yang benar</span>
+        </div>
+      </div>
+      {parts ? (
+        <Anatomy parts={parts} size="md" />
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          <p className="eyebrow text-brick-deep">Jawabanmu</p>
+          <p className="w-fit rounded-[8px] border-b-4 border-brick bg-brick-soft px-2 py-0.5 text-[1.125rem] font-bold text-brick-deep line-through decoration-[3px]">
+            {answer}
           </p>
-        </>
-      ) : null}
+          {result.answerKey ? (
+            <>
+              <p className="eyebrow text-primary-deep">Yang benar</p>
+              <p className="w-fit rounded-[8px] border-b-4 border-primary bg-primary-soft px-2 py-0.5 text-[1.125rem] font-bold text-primary-deep">
+                {result.answerKey}
+              </p>
+            </>
+          ) : null}
+        </div>
+      )}
       {result.explanation ? <p className="text-[1rem] leading-relaxed text-ink-muted">{result.explanation}</p> : null}
-      <Link href="/tutor" className="flex min-h-11 w-fit items-center font-extrabold text-primary hover:underline">
-        Masih bingung? Tanya Tutor AI
+      <Link
+        href="/tutor"
+        className="flex h-10 w-fit items-center rounded-[12px] border-2 border-hairline px-3.5 text-[0.875rem] font-extrabold text-primary-deep hover:border-primary-line"
+      >
+        Masih bingung? Tanya lanjut ke Lori
       </Link>
     </section>
   );
@@ -407,12 +474,14 @@ function StepInput({
   exercise,
   disabled,
   phase,
+  answerKey,
   onChange,
   onSubmit,
 }: {
   exercise: RunnerExercise;
   disabled: boolean;
   phase: Phase;
+  answerKey: string | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
 }) {
@@ -420,11 +489,37 @@ function StepInput({
   const [picked, setPicked] = useState<number | null>(null);
   const options = parseOptions(exercise.options);
 
+  // Pilihan ganda: tombol 1–4 di keyboard memilih opsi.
+  useEffect(() => {
+    if (exercise.type !== "choice" || disabled) return;
+    const onKey = (event: KeyboardEvent) => {
+      const n = Number(event.key);
+      if (Number.isInteger(n) && n >= 1 && n <= options.length) {
+        setPicked(n - 1);
+        onChange(options[n - 1]);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [exercise.type, disabled, options, onChange]);
+
   if (exercise.type === "choice") {
+    const keyNorm = answerKey?.trim().toLowerCase() ?? null;
     return (
       <div role="radiogroup" aria-label="Pilihan jawaban" className="grid gap-3 sm:grid-cols-2">
         {options.map((option, i) => {
           const chosen = picked === i;
+          const isKey = keyNorm !== null && option.trim().toLowerCase() === keyNorm;
+          const state =
+            phase === "idle"
+              ? chosen
+                ? "picked"
+                : "base"
+              : (phase === "right" && chosen) || isKey
+                ? "right"
+                : chosen
+                  ? "wrong"
+                  : "muted";
           return (
             <button
               key={i}
@@ -439,20 +534,29 @@ function StepInput({
               }}
               className={cn(
                 PRESS,
-                "flex min-h-16 cursor-pointer items-center gap-3 rounded-[16px] border-2 px-5 text-left text-[1.125rem] font-bold shadow-[0_4px_0_var(--color-hairline)]",
-                chosen && phase === "idle" && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky)]",
-                chosen && phase === "right" && "border-primary bg-primary-soft text-primary-deep shadow-[0_4px_0_var(--color-primary)]",
-                chosen && phase === "wrong" && "border-brick bg-brick-soft text-brick-deep shadow-[0_4px_0_var(--color-brick)]",
-                !chosen && "border-hairline bg-surface hover:border-sky",
+                "flex min-h-16 cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] text-left text-[1.125rem] font-bold",
+                state === "base" && "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)] hover:border-sky-line",
+                state === "picked" && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky-line)]",
+                state === "right" && "border-primary bg-primary-soft text-primary-deep shadow-[0_4px_0_var(--color-primary-line)]",
+                state === "wrong" && "border-brick bg-brick-soft text-brick-deep line-through decoration-2 shadow-[0_4px_0_var(--color-brick-line)]",
+                state === "muted" && "border-hairline bg-surface-muted font-semibold text-ink-faint",
               )}
             >
               <span
                 aria-hidden
-                className="grid size-8 shrink-0 place-items-center rounded-[10px] border-2 border-current text-[0.875rem] font-extrabold"
+                className={cn(
+                  "grid size-8 shrink-0 place-items-center rounded-[9px] text-[0.875rem] font-extrabold no-underline",
+                  state === "base" && "border-2 border-hairline text-ink-subtle",
+                  state === "picked" && "bg-sky text-white",
+                  state === "right" && "bg-primary text-white",
+                  state === "wrong" && "bg-brick text-white",
+                  state === "muted" && "border-2 border-hairline",
+                )}
               >
-                {i + 1}
+                {state === "right" ? <Check className="size-4" strokeWidth={3} /> : state === "wrong" ? <X className="size-4" strokeWidth={3} /> : KEYS[i]}
               </span>
-              {option}
+              <span className="flex-1">{option}</span>
+              {state === "right" ? <span className="text-[0.75rem] font-extrabold">BENAR</span> : null}
             </button>
           );
         })}
@@ -476,15 +580,16 @@ function StepInput({
       onChange(event.target.value);
     },
     className: cn(
-      "text-[1.25rem]",
-      phase === "right" && "border-primary",
-      phase === "wrong" && "border-brick",
+      "h-14 bg-surface text-[1.25rem]",
+      phase === "right" && "border-primary bg-primary-soft",
+      phase === "wrong" && "border-brick bg-brick-soft",
     ),
   };
   return multiline ? (
     <Textarea
       rows={3}
       {...common}
+      className={cn(common.className, "h-auto")}
       onKeyDown={(event) => {
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) onSubmit();
       }}
@@ -499,7 +604,7 @@ function StepInput({
   );
 }
 
-/** Susun kata: bank kata di bawah, jawaban di garis atas (seperti mockup). */
+/** Susun kata: bank kata di bawah, jawaban di garis atas. Kata terpakai meninggalkan "bayangan". */
 function ArrangeInput({
   exercise,
   disabled,
@@ -511,10 +616,7 @@ function ArrangeInput({
   phase: Phase;
   onChange: (value: string) => void;
 }) {
-  const words = useMemo(
-    () => shuffleWords(parseOptions(exercise.options), exercise.id),
-    [exercise.options, exercise.id],
-  );
+  const words = useMemo(() => shuffleWords(parseOptions(exercise.options), exercise.id), [exercise.options, exercise.id]);
   const [picked, setPicked] = useState<number[]>([]);
 
   function update(next: number[]) {
@@ -523,19 +625,19 @@ function ArrangeInput({
   }
 
   return (
-    <>
-      <section aria-label="Jawabanmu" className={cn("flex min-h-[140px] flex-col", phase === "wrong" && "shake")}>
-        <div className="flex min-h-16 flex-wrap gap-2.5 border-b-2 border-hairline-strong py-2" aria-live="polite">
+    <div className="flex flex-col gap-6 rounded-plate border-2 border-hairline bg-surface p-5">
+      <section aria-label="Jawabanmu" className={cn("flex min-h-[124px] flex-col", phase === "wrong" && "shake")}>
+        <div className="flex min-h-[60px] flex-wrap gap-2 border-b-2 border-hairline-strong pb-2" aria-live="polite">
           {picked.map((wordIndex, pos) => (
             <button
-              key={`${wordIndex}-${pos}`}
+              key={wordIndex}
               type="button"
               disabled={disabled}
               aria-label={`Hapus kata ${words[wordIndex]}`}
               onClick={() => update(picked.filter((_, p) => p !== pos))}
               className={cn(
                 CHIP,
-                "pop min-h-[52px] cursor-pointer px-[18px] text-[1.25rem] font-bold",
+                "min-h-12 cursor-pointer px-4 text-[1.125rem] font-bold transition-colors duration-200",
                 phase === "right" && "border-primary bg-primary-soft",
                 phase === "wrong" && "border-brick bg-brick-soft",
               )}
@@ -543,16 +645,21 @@ function ArrangeInput({
               {words[wordIndex]}
             </button>
           ))}
+          {picked.length === 0 ? (
+            <span className="self-center rounded-[12px] border-2 border-dashed border-hairline-strong px-4 py-2 font-bold text-ink-faint">
+              Ketuk kata di bawah…
+            </span>
+          ) : null}
         </div>
-        <div className="mt-[62px] h-0.5 bg-hairline-strong" />
+        <div className="mt-[56px] h-0.5 bg-hairline-strong" />
       </section>
-      <section aria-label="Bank kata" className="flex flex-wrap justify-center gap-2.5">
+      <section aria-label="Bank kata" className="flex flex-wrap justify-center gap-2">
         {words.map((word, i) =>
           picked.includes(i) ? (
             <span
               key={i}
               aria-hidden
-              className="inline-block min-h-[52px] rounded-[14px] bg-hairline px-[18px] text-[1.25rem] font-bold leading-[52px] text-transparent"
+              className="inline-block min-h-12 rounded-[12px] bg-canvas-deep px-4 text-[1.125rem] font-bold leading-[48px] text-transparent"
             >
               {word}
             </span>
@@ -565,14 +672,14 @@ function ArrangeInput({
                 update([...picked, i]);
                 sfx.tap();
               }}
-              className={cn(CHIP, "min-h-[52px] cursor-pointer px-[18px] text-[1.25rem] font-bold")}
+              className={cn(CHIP, "min-h-12 cursor-pointer px-4 text-[1.125rem] font-bold")}
             >
               {word}
             </button>
           ),
         )}
       </section>
-    </>
+    </div>
   );
 }
 
@@ -596,32 +703,33 @@ function DoneScreen({
   const accuracy = total > 0 ? Math.round((good / total) * 100) : 0;
   const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   const stats = [
-    { label: "TOTAL XP", value: xp, bg: "bg-mango", labelInk: "text-[#3a2400]", ink: "text-[#a86a12]", Icon: Zap },
-    { label: "AKURASI", value: `${accuracy}%`, bg: "bg-primary", labelInk: "text-white", ink: "text-primary-deep", Icon: Target },
-    { label: "WAKTU", value: time, bg: "bg-sky", labelInk: "text-white", ink: "text-sky-deep", Icon: Clock },
-    { label: "BENAR", value: `${good}/${total}`, bg: "bg-brick", labelInk: "text-white", ink: "text-brick-deep", Icon: Check },
+    { label: "TOTAL XP", value: xp, head: "bg-mango text-mango-on", box: "border-mango-line bg-mango-soft text-mango-ink", Icon: Zap },
+    { label: "AKURASI", value: `${accuracy}%`, head: "bg-primary text-white", box: "border-primary-line bg-primary-soft text-primary-deep", Icon: Target },
+    { label: "WAKTU", value: time, head: "bg-sky text-white", box: "border-sky-line bg-sky-soft text-sky-deep", Icon: Clock },
   ];
   return (
     <>
-      <main className="relative mx-auto flex w-full max-w-[1100px] flex-1 flex-col items-center gap-6 px-6 pb-8 pt-10 sm:px-14">
+      <main className="relative mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center gap-6 px-6 pb-8 pt-12 text-center">
         <Confetti count={44} />
-        <div className="relative flex h-[260px] items-end justify-center gap-10">
-          <Lori mood="cheer" size={240} label="Lori melompat gembira" />
-          <Kaka mood="proud" size={170} label="Kaka bangga" className="mb-2" />
-        </div>
-        <div className="pop text-center [--i:3]">
-          <h1 className="font-display text-[2.5rem] font-black tracking-[-0.035em] text-primary sm:text-[3.5rem]">
-            Pelajaran beres!
-          </h1>
-          <p className="mt-1.5 text-[1.1875rem] text-ink-subtle">
-            {wrongCount === 0 ? "Semua benar. Kaka bilang: “Lumayan. Besok lebih cepat.”" : `Ada ${wrongCount} soal yang bisa ditinjau lagi.`}
+        <div aria-hidden className="absolute left-1/2 top-8 size-[460px] -translate-x-1/2 rounded-full bg-canvas-deep" />
+        <Lori mood="cheer" size={200} label="Lori melompat gembira" className="relative" />
+        <div className="pop relative [--i:3]">
+          <h1 className="font-display text-[2.5rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[3rem]">Pelajaran beres!</h1>
+          <p className="mt-1.5 text-[1.125rem] text-ink-muted">
+            {wrongCount === 0
+              ? `Semua ${total} soal benar di percobaan pertama.`
+              : `${good}/${total} benar di percobaan pertama. ${wrongCount} soal bisa ditinjau lagi.`}
           </p>
         </div>
-        <ul className="grid w-full max-w-[860px] grid-cols-2 gap-3.5 sm:grid-cols-4">
+        <ul className="relative grid w-full grid-cols-3 gap-3.5">
           {stats.map((s, i) => (
-            <li key={s.label} className={cn("pop overflow-hidden rounded-[20px] p-[3px]", s.bg)} style={{ "--i": 4 + i } as React.CSSProperties}>
-              <p className={cn("py-2 text-center text-[0.8125rem] font-black tracking-[0.08em]", s.labelInk)}>{s.label}</p>
-              <p className={cn("flex items-center justify-center gap-2 rounded-t-[16px] bg-surface px-2 py-4 font-display text-[1.875rem] font-black", s.ink)}>
+            <li
+              key={s.label}
+              className={cn("pop overflow-hidden rounded-plate border-2", s.box)}
+              style={{ "--i": 4 + i } as React.CSSProperties}
+            >
+              <p className={cn("py-1.5 text-[0.75rem] font-extrabold tracking-[0.08em]", s.head)}>{s.label}</p>
+              <p className="flex items-center justify-center gap-1.5 px-2 py-4 font-round text-[2.25rem] font-extrabold leading-none">
                 <s.Icon className="size-6" aria-hidden />
                 {s.value}
               </p>
@@ -629,13 +737,13 @@ function DoneScreen({
           ))}
         </ul>
       </main>
-      <footer className="sticky bottom-0 border-t-2 border-hairline bg-surface-muted">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-14">
+      <footer className="sticky bottom-0 border-t-2 border-hairline bg-canvas">
+        <div className="mx-auto flex max-w-[1040px] flex-wrap items-center justify-between gap-4 px-6 py-5">
           {wrongCount > 0 ? (
             <button
               type="button"
               onClick={onReview}
-              className={`${PRESS} min-h-14 cursor-pointer rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display text-[1.0625rem] font-extrabold shadow-[0_4px_0_var(--color-hairline)]`}
+              className={`${PRESS} h-[54px] cursor-pointer rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display text-[1rem] font-extrabold shadow-[0_4px_0_var(--color-hairline)]`}
             >
               TINJAU {wrongCount} KESALAHAN
             </button>
@@ -646,7 +754,7 @@ function DoneScreen({
             type="button"
             onClick={onClose}
             autoFocus
-            className="ledge min-h-14 min-w-[240px] cursor-pointer rounded-[16px] bg-primary px-7 font-display text-[1.1875rem] font-extrabold tracking-[0.02em] text-white"
+            className={`${PRESS} h-[54px] min-w-[220px] cursor-pointer rounded-[16px] bg-primary px-8 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] text-white shadow-[0_5px_0_var(--color-primary-deep)]`}
           >
             LANJUT
           </button>

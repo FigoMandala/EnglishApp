@@ -15,6 +15,8 @@ type Props<M> = {
   /** Teks untuk pembaca layar. Kosongkan kalau karakternya dekoratif. */
   label?: string;
   className?: string;
+  /** Matikan semua idle loop (dashboard/admin). */
+  still?: boolean;
 };
 
 function a11y(label?: string) {
@@ -27,17 +29,17 @@ const CREAM = "#F6E4C6";
 const MASK = "#6E4024";
 const INK = "#3A2416";
 
-export function Lori({ mood = "idle", size = 160, label, className }: Props<LoriMood>) {
+export function Lori({ mood = "idle", size = 160, label, className, still }: Props<LoriMood>) {
   const armsUp = mood === "cheer";
   const happyEyes = mood === "cheer";
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className={cn(mood === "cheer" && "m-hop", className)} {...a11y(label)}>
+    <svg viewBox="0 0 200 200" width={size} height={size} className={cn(!still && mood === "cheer" && "m-hop", className)} {...a11y(label)}>
       <ellipse cx="100" cy="192" rx="56" ry="7" fill="#1B1F22" opacity=".12" />
-      <g className="m-breathe">
+      <g className={cn(!still && "m-breathe")}>
         {armsUp ? (
           <>
-            <g className="m-cheer"><ellipse cx="42" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(40 42 104)" /></g>
-            <g className="m-cheer"><ellipse cx="158" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(-40 158 104)" /></g>
+            <g className={cn(!still && "m-cheer")}><ellipse cx="42" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(40 42 104)" /></g>
+            <g className={cn(!still && "m-cheer")}><ellipse cx="158" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(-40 158 104)" /></g>
           </>
         ) : (
           <g><ellipse cx="52" cy="150" rx="13" ry="24" fill={FUR_DARK} transform="rotate(18 52 150)" /></g>
@@ -48,7 +50,7 @@ export function Lori({ mood = "idle", size = 160, label, className }: Props<Lori
         <ellipse cx="122" cy="188" rx="15" ry="7" fill={FUR_DARK} />
         <path d="M58 120 Q100 138 142 120 L144 132 Q100 150 56 132 Z" fill="#1E7A4C" />
         <path d="M118 130 L132 164 L118 161 L112 134 Z" fill="#145536" />
-        <g className={mood === "sad" ? undefined : "m-tilt"}>
+        <g className={!still && mood === "sad" ? undefined : "m-tilt"}>
           <circle cx="56" cy="44" r="15" fill={FUR} />
           <circle cx="56" cy="44" r="7" fill="#8A5530" />
           <circle cx="144" cy="44" r="15" fill={FUR} />
@@ -64,10 +66,10 @@ export function Lori({ mood = "idle", size = 160, label, className }: Props<Lori
               <path d="M110 82 Q123 68 136 82" stroke="#FFFFFF" strokeWidth="6" fill="none" strokeLinecap="round" />
             </>
           ) : (
-            <g className="m-blink">
+            <g className={cn(!still && "m-blink")}>
               <circle cx="77" cy="80" r="14" fill="#FFFFFF" />
               <circle cx="123" cy="80" r="14" fill="#FFFFFF" />
-              <g className={mood === "think" || mood === "sad" ? undefined : "m-look"}>
+              <g className={!still && (mood === "think" || mood === "sad") ? undefined : "m-look"}>
                 <circle cx={mood === "think" ? 82 : 79} cy={mood === "think" ? 74 : mood === "sad" ? 85 : 81} r="9" fill="#1B1F22" />
                 <circle cx={mood === "think" ? 128 : 125} cy={mood === "think" ? 74 : mood === "sad" ? 85 : 81} r="9" fill="#1B1F22" />
                 <circle cx="82" cy="77" r="3" fill="#FFFFFF" />
@@ -83,7 +85,7 @@ export function Lori({ mood = "idle", size = 160, label, className }: Props<Lori
           ) : null}
           <ellipse cx="100" cy="103" rx="6" ry="4.5" fill={INK} />
           {mood === "talk" ? (
-            <ellipse className="m-talk" cx="100" cy="115" rx="8" ry="7" fill={INK} />
+            <ellipse className={cn(!still && "m-talk")} cx="100" cy="115" rx="8" ry="7" fill={INK} />
           ) : mood === "cheer" ? (
             <path d="M84 110 Q100 132 116 110 Z" fill={INK} />
           ) : (
@@ -101,7 +103,7 @@ export function Lori({ mood = "idle", size = 160, label, className }: Props<Lori
         {armsUp ? null : mood === "think" ? (
           <g><ellipse cx="128" cy="124" rx="12" ry="24" fill={FUR_DARK} transform="rotate(-62 128 124)" /></g>
         ) : (
-          <g className={mood === "wave" || mood === "talk" ? "m-wave" : undefined}>
+          <g className={!still && (mood === "wave" || mood === "talk") ? "m-wave" : undefined}>
             <ellipse
               cx={mood === "wave" ? 154 : 148}
               cy={mood === "wave" ? 122 : 150}
@@ -120,31 +122,31 @@ export function Lori({ mood = "idle", size = 160, label, className }: Props<Lori
 const BODY = "#2A2C33";
 const BEAK = "#F2A93B";
 
-export function Kaka({ mood = "coach", size = 160, label, className }: Props<KakaMood>) {
+export function Kaka({ mood = "coach", size = 160, label, className, still }: Props<KakaMood>) {
   const sleep = mood === "sleep";
   return (
     <svg
       viewBox="0 0 220 200"
       width={size}
       height={(size * 200) / 220}
-      className={cn(mood === "proud" && "m-hop", className)}
+      className={cn(!still && mood === "proud" && "m-hop", className)}
       {...a11y(label)}
     >
       <ellipse cx="96" cy="192" rx="50" ry="7" fill="#1B1F22" opacity=".12" />
-      {sleep ? (
+      {sleep && !still ? (
         <text className="m-zz" x="170" y="40" fontFamily="sans-serif" fontWeight="900" fontSize="22" fill="#8F8574">
           z
         </text>
       ) : null}
-      <g className="m-breathe">
+      <g className={cn(!still && "m-breathe")}>
         <path d="M50 150 L18 176 L30 182 L62 164 Z" fill="#1E2026" />
         <ellipse cx="92" cy="136" rx="48" ry="50" fill={BODY} />
         <ellipse cx="102" cy="150" rx="28" ry="32" fill="#F4EFE6" />
-        <g className={mood === "proud" || mood === "warn" ? "m-flap" : undefined}>
+        <g className={!still && (mood === "proud" || mood === "warn") ? "m-flap" : undefined}>
           <ellipse cx="68" cy="128" rx="20" ry="34" fill="#1E2026" transform={mood === "warn" ? "rotate(40 68 128)" : "rotate(12 68 128)"} />
         </g>
         <path d="M86 184 v8 M106 184 v8" stroke={BEAK} strokeWidth="5" strokeLinecap="round" />
-        <g className={sleep ? undefined : "m-tilt"}>
+        <g className={!still && sleep ? undefined : "m-tilt"}>
           <circle cx="108" cy="74" r="38" fill={BODY} />
           <path d="M118 46 C136 26 176 30 192 54 C172 50 146 52 126 60 Z" fill="#D9583B" />
           <path d="M132 62 C164 58 196 76 206 108 C186 96 158 88 134 86 Z" fill={BEAK} />
@@ -158,9 +160,9 @@ export function Kaka({ mood = "coach", size = 160, label, className }: Props<Kak
               strokeLinecap="round"
             />
           ) : (
-            <g className="m-blink">
+            <g className={cn(!still && "m-blink")}>
               <circle cx="114" cy="68" r="11" fill="#FFFFFF" />
-              <g className="m-look">
+              <g className={cn(!still && "m-look")}>
                 <circle cx="116" cy="69" r="6" fill="#1B1F22" />
                 <circle cx="118" cy="66" r="2" fill="#FFFFFF" />
               </g>

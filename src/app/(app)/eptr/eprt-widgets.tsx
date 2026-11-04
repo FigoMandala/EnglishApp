@@ -4,6 +4,8 @@ import { Clock, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { Lori } from "@/components/mascot";
+
 /** Detik sebelum overlay menawarkan muat ulang; server action tidak bisa dibatalkan dari klien. */
 const STALL_SECONDS = 90;
 
@@ -27,16 +29,13 @@ export function SectionCountdown({ msLeft }: { msLeft: number }) {
   const [deadline] = useState(() => Date.now() + msLeft);
   const left = deadline - useNow();
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-2 text-[0.9375rem] font-bold text-[#f2c878]">
-      <Clock className="size-4" aria-hidden />
-      {left > 0 ? (
-        <>
-          Sisa waktu section <span className="tnum font-display text-[1.125rem]">{clock(left)}</span>
-          <span className="font-medium text-[#d3ccbe]">Timer tetap jalan walau kamu keluar dari browser.</span>
-        </>
-      ) : (
-        "Waktu section ini sudah habis."
-      )}
+    <p
+      role="timer"
+      aria-label={left > 0 ? `Sisa waktu section ${clock(left)}` : "Waktu section sudah habis"}
+      className="inline-flex items-center gap-1.5 rounded-full bg-charcoal px-3 py-1.5 font-round text-[1.125rem] font-extrabold text-mango-line"
+    >
+      <Clock className="size-4" strokeWidth={2.6} aria-hidden />
+      {left > 0 ? <span className="tnum">{clock(left)} tersisa</span> : <span className="font-sans text-[0.875rem]">Waktu section habis</span>}
     </p>
   );
 }
@@ -53,24 +52,27 @@ export function PendingOverlay() {
     >
       <div
         role="status"
-        className="flex max-w-md flex-col items-center gap-4 rounded-plate border-2 border-hairline bg-surface px-8 py-8 shadow-overlay"
+        className="flex max-w-md flex-col items-center gap-4 rounded-[24px] bg-surface px-8 py-8 shadow-overlay"
       >
-        <Loader2 className="size-10 animate-spin text-primary" aria-hidden />
+        <Lori mood="think" size={112} />
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-lg font-bold">Menyiapkan soal…</p>
+          <p className="flex items-center gap-2 font-display text-[1.375rem] font-extrabold">
+            <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
+            Menyiapkan soal…
+          </p>
           <p className="tnum text-[0.9375rem] text-ink-subtle">
             {seconds} detik. Latihan singkat biasanya di bawah 30 detik; simulasi penuh bisa 1–2 menit.
           </p>
         </div>
         {stalled ? (
           <div className="flex flex-col items-center gap-2 text-center">
-            <p className="text-[0.9375rem] font-semibold text-warning-ink">
+            <p className="text-[0.9375rem] font-semibold text-mango-ink">
               Lebih lama dari biasanya. Mungkin koneksi atau server AI sedang lambat.
             </p>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="min-h-11 rounded-control border-2 border-hairline bg-surface-muted px-4 text-[0.9375rem] font-bold hover:border-primary"
+              className="min-h-11 cursor-pointer rounded-[12px] border-2 border-hairline bg-surface px-4 text-[0.9375rem] font-extrabold shadow-[0_3px_0_var(--color-hairline)]"
             >
               Muat ulang &amp; coba lagi
             </button>

@@ -29,7 +29,10 @@ export function ProgressRule({
       aria-valuemax={100}
       aria-label={label}
     >
-      <div className={cn("h-full rounded-full transition-[width] duration-300", fill)} style={{ width: `${clamped}%` }} />
+      <div
+        className={cn("h-full w-full origin-left rounded-full transition-transform duration-300 ease-out", fill)}
+        style={{ transform: `scaleX(${clamped / 100})` }}
+      />
     </div>
   );
 }

@@ -66,7 +66,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
           </div>
         </div>
 
-        <section className="rise flex flex-col gap-[18px] [--i:1]">
+        <section key={index} className="rise flex flex-col gap-[18px] [--i:1]">
           <p className="inline-flex self-start rounded-[10px] bg-sky-soft px-3 py-1.5 text-[0.8125rem] font-extrabold tracking-[0.06em] text-sky-deep">
             STRUCTURE · SOAL {index + 1} · {LEVEL_LABEL[q.level]}
           </p>
@@ -97,7 +97,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
                   }}
                   className={cn(
                     "flex min-h-[68px] cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
-                    !checked && sel && "border-sky bg-[#eef3fd] shadow-[0_4px_0_var(--color-sky)]",
+                    !checked && sel && "border-sky bg-sky-soft shadow-[0_4px_0_var(--color-sky)]",
                     !checked && !sel && "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)] hover:border-sky",
                     isAnswer && "border-primary bg-primary-soft shadow-[0_4px_0_var(--color-primary)]",
                     checked && sel && !isAnswer && "border-brick bg-brick-soft shadow-[0_4px_0_var(--color-brick)]",
@@ -134,7 +134,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
           <PrimaryButton
             onClick={() => check(false)}
             disabled={!picked}
-            className={picked ? undefined : "bg-hairline text-[#6a6f73] [--ledge:transparent]"}
+            className={picked ? undefined : "bg-hairline text-ink-faint [--ledge:transparent]"}
           >
             PERIKSA
           </PrimaryButton>

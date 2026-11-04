@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Pause, Play } from "lucide-react";
+import { Check, Eye, Pause, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -8,8 +8,8 @@ import { DrillFooter, DrillHeader, DrillMain, DrillPage, FeedbackBar, PrimaryBut
 import { DrillSummary } from "@/components/drill/summary";
 import { Lori } from "@/components/mascot";
 import { sfx } from "@/lib/sfx";
-import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
 
 import { finishDrillAction } from "../actions";
 
@@ -31,7 +31,7 @@ function highlight(sentence: string, word: string) {
   return (
     <>
       {sentence.slice(0, at)}
-      <mark className="rounded-[4px] bg-[#f2c878] px-1">{sentence.slice(at, at + word.length)}</mark>
+      <mark className="rounded-[4px] bg-mango-mark px-1 font-bold text-ink">{sentence.slice(at, at + word.length)}</mark>
       {sentence.slice(at + word.length)}
     </>
   );
@@ -106,7 +106,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
           <Lori mood="think" size={160} />
           <h1 className="font-display text-[1.875rem] font-black">Belum ada kalimat untuk didengar</h1>
           <p className="max-w-md text-ink-subtle">Bank kosakata belum punya kalimat contoh. Isi dulu lewat panel admin.</p>
-          <Link href="/latihan" className="font-extrabold text-primary hover:underline">
+          <Link href="/latihan" className="font-extrabold text-primary-deep hover:underline">
             Kembali ke Latihan
           </Link>
         </DrillMain>
@@ -118,20 +118,20 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
     return (
       <DrillSummary
         title="Telingamu makin tajam!"
-        subtitle={`${correct} dari ${items.length} kalimat berhasil kamu tangkap.`}
+        subtitle={`Dengar & jawab · ${correct} dari ${items.length} kalimat berhasil kamu tangkap.`}
         onAgain={again}
         stats={[
-          { label: "BENAR", value: `${correct}/${items.length}`, bg: "bg-primary", ink: "text-primary-deep" },
-          { label: "AKURASI", value: `${Math.round((correct / items.length) * 100)}%`, bg: "bg-[#8c5bb5]", ink: "text-[#5d2e86]" },
-          { label: "TOTAL XP", value: xp, bg: "bg-mango", ink: "text-[#a86a12]" },
-          { label: "KALIMAT", value: items.length, bg: "bg-sky", ink: "text-sky-deep" },
+          { label: "TOTAL XP", value: xp, bg: "bg-mango", ink: "text-mango-ink" },
+          { label: "AKURASI", value: `${Math.round((correct / items.length) * 100)}%`, bg: "bg-primary", ink: "text-primary-deep" },
+          { label: "KALIMAT", value: `${correct}/${items.length}`, bg: "bg-sky", ink: "text-sky-deep" },
         ]}
       />
     );
   }
 
   // Tinggi dasar gelombang bervariasi simetris-acak (bukan menurun satu arah).
-  const bars = Array.from({ length: 36 }, (_, i) => 22 + Math.round(68 * Math.abs(Math.sin(i * 0.9) * Math.cos(i * 0.37 + 0.6))));
+  const bars = Array.from({ length: 28 }, (_, i) => 26 + Math.round(70 * Math.abs(Math.sin(i * 0.9) * Math.cos(i * 0.37 + 0.6))));
+  const playedRatio = plays / MAX_PLAYS;
 
   return (
     <DrillPage>
@@ -139,50 +139,37 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
         exitHref="/latihan"
         value={index + (checked ? 1 : 0)}
         max={items.length}
-        barClass="bg-[#8c5bb5] shadow-[inset_0_-5px_0_#5d2e86]"
+        barClass="bg-sky shadow-[inset_0_-4px_0_rgba(0,0,0,0.12)]"
       />
-      <DrillMain className="flex flex-wrap items-start gap-10">
-        <section aria-label="Audio" className="flex w-full flex-col gap-4 lg:w-[440px] lg:shrink-0">
-          <h1 className="rise font-display text-[2rem] font-black tracking-[-0.02em]">Dengarkan, lalu jawab</h1>
-          <div className="rise relative overflow-hidden rounded-[28px] bg-[#2e2340] p-6 text-canvas shadow-[0_6px_0_#1b1428] [--i:1]">
-            <div className="relative flex h-[210px] justify-center">
-              {playing ? (
-                <>
-                  <span aria-hidden className="float absolute left-[60%] top-10 font-display text-[1.625rem] font-black text-[#d5bfe6]">♪</span>
-                  <span aria-hidden className="float absolute left-[30%] top-[60px] font-display text-[1.375rem] font-black text-[#f2c878] [animation-delay:-1s]">♫</span>
-                </>
-              ) : null}
-              <Lori mood={playing ? "talk" : "idle"} size={210} label="Lori mendengarkan bersamamu" />
-            </div>
-            <div aria-hidden className="mt-1 flex h-12 items-center gap-[3px]">
+      <DrillMain className="flex flex-col items-center gap-7">
+        <h1 className="rise text-center font-display text-[1.75rem] font-black tracking-[-0.02em]">Dengarkan, lalu jawab</h1>
+
+        <section
+          aria-label="Audio"
+          className="rise flex w-full flex-wrap items-center gap-6 rounded-hero border-2 border-hairline bg-surface p-6 shadow-card [--i:1] sm:p-7"
+        >
+          <button
+            type="button"
+            onClick={play}
+            disabled={!supported || playing || plays >= MAX_PLAYS}
+            aria-label={plays >= MAX_PLAYS ? "Audio sudah diputar dua kali" : "Putar audio"}
+            className="relative grid size-24 shrink-0 cursor-pointer place-items-center rounded-full bg-sky text-white shadow-[0_0_0_8px_var(--color-sky-soft),0_6px_0_8px_var(--color-sky-line)] transition-transform active:translate-y-1 disabled:cursor-default disabled:opacity-60"
+          >
+            {playing ? <Pause className="size-10 fill-current" aria-hidden /> : <Volume2 className="size-10" strokeWidth={2.2} aria-hidden />}
+            {playing ? <span aria-hidden className="ping absolute inset-0 rounded-full border-4 border-sky" /> : null}
+          </button>
+          <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-3">
+            <div aria-hidden className="flex h-11 items-center gap-1">
               {bars.map((h, i) => (
                 <span
                   key={i}
-                  className={cn("flex-1 rounded-[3px] bg-[#d5bfe6]", playing && "wave-bar")}
-                  style={{ height: `${h}%`, animationDelay: `${((i * 7) % 11) * 0.09}s`, opacity: playing ? 1 : 0.5 }}
+                  className={cn("w-1.5 rounded-[3px]", i / bars.length < playedRatio ? "bg-sky" : "bg-sky-line", playing && "wave-bar")}
+                  style={{ height: `${h}%`, animationDelay: `${((i * 7) % 11) * 0.09}s` }}
                 />
               ))}
             </div>
-            <div className="mt-4 flex min-h-[100px] flex-wrap items-center gap-3.5">
-              <button
-                type="button"
-                onClick={play}
-                disabled={!supported || playing || plays >= MAX_PLAYS}
-                aria-label={plays >= MAX_PLAYS ? "Audio sudah diputar dua kali" : "Putar audio"}
-                className="ledge relative grid size-[72px] shrink-0 cursor-pointer place-items-center rounded-full bg-[#f2c878] text-[#2e2340] [--ledge:#c4831f] disabled:cursor-default disabled:opacity-60"
-              >
-                {playing ? <Pause className="size-8 fill-current" aria-hidden /> : <Play className="size-8 fill-current" aria-hidden />}
-                {playing ? <span aria-hidden className="ping absolute inset-0 rounded-full border-4 border-[#f2c878]" /> : null}
-              </button>
-              <div className="min-w-[140px] flex-1">
-                <p className="font-display text-[1.125rem] font-black">
-                  {!supported ? "Suara tidak didukung" : playing ? "Memutar…" : plays >= MAX_PLAYS ? "Putaran habis" : "Tekan untuk mendengar"}
-                </p>
-                <p className="mt-0.5 text-[0.875rem] text-[#d5bfe6]">
-                  Audio boleh diputar {MAX_PLAYS} kali ({MAX_PLAYS - plays} tersisa)
-                </p>
-              </div>
-              <div role="radiogroup" aria-label="Kecepatan" className="flex w-full rounded-[12px] bg-[#1b1428] p-1 sm:w-auto">
+            <div className="flex flex-wrap items-center gap-3">
+              <div role="radiogroup" aria-label="Kecepatan" className="flex gap-1 rounded-[12px] bg-canvas-deep p-1">
                 {[
                   { label: "1×", slow: false },
                   { label: "0.75×", slow: true },
@@ -194,26 +181,34 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
                     aria-checked={slow === s.slow}
                     onClick={() => setSlow(s.slow)}
                     className={cn(
-                      "min-h-10 min-w-[52px] cursor-pointer rounded-[9px] text-[0.875rem] font-extrabold",
-                      slow === s.slow ? "bg-[#f2c878] text-[#2e2340]" : "text-[#d5bfe6]",
+                      "h-9 min-w-[52px] cursor-pointer rounded-[9px] px-3 text-[0.875rem] font-extrabold",
+                      slow === s.slow ? "bg-surface shadow-[0_2px_0_var(--color-hairline-strong)]" : "text-ink-muted",
                     )}
                   >
                     {s.label}
                   </button>
                 ))}
               </div>
+              <span className="text-[0.875rem] font-bold text-ink-subtle">
+                {!supported
+                  ? "Browser tanpa suara"
+                  : playing
+                    ? "Memutar…"
+                    : plays >= MAX_PLAYS
+                      ? "Putaran habis"
+                      : `Sisa ${MAX_PLAYS - plays} putaran`}
+                {" · "}
+                <span className="text-sky-deep">{slow ? "mode pelan, XP tetap penuh" : "kecepatan normal"}</span>
+              </span>
             </div>
           </div>
+          <Lori mood={playing ? "talk" : "think"} size={80} label="Lori mendengarkan bersamamu" className="shrink-0" />
         </section>
 
-        <section aria-label="Pertanyaan" className="flex min-w-0 flex-1 flex-col gap-4 lg:basis-[460px] lg:pt-14">
-          <p className="rise inline-flex self-start rounded-[10px] bg-[#f1e8f7] px-3 py-1.5 text-[0.8125rem] font-extrabold tracking-[0.06em] text-[#5d2e86]">
-            DENGAR KATA · KALIMAT {index + 1}
-          </p>
-          <h2 className="rise font-display text-[1.75rem] font-extrabold leading-snug [--i:1]">
-            Kata mana yang ada di kalimat tadi?
-          </h2>
-          <div role="radiogroup" aria-label="Pilihan jawaban" className={cn("flex flex-col gap-3", checked && !right && "shake")}>
+        <section aria-label="Pertanyaan" className="flex w-full flex-col gap-4">
+          <p className="rise eyebrow text-sky-deep">Dengar kata · kalimat {index + 1}</p>
+          <h2 className="rise font-display text-[1.5rem] font-extrabold leading-snug [--i:1]">Kata mana yang ada di kalimat tadi?</h2>
+          <div role="radiogroup" aria-label="Pilihan jawaban" className={cn("grid gap-3 sm:grid-cols-2", checked && !right && "shake")}>
             {item.options.map((option, i) => {
               const chosen = picked === option;
               const isAnswer = checked && option === item.answer;
@@ -229,16 +224,27 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
                     sfx.tap();
                   }}
                   className={cn(
-                    "rise flex min-h-16 cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold shadow-[0_4px_0_var(--color-hairline)] transition-[transform,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
-                    !checked && chosen && "border-[#8c5bb5] bg-[#f1e8f7] shadow-[0_4px_0_#8c5bb5]",
-                    !checked && !chosen && "border-hairline bg-surface hover:border-[#8c5bb5]",
-                    isAnswer && "border-primary bg-primary-soft shadow-[0_4px_0_var(--color-primary)]",
-                    checked && chosen && !isAnswer && "border-brick bg-brick-soft shadow-[0_4px_0_var(--color-brick)]",
-                    checked && !chosen && !isAnswer && "border-hairline bg-surface opacity-60",
+                    "flex min-h-16 cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
+                    !checked && chosen && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky-line)]",
+                    !checked && !chosen && "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)] hover:border-sky-line",
+                    isAnswer && "border-primary bg-primary-soft text-primary-deep shadow-[0_4px_0_var(--color-primary-line)]",
+                    checked && chosen && !isAnswer && "border-brick bg-brick-soft text-brick-deep shadow-[0_4px_0_var(--color-brick-line)]",
+                    checked && !chosen && !isAnswer && "border-hairline bg-surface-muted text-ink-faint",
                   )}
-                  style={{ "--i": i + 2 } as React.CSSProperties}
                 >
-                  <span aria-hidden className="grid size-[34px] shrink-0 place-items-center rounded-[10px] border-2 border-current font-display text-[1rem] font-extrabold">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-[9px] text-[0.875rem] font-extrabold",
+                      isAnswer
+                        ? "bg-primary text-white"
+                        : chosen
+                          ? checked
+                            ? "bg-brick text-white"
+                            : "bg-sky text-white"
+                          : "border-2 border-hairline text-ink-subtle",
+                    )}
+                  >
                     {isAnswer ? <Check className="size-4" strokeWidth={3} /> : String.fromCharCode(65 + i)}
                   </span>
                   {option}
@@ -248,15 +254,20 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
           </div>
 
           {checked ? (
-            <div className="pop rounded-[20px] border-2 border-dashed border-[#d5bfe6] bg-surface px-5 py-[18px]">
-              <p className="mb-2.5 text-[0.8125rem] font-extrabold tracking-[0.08em] text-[#5d2e86]">TRANSKRIP</p>
+            <div className="pop rounded-plate border-2 border-dashed border-hairline-strong bg-surface-muted px-5 py-[18px]">
+              <p className="eyebrow mb-2 text-ink-subtle">Transkrip</p>
               <p className="text-[1.0625rem] leading-relaxed">{highlight(item.sentence, item.answer)}</p>
               {item.translation ? <p className="mt-1.5 text-[0.9375rem] text-ink-subtle">{item.translation}</p> : null}
               <p className="mt-3 text-[0.9375rem] text-ink-muted">
                 <strong className="text-ink">{item.answer}</strong> = {item.meaning}
               </p>
             </div>
-          ) : null}
+          ) : (
+            <p className="flex items-center gap-1.5 text-[0.875rem] text-ink-subtle">
+              <Eye className="size-4" aria-hidden />
+              Transkrip muncul setelah jawaban diperiksa.
+            </p>
+          )}
         </section>
       </DrillMain>
 
@@ -266,20 +277,23 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
           title={right ? "Tepat!" : "Hampir!"}
           body={right ? `“${item.answer}” memang ada di kalimat itu.` : `Jawaban yang benar: ${item.answer}`}
         >
-          <PrimaryButton onClick={next} autoFocus className={right ? undefined : "bg-brick [--ledge:var(--color-brick-deep)]"}>
+          <PrimaryButton
+            onClick={next}
+            autoFocus
+            className={right ? undefined : "bg-brick shadow-[0_5px_0_var(--color-brick-deep)]"}
+          >
             {index + 1 < items.length ? "LANJUT" : "SELESAI"}
           </PrimaryButton>
         </FeedbackBar>
       ) : (
         <DrillFooter>
-          <Link href="/latihan" className="flex min-h-11 items-center font-extrabold text-ink-subtle hover:text-ink">
-            NGGAK BISA DENGAR SEKARANG
-          </Link>
-          <PrimaryButton
-            onClick={check}
-            disabled={!picked}
-            className={picked ? undefined : "bg-hairline text-[#6a6f73] [--ledge:transparent]"}
+          <Link
+            href="/latihan"
+            className="flex h-[54px] items-center rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display font-extrabold text-ink-muted shadow-[0_4px_0_var(--color-hairline)]"
           >
+            TIDAK BISA DENGAR
+          </Link>
+          <PrimaryButton onClick={check} disabled={!picked}>
             PERIKSA
           </PrimaryButton>
         </DrillFooter>

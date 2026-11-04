@@ -122,7 +122,7 @@ export function BankItemForm({
       })}
 
       <div className="sticky bottom-4 flex flex-wrap items-center gap-4 rounded-plate border-2 border-hairline bg-surface p-4 shadow-overlay">
-        <Kaka mood={state.error ? "warn" : "coach"} size={56} />
+        <Kaka mood={state.error ? "warn" : "coach"} size={56} still />
         <div className="min-w-0 flex-1">
           <FieldError>{state.error}</FieldError>
           {!state.error ? <p className="text-[0.875rem] text-ink-subtle">Perubahan tercatat di log audit.</p> : null}

@@ -1,10 +1,10 @@
-import { ArrowLeft, ArrowUp, Check, Clock, Lock } from "lucide-react";
+import { ArrowLeft, ArrowUp, Check, ChevronRight, Clock, Lock } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { ScoreBars3D } from "@/components/exam-3d";
 import { CountUp } from "@/components/fx/count-up";
 import { Kaka } from "@/components/mascot";
+import { SkillChip } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -14,6 +14,7 @@ import {
   type SimulationView,
 } from "@/lib/api/eprt-simulation";
 import { loadSession } from "@/lib/api/toefl-turn";
+import { getEptrTarget } from "@/db/queries/activity";
 import { formatDate } from "@/lib/dates";
 import { scopeQuestionTotal, SECTION_MINUTES } from "@/lib/eprt-simulation";
 import { requireUser } from "@/lib/session";
@@ -90,13 +91,13 @@ export default async function SimulationPage({
   }
 
   if (sim.score) {
-    const history = await simulationHistory(user.id);
+    const [history, target] = await Promise.all([simulationHistory(user.id), getEptrTarget(user.id)]);
     // Bandingkan dengan tes sejenis sebelumnya: simulasi penuh dengan total, mini-test dengan skor section.
     const previous = history.find(
       (item) => item.id < sim.id && item.completed && item.scope === sim.scope && item.score,
     );
     const previousScore = previous?.score ? (sim.scope ? previous.score[sim.scope] : previous.score.total) : null;
-    return <Result sim={sim} home={home} previous={previousScore} />;
+    return <Result sim={sim} home={home} previous={previousScore} target={target?.score ?? null} />;
   }
 
   return <Overview sim={sim} />;
@@ -107,6 +108,8 @@ const SECTIONS = [
   { key: "structure", label: "Structure" },
   { key: "reading", label: "Reading" },
 ] as const;
+
+const SECTION_LABEL = { listening: "Listening", structure: "Structure", reading: "Reading" } as const;
 
 function BackLink() {
   return (
@@ -254,186 +257,227 @@ function Overview({ sim }: { sim: SimulationView }) {
   );
 }
 
-function Result({ sim, home, previous }: { sim: SimulationView; home: string; previous: number | null }) {
+function Result({
+  sim,
+  home,
+  previous,
+  target,
+}: {
+  sim: SimulationView;
+  home: string;
+  previous: number | null;
+  target: number | null;
+}) {
   const score = sim.score!;
-  const focus = sim.skills
-    .filter((stat) => stat.pct !== null)
-    .sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0))
-    .slice(0, 4);
+  const weak = sim.skills
+    .filter((stat) => stat.pct !== null && stat.pct < 80)
+    .map((stat) => ({ ...stat, wrong: stat.answered - Math.round(((stat.pct ?? 0) * stat.answered) / 100) }))
+    .filter((stat) => stat.wrong > 0)
+    .sort((a, b) => b.wrong - a.wrong)
+    .slice(0, 3);
   // Mini-test: yang ditampilkan skor section (31-68), bukan total 310-677.
   const shown = sim.scope ? score[sim.scope] : score.total;
   const diff = previous === null ? null : shown - previous;
   const bars = SECTIONS.filter((section) => !sim.scope || section.key === sim.scope);
-  const scaleMin = sim.scope ? 31 : 310;
-  const scaleMax = sim.scope ? 68 : 677;
+  // Skor total = rata-rata section × 10, jadi target per section ≈ target / 10.
+  const sectionTarget = target ? Math.round(target / 10) : null;
+  const lowest = [...bars].sort((a, b) => score[a.key] - score[b.key])[0];
+  const totalQuestions = scopeQuestionTotal(sim.scope);
+  const minutes = bars.reduce((sum, section) => sum + SECTION_MINUTES[section.key], 0);
+  const totalWrong = bars.reduce((sum, s) => sum + (score.answered[s.key] - score.correct[s.key]), 0);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <BackLink />
-        <h1 className="font-display text-[2rem] font-extrabold tracking-[-0.025em] sm:text-[3rem]">
-          {sim.scope ? `Hasil mini-test ${bars[0].label}` : "Hasil simulasi"} · {formatDate(sim.createdAt)}
-        </h1>
-      </div>
+    <div className="flex flex-col gap-6">
+      <nav aria-label="Remah roti" className="flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
+        <Link href="/eptr" className="text-ink-muted hover:text-primary">
+          EPrT
+        </Link>
+        <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
+        <span aria-current="page">
+          {sim.scope ? "Hasil mini-test" : "Hasil simulasi"} {formatDate(sim.createdAt)}
+        </span>
+      </nav>
 
       <section
         aria-label="Skor"
-        className="rise relative flex flex-wrap items-center gap-7 overflow-hidden rounded-[28px] bg-[#22242a] p-6 text-canvas shadow-[0_6px_0_#111215] sm:p-7"
+        className="rise flex flex-wrap items-center gap-8 rounded-[32px] bg-charcoal p-6 text-charcoal-ink sm:p-8"
       >
-        <div className="relative hidden shrink-0 sm:block">
-          <Kaka mood={diff !== null && diff < 0 ? "coach" : "proud"} size={180} label="Kaka melihat hasilmu" />
+        <div className="hidden shrink-0 sm:block">
+          <Kaka mood={diff !== null && diff < 0 ? "coach" : "proud"} size={168} label="Kaka melihat hasilmu" />
         </div>
-        <div className="relative min-w-[260px] flex-1">
-          <p className="text-[0.875rem] font-extrabold tracking-[0.08em] text-[#f2c878]">
-            {sim.scope ? `MINI-TEST ${bars[0].label.toUpperCase()}` : "SIMULASI PENUH"} · {formatDate(sim.createdAt).toUpperCase()}
-          </p>
-          <div className="flex flex-wrap items-baseline gap-4">
-            <span className="font-display text-[4.5rem] font-black leading-none tracking-[-0.04em] sm:text-[6rem]">
-              <CountUp to={shown} ms={1200} className="tabular-nums" />
-            </span>
+        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
+          <span className="text-[0.75rem] font-extrabold tracking-[0.08em] text-mango-line">
+            {sim.scope ? `MINI-TEST ${bars[0].label.toUpperCase()}` : "SIMULASI PENUH"} · {totalQuestions} SOAL ·{" "}
+            {minutes} MNT
+          </span>
+          <span className="flex flex-wrap items-baseline gap-3.5">
+            <CountUp to={shown} ms={1200} className="font-round text-[4.5rem] font-extrabold leading-[0.9] tabular-nums sm:text-[5.5rem]" />
             {diff !== null && diff !== 0 ? (
               <span
                 className={cn(
-                  "pop inline-flex items-center gap-1 rounded-[10px] px-3 py-1.5 font-display text-[1.25rem] font-black [animation-delay:900ms]",
-                  diff > 0 ? "bg-primary text-white" : "bg-brick text-white",
+                  "pop inline-flex items-center gap-1 rounded-full bg-charcoal-raised px-3 py-1 text-[0.9375rem] font-extrabold",
+                  diff > 0 ? "text-mint" : "text-brick-line",
                 )}
+                style={{ "--delay": "900ms" } as React.CSSProperties}
               >
                 <ArrowUp className={cn("size-4", diff < 0 && "rotate-180")} aria-hidden />
-                {diff > 0 ? "+" : "−"}
-                {Math.abs(diff)}
+                {Math.abs(diff)} dari {sim.scope ? "mini-test" : "simulasi"} lalu
               </span>
             ) : null}
-          </div>
-          <p className="mt-1.5 text-[1.0625rem] text-[#d3ccbe]">
+          </span>
+          <p className="text-charcoal-muted">
+            Kaka: “
             {diff === null
               ? "Ini simulasi pertamamu. Jadikan patokan, lalu kejar bagian yang paling lemah."
               : diff > 0
-                ? `Naik ${diff} poin dari ${sim.scope ? "mini-test" : "simulasi"} sebelumnya. Pertahankan ritmenya.`
+                ? `Naik ${diff} poin.`
                 : diff < 0
-                  ? `Turun ${Math.abs(diff)} poin. Tenang, cek pembahasan dan ulang bagian yang meleset.`
-                  : "Sama dengan sebelumnya. Latihan per topik bisa menggesernya."}
-          </p>
-          <div className="mt-3.5 max-w-[460px]">
-            <div className="relative h-3.5 rounded-full bg-[#3a3d46]">
-              <div
-                className="grow-x h-full rounded-full bg-mango [animation-delay:400ms]"
-                style={{ width: `${Math.max(2, Math.min(100, ((shown - scaleMin) / (scaleMax - scaleMin)) * 100))}%` }}
-              />
-            </div>
-            <div className="mt-1.5 flex justify-between text-[0.8125rem] font-bold text-[#d3ccbe]">
-              <span>{scaleMin}</span>
-              <span>{scaleMax}</span>
-            </div>
-          </div>
-          <p className="mt-2 max-w-md text-[0.8125rem] leading-relaxed text-[#d3ccbe]">
-            Perkiraan dengan tabel konversi mirip TOEFL ITP, bukan skor resmi.{" "}
-            {sim.scope ? "Satu section belum cukup untuk memperkirakan skor total." : "Selisih dengan tes asli bisa sekitar ±20 poin."}
+                  ? `Turun ${Math.abs(diff)} poin. Cek pembahasan dan ulang bagian yang meleset.`
+                  : "Sama dengan sebelumnya."}
+            {target && !sim.scope && shown < target ? ` Target ${target} masih ${target - shown} poin lagi.` : ""}
+            {bars.length > 1 ? ` ${lowest.label} yang paling menahanmu.` : ""}” {" "}
+            {sim.scope
+              ? "Satu section belum cukup untuk memperkirakan skor total."
+              : "Perkiraan, bukan skor resmi. Selisih dengan tes asli bisa sekitar ±20 poin."}
           </p>
         </div>
-        <div className="relative flex flex-col gap-2.5">
+        <div className="flex flex-[0_1_220px] flex-col gap-2.5">
           <Link
-            href="/latihan/kesalahan"
-            className="ledge flex min-h-[54px] items-center justify-center rounded-[16px] bg-mango px-5 font-display text-[1rem] font-black text-[#3a2400] [--ledge:var(--color-mango-deep)]"
+            href="/eptr#practice-title"
+            className="flex h-[52px] items-center justify-center rounded-[16px] bg-mango px-5 font-display text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
           >
-            BUKA BANK KESALAHAN
+            LATIH {lowest.label.toUpperCase()}
           </Link>
-          <Link
-            href="/eptr"
-            className="flex min-h-[50px] items-center justify-center rounded-[16px] border-2 border-[#4a4e58] bg-[#2e3138] px-5 font-display text-[0.9375rem] font-extrabold text-canvas"
+          <a
+            href="#pembahasan"
+            className="flex h-12 items-center justify-center rounded-[16px] border-2 border-charcoal-line px-5 font-display text-[0.9375rem] font-extrabold text-charcoal-ink hover:bg-charcoal-raised"
           >
-            Kembali ke dashboard EPrT
-          </Link>
+            Lihat pembahasan
+          </a>
         </div>
       </section>
 
-      <section aria-label="Skor per bagian" className="rounded-plate border-2 border-hairline bg-surface p-5 shadow-card sm:p-7">
-        <ScoreBars3D
-          bars={bars.map((section) => ({
-            key: section.key,
-            label: section.label,
-            score: score[section.key],
-            detail: `${score.correct[section.key]}/${score.answered[section.key]} benar`,
-          }))}
-        />
+      <section aria-label="Skor per bagian" className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+        {bars.map((section) => {
+          const value = score[section.key];
+          const below = sectionTarget !== null && value < sectionTarget;
+          const reached = sectionTarget !== null && !below;
+          const pct = (n: number) => Math.max(2, Math.min(100, ((n - 31) / (68 - 31)) * 100));
+          const tone = below && section.key === lowest.key && bars.length > 1 ? "brick" : reached ? "primary" : "sky";
+          return (
+            <div
+              key={section.key}
+              className={cn(
+                "flex flex-col gap-2.5 rounded-[24px] border-2 bg-surface p-5",
+                tone === "brick"
+                  ? "border-brick-line shadow-[0_4px_0_var(--color-brick-line)]"
+                  : "border-hairline shadow-card",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <strong className="font-display text-[1.125rem]">{section.label}</strong>
+                <span className={cn("text-[0.8125rem] font-extrabold", tone === "brick" ? "text-brick-deep" : "text-ink-subtle")}>
+                  {score.correct[section.key]}/{score.answered[section.key]} benar
+                </span>
+              </div>
+              <span
+                className={cn(
+                  "font-round text-[2.75rem] font-extrabold leading-none",
+                  tone === "brick" ? "text-brick-deep" : tone === "primary" && "text-primary-deep",
+                )}
+              >
+                {value}
+              </span>
+              <div className="relative h-3 rounded-full bg-surface-sunken">
+                <span
+                  className={cn(
+                    "grow-x absolute inset-y-0 left-0 rounded-full",
+                    tone === "brick" ? "bg-brick" : tone === "primary" ? "bg-primary" : "bg-sky",
+                  )}
+                  style={{ width: `${pct(value)}%` }}
+                />
+                {sectionTarget !== null ? (
+                  <span
+                    className="absolute -inset-y-1 w-[3px] rounded-sm bg-ink"
+                    style={{ left: `${pct(sectionTarget)}%` }}
+                    aria-hidden
+                  />
+                ) : null}
+              </div>
+              <div className="flex justify-between text-[0.75rem] font-bold text-ink-subtle">
+                <span>31</span>
+                <span>
+                  {sectionTarget === null
+                    ? "belum ada target"
+                    : `target ${sectionTarget} · ${below ? `kurang ${sectionTarget - value}` : "tercapai"}`}
+                </span>
+                <span>68</span>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
-        <section
-          aria-labelledby="focus-title"
-          className="flex flex-col gap-4 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8"
-        >
-          <h2 id="focus-title" className="font-display text-2xl font-extrabold">
-            Fokus latihan berikutnya
-          </h2>
-          {focus.length === 0 ? (
-            <p className="text-base text-ink-subtle">Belum ada data skill.</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {focus.map((stat) => {
-                const weak = (stat.pct ?? 0) < 60;
-                return (
-                  <li
-                    key={stat.skill}
-                    className="grid grid-cols-[minmax(0,1fr)_6rem_3rem] items-center gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_8rem_3rem_6.5rem]"
-                  >
-                    <span className="text-base font-semibold">{SKILLS[stat.skill].label}</span>
-                    <span className="h-3 rounded-full bg-surface-sunken">
-                      <span
-                        className={cn("block h-full rounded-full", weak ? "bg-warning" : "bg-accent")}
-                        style={{ width: `${stat.pct}%` }}
-                      />
-                    </span>
-                    <span className="tnum text-right font-mono text-[0.9375rem]">{stat.pct}%</span>
-                    <span
-                      className={cn(
-                        "col-span-3 text-[0.875rem] font-bold sm:col-span-1",
-                        weak ? "text-warning-ink" : "text-accent-ink",
-                      )}
-                    >
-                      {weak ? "Perlu latihan" : "Cukup"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <Link href="/eptr#practice-title" className={cn(buttonVariants(), "self-start")}>
-            Latihan per bagian
-          </Link>
-        </section>
-
-        <section
-          aria-labelledby="review-title"
-          className="flex flex-col gap-3 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8"
-        >
-          <h2 id="review-title" className="font-display text-2xl font-extrabold">
-            Pembahasan per bagian
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {sim.parts.map((part) =>
-              part.sessionId ? (
-                <li key={part.index}>
-                  <Link
-                    href={`${home}&r=${part.index}`}
-                    className="flex min-h-[52px] items-center justify-between gap-3 rounded-control bg-surface-muted px-4 hover:bg-surface-sunken"
-                  >
-                    <span className="text-base font-semibold">{part.title}</span>
-                    <span className="text-[0.875rem] font-bold text-accent">Lihat</span>
-                  </Link>
-                </li>
-              ) : (
-                <li
-                  key={part.index}
-                  className="flex min-h-[52px] items-center justify-between gap-3 rounded-control border border-dashed border-hairline-strong px-4 text-ink-subtle"
+      {weak.length > 0 ? (
+        <section className="flex flex-col gap-3 rounded-[24px] border-2 border-hairline bg-surface px-6 py-5">
+          <h2 className="font-display text-[1.25rem] font-extrabold">Perlu latihan</h2>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+            {weak.map((stat, i) => {
+              const bad = i === 0;
+              return (
+                <Link
+                  key={stat.skill}
+                  href="/eptr#practice-title"
+                  className={cn(
+                    "flex items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-ink",
+                    bad ? "border-brick-line bg-brick-soft" : "border-mango-line bg-mango-soft",
+                  )}
                 >
-                  <span className="text-base font-semibold">{part.title}</span>
-                  <span className="text-[0.875rem] font-bold text-warning-ink">Waktu habis</span>
-                </li>
-              ),
-            )}
-          </ul>
+                  <strong className={cn("font-round text-[1.375rem]", bad ? "text-brick-deep" : "text-mango-ink")}>
+                    {stat.wrong}
+                  </strong>
+                  <span className="flex-1 text-[0.875rem]">
+                    <strong className="block">{SKILLS[stat.skill].label}</strong>
+                    <span className={bad ? "text-brick-deep" : "text-mango-ink"}>salah dari {stat.answered}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </section>
-      </div>
+      ) : null}
+
+      <section id="pembahasan" aria-labelledby="review-title" className="flex scroll-mt-6 flex-col gap-3.5">
+        <h2 id="review-title" className="font-display text-[1.375rem] font-extrabold">
+          Pembahasan · {totalWrong} salah
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {sim.parts.map((part) =>
+            part.sessionId ? (
+              <li key={part.index}>
+                <Link
+                  href={`${home}&r=${part.index}`}
+                  className="flex min-h-[60px] items-center gap-3 rounded-[18px] border-2 border-hairline bg-surface px-4 shadow-card hover:border-primary-line"
+                >
+                  <SkillChip skill={part.section}>{SECTION_LABEL[part.section]}</SkillChip>
+                  <span className="min-w-0 flex-1 truncate text-base font-semibold">{part.title.replace(/^\w+: /, "")}</span>
+                  <span className="text-[0.875rem] font-extrabold text-primary">Lihat</span>
+                  <ChevronRight className="size-4 text-primary" strokeWidth={2.6} aria-hidden />
+                </Link>
+              </li>
+            ) : (
+              <li
+                key={part.index}
+                className="flex min-h-[60px] items-center gap-3 rounded-[18px] border-2 border-dashed border-hairline-strong px-4 text-ink-subtle"
+              >
+                <SkillChip skill={part.section}>{SECTION_LABEL[part.section]}</SkillChip>
+                <span className="min-w-0 flex-1 truncate text-base font-semibold">{part.title.replace(/^\w+: /, "")}</span>
+                <span className="text-[0.875rem] font-extrabold text-mango-ink">Waktu habis</span>
+              </li>
+            ),
+          )}
+        </ul>
+      </section>
     </div>
   );
 }

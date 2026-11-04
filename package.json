@@ -30,6 +30,7 @@
     "db:admin:prod": "node --env-file=.env.production.local --import tsx src/db/create-admin.ts"
   },
   "dependencies": {
+    "@google/model-viewer": "^4.4.0",
     "@libsql/client": "^0.18.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

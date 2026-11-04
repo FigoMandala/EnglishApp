@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#258554"/>
+      <stop offset="100%" stop-color="#145536"/>
+    </linearGradient>
+    <linearGradient id="scarfGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2A93B"/>
+      <stop offset="100%" stop-color="#C4831F"/>
+    </linearGradient>
+    <linearGradient id="sheenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+    <clipPath id="squircleClip">
+      <rect x="2" y="2" width="96" height="96" rx="26" ry="26"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="2" y="2" width="96" height="96" rx="26" ry="26" fill="url(#badgeGrad)"/>
+  <rect x="3" y="3" width="94" height="94" rx="25" ry="25" fill="none" stroke="#79c79a" stroke-width="1.5" stroke-opacity="0.45"/>
+  <circle cx="50" cy="50" r="38" fill="#ffffff" fill-opacity="0.06"/>
+
+  <!-- Lori Mascot Silhouette -->
+  <g clip-path="url(#squircleClip)">
+    <!-- Ears -->
+    <circle cx="28" cy="38" r="9.5" fill="#C98B52"/>
+    <circle cx="28" cy="38" r="4.5" fill="#8A5530"/>
+    <circle cx="72" cy="38" r="9.5" fill="#C98B52"/>
+    <circle cx="72" cy="38" r="4.5" fill="#8A5530"/>
+
+    <!-- Head -->
+    <ellipse cx="50" cy="52" rx="30" ry="27" fill="#C98B52"/>
+    <ellipse cx="50" cy="59" rx="23" ry="17" fill="#F6E4C6"/>
+
+    <!-- Eye Patches (Kukang Mask) -->
+    <ellipse cx="38" cy="51" rx="10.5" ry="12.5" fill="#6E4024" transform="rotate(-15 38 51)"/>
+    <ellipse cx="62" cy="51" rx="10.5" ry="12.5" fill="#6E4024" transform="rotate(15 62 51)"/>
+
+    <!-- Forehead stripe -->
+    <path d="M47.5 28 Q50 26 52.5 28 L51.8 55 L48.2 55 Z" fill="#F6E4C6"/>
+
+    <!-- Eyes -->
+    <circle cx="38.5" cy="52" r="7" fill="#FFFFFF"/>
+    <circle cx="61.5" cy="52" r="7" fill="#FFFFFF"/>
+    <circle cx="39.5" cy="52" r="4.8" fill="#1B1F22"/>
+    <circle cx="62.5" cy="52" r="4.8" fill="#1B1F22"/>
+    <!-- Glint -->
+    <circle cx="41.2" cy="50" r="1.8" fill="#FFFFFF"/>
+    <circle cx="64.2" cy="50" r="1.8" fill="#FFFFFF"/>
+    <circle cx="38" cy="53.5" r="0.9" fill="#FFFFFF"/>
+    <circle cx="61" cy="53.5" r="0.9" fill="#FFFFFF"/>
+
+    <!-- Nose & Smile -->
+    <ellipse cx="50" cy="63.5" rx="3.2" ry="2.2" fill="#3A2416"/>
+    <path d="M45.5 67 Q50 71.5 54.5 67" stroke="#3A2416" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+    <!-- Cheeks -->
+    <circle cx="31" cy="61" r="3.5" fill="#F08A7A" opacity="0.6"/>
+    <circle cx="69" cy="61" r="3.5" fill="#F08A7A" opacity="0.6"/>
+
+    <!-- Scarf -->
+    <path d="M26 73 Q50 82 74 73 L75 82 Q50 91 25 82 Z" fill="url(#scarfGrad)"/>
+    <path d="M58 80 L67 96 L58 95 L54 81 Z" fill="#C4831F"/>
+  </g>
+
+  <!-- Glossy sheen -->
+  <rect x="2" y="2" width="96" height="42" rx="26" fill="url(#sheenGrad)" clip-path="url(#squircleClip)"/>
+
+  <!-- Small Learning Star Badge -->
+  <g transform="translate(68, 8) scale(0.7)">
+    <circle cx="16" cy="16" r="13" fill="#F2A93B" stroke="#ffffff" stroke-width="2.5"/>
+    <path d="M12 11 H20 M12 16 H18 M12 21 H20" stroke="#3A2416" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -24,14 +24,14 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative h-[34px] w-[58px] shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50",
-        checked ? "bg-primary" : "bg-[#c9bba2]",
+        checked ? "bg-primary" : "bg-hairline-strong",
       )}
     >
       <span
         aria-hidden
         className={cn(
-          "absolute top-1 size-[26px] rounded-full bg-white shadow-[0_2px_0_rgba(0,0,0,0.18)] transition-[left] duration-200",
-          checked ? "left-8" : "left-1",
+          "absolute top-1 left-1 size-[26px] rounded-full bg-white shadow-[0_2px_0_rgba(0,0,0,0.18)] transition-transform duration-200 ease-out",
+          checked ? "translate-x-7" : "translate-x-0",
         )}
       />
     </button>

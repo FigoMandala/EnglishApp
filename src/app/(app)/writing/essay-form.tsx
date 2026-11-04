@@ -7,30 +7,35 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/field";
 import { ESSAY_MAX_WORDS, ESSAY_MIN_WORDS, wordCount } from "@/lib/writing";
+import { findPrompt, type WritingPrompt } from "@/lib/writing-prompts";
 import { cn } from "@/lib/utils";
 
 import { submitEssayAction, type WritingState } from "./actions";
+import { PromptBank } from "./prompt-bank";
 
 const initialState: WritingState = { status: "idle" };
 
-const PROMPT_EXAMPLES = [
-  "Should students use AI tools for homework?",
-  "The impact of social media on young people",
-  "Why public transport matters for big cities",
-];
-
 const DRAFT_KEY = "writing-draft";
 
-export function EssayForm() {
+export function EssayForm({ daily, usedPrompts }: { daily: WritingPrompt; usedPrompts: string[] }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(submitEssayAction, initialState);
   const [essay, setEssay] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
 
+  const selected = findPrompt(selectedId) ?? null;
+
+  const choosePrompt = (next: WritingPrompt | null) => {
+    setSelectedId(next?.id ?? null);
+    setPrompt(next?.title ?? "");
+  };
+
   const words = wordCount(essay);
-  const tooShort = words > 0 && words < ESSAY_MIN_WORDS;
   const tooLong = words > ESSAY_MAX_WORDS;
+  const ready = words >= ESSAY_MIN_WORDS && !tooLong;
 
   // Pulihkan draf yang belum terkirim (misalnya halaman tertutup saat AI menilai).
   useEffect(() => {
@@ -61,45 +66,39 @@ export function EssayForm() {
     if (state.status === "idle" && state.message && /^\d+$/.test(state.message)) {
       setSavedId(state.message);
       setEssay("");
+      setPrompt("");
+      setSelectedId(null);
       router.push(`/writing/${state.message}`);
     }
     // state berubah saat action selesai; efek ini hanya menangani kasus sukses.
   }, [state, router]);
 
   return (
-    <form action={formAction} className="clay flex flex-col gap-4 p-6 sm:p-7">
+    <form
+      action={formAction}
+      aria-label="Esai baru"
+      className="flex min-w-0 flex-[1_1_560px] flex-col gap-[18px] rounded-[28px] border-2 border-hairline bg-surface p-6 shadow-card"
+    >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="prompt">Topik esai (opsional)</Label>
-        <Input id="prompt" name="prompt" maxLength={300} placeholder="mis. Should students use AI tools for homework?" />
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {PROMPT_EXAMPLES.map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={(event) => {
-                const input = event.currentTarget.form?.elements.namedItem("prompt");
-                if (input instanceof HTMLInputElement) input.value = example;
-              }}
-              className="rounded-full border border-hairline bg-surface-muted px-3 py-1 text-[0.75rem] font-semibold text-ink-subtle transition-colors hover:border-primary hover:text-primary"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+        <Label htmlFor="prompt">
+          Topik esai <span className="font-semibold text-ink-subtle">(opsional)</span>
+        </Label>
+        <Input
+          id="prompt"
+          name="prompt"
+          value={prompt}
+          onChange={(event) => {
+            setPrompt(event.target.value);
+            if (selectedId && findPrompt(selectedId)?.title !== event.target.value) setSelectedId(null);
+          }}
+          maxLength={300}
+          placeholder="mis. Should students use AI tools for homework?"
+        />
+        <PromptBank daily={daily} used={usedPrompts} selected={selected} onSelect={choosePrompt} />
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="essay">Esai (Bahasa Inggris)</Label>
-          <span
-            className={cn(
-              "tnum text-[0.75rem] font-bold",
-              tooShort || tooLong ? "text-warning" : "text-ink-faint",
-            )}
-          >
-            {words} kata · {ESSAY_MIN_WORDS}–{ESSAY_MAX_WORDS}
-          </span>
-        </div>
+        <Label htmlFor="essay">Esai (Bahasa Inggris)</Label>
         <Textarea
           id="essay"
           name="essay"
@@ -110,9 +109,23 @@ export function EssayForm() {
           rows={14}
           maxLength={8_000}
           placeholder="Write your essay in English…"
-          className={cn("min-h-[320px] text-[0.9375rem] leading-relaxed", (tooShort || tooLong) && "border-warning")}
+          className="min-h-[320px] rounded-[16px] bg-surface-muted px-[18px] py-4 text-[1.0625rem] leading-[1.7]"
           aria-describedby="essay-count-hint"
         />
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[0.8125rem] font-bold">
+          <span className="text-ink-subtle">
+            Minimal {ESSAY_MIN_WORDS} · maksimal {ESSAY_MAX_WORDS} kata
+          </span>
+          <span className={cn("tnum", ready ? "text-primary-deep" : tooLong ? "text-brick-deep" : "text-mango-ink")}>
+            {words} kata · {ready ? "siap dinilai" : tooLong ? "terlalu panjang" : `${ESSAY_MIN_WORDS - words} lagi`}
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+          <div
+            className={cn("h-full transition-[width]", ready ? "bg-primary" : tooLong ? "bg-brick" : "bg-mango")}
+            style={{ width: `${Math.min(100, Math.round((words / ESSAY_MIN_WORDS) * 100))}%` }}
+          />
+        </div>
         {restored && essay.trim() && !savedId ? (
           <p role="status" className="text-[0.75rem] text-ink-faint">
             Draf sebelumnya dipulihkan otomatis. Tersimpan lokal tiap kali kamu mengetik.
@@ -124,15 +137,13 @@ export function EssayForm() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="submit" disabled={pending || tooShort || tooLong || words === 0}>
+        <span role={pending ? "status" : undefined} className="text-[0.8125rem] text-ink-subtle">
+          {pending ? "Biasanya 20–60 detik. Jangan tutup halaman." : "Draf tersimpan otomatis di perangkat ini."}
+        </span>
+        <Button type="submit" size="lg" disabled={pending || !ready} className="px-7 tracking-[0.03em]">
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />}
-          {pending ? "Menilai esai…" : "Nilai esai saya"}
+          {pending ? "MENILAI ESAI…" : "NILAI ESAI SAYA"}
         </Button>
-        {pending ? (
-          <p role="status" className="text-[0.8125rem] text-ink-subtle">
-            Biasanya 20–60 detik. Jangan tutup halaman.
-          </p>
-        ) : null}
       </div>
 
       <FieldError>{state.status === "error" ? state.message : undefined}</FieldError>

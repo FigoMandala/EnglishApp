@@ -1,255 +1,311 @@
-import { GraduationCap, Search, SpellCheck } from "lucide-react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 
 import { SpeakButton } from "@/components/speak-button";
+import { LevelTag } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
-import { cachedVocabulary } from "@/db/queries/cached";
-import { dueForecast, vocabularyStats } from "@/db/queries/vocabulary";
+import { dueForecast, listVocabularyCards, vocabularyStats } from "@/db/queries/vocabulary";
 import { requireUser } from "@/lib/session";
 import { todayISO } from "@/lib/srs";
 import { cn } from "@/lib/utils";
+import { wordStatus } from "@/lib/word-status";
+import { XP_REWARDS } from "@/lib/xp";
 
 import { StartReviewButton } from "./start-review";
 
 export const metadata = { title: "Kosakata · EnglishApp" };
 
 const LEVELS = ["semua", "basic", "intermediate", "advanced"] as const;
-const LEVEL_LABEL = { semua: "Semua", basic: "Dasar", intermediate: "Menengah", advanced: "Lanjut" } as const;
+const LEVEL_LABEL = { semua: "Semua level", basic: "Dasar", intermediate: "Menengah", advanced: "Lanjut" } as const;
+const STATUSES = ["semua", "due", "new", "mastered"] as const;
+const STATUS_LABEL = { semua: "Semua", due: "Jatuh tempo", new: "Baru", mastered: "Dikuasai" } as const;
+const DAY = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const MAX_ROWS = 60;
+
+/** Bold kata target di kalimat contoh. */
+function emphasize(sentence: string, word: string) {
+  const at = sentence.toLowerCase().indexOf(word.toLowerCase());
+  if (at < 0) return sentence;
+  return (
+    <>
+      {sentence.slice(0, at)}
+      <strong className="text-ink">{sentence.slice(at, at + word.length)}</strong>
+      {sentence.slice(at + word.length)}
+    </>
+  );
+}
 
 export default async function KosakataPage({
   searchParams,
 }: {
-  searchParams: Promise<{ level?: string; q?: string; topic?: string }>;
+  searchParams: Promise<{ level?: string; q?: string; topic?: string; status?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
   const today = todayISO();
 
-  const [stats, forecast, allWords] = await Promise.all([
+  const [stats, forecast, cards] = await Promise.all([
     vocabularyStats(user.id),
     dueForecast(user.id, today, 7),
-    cachedVocabulary(),
+    listVocabularyCards(user.id),
   ]);
 
-  const level = LEVELS.includes(params.level as (typeof LEVELS)[number])
-    ? (params.level as (typeof LEVELS)[number])
+  const level = LEVELS.includes(params.level as (typeof LEVELS)[number]) ? (params.level as (typeof LEVELS)[number]) : "semua";
+  const status = STATUSES.includes(params.status as (typeof STATUSES)[number])
+    ? (params.status as (typeof STATUSES)[number])
     : "semua";
   const needle = (params.q ?? "").trim().toLowerCase();
   const topic = (params.topic ?? "").trim().toLowerCase();
+  const topics = [...new Set(cards.map((word) => word.topic).filter(Boolean))] as string[];
 
-  const topics = [...new Set(allWords.map((word) => word.topic).filter(Boolean))] as string[];
-
-  const matched = allWords
-    .filter((word) => (level === "semua" ? true : word.level === level))
-    .filter((word) => (topic ? (word.topic ?? "").toLowerCase() === topic : true))
-    .filter((word) =>
-      needle ? word.word.toLowerCase().includes(needle) || word.meaning.toLowerCase().includes(needle) : true,
+  const withStatus = cards.map((card) => ({ card, status: wordStatus(card, today) }));
+  const matched = withStatus
+    .filter(({ card }) => (level === "semua" ? true : card.level === level))
+    .filter(({ card }) => (topic ? (card.topic ?? "").toLowerCase() === topic : true))
+    .filter(({ status: s }) => (status === "semua" ? true : s.kind === status))
+    .filter(({ card }) =>
+      needle ? card.word.toLowerCase().includes(needle) || card.meaning.toLowerCase().includes(needle) : true,
     );
-  const filtered = matched.slice(0, 60);
+  const rows = matched.slice(0, MAX_ROWS);
+  const newWaiting = withStatus.filter(({ status: s }) => s.kind === "new").length;
 
   const maxForecast = Math.max(1, ...forecast.map((day) => day.count));
-  const levelLabel = (value: string) =>
-    value === "basic" ? "Dasar" : value === "intermediate" ? "Menengah" : "Lanjut";
+  const recall = stats.tracked > 0 ? Math.round(((stats.tracked - stats.due) / stats.tracked) * 100) : null;
+
+  const href = (patch: Partial<Record<"level" | "q" | "topic" | "status", string | null>>) => {
+    const sp = new URLSearchParams();
+    const next = { level: level === "semua" ? null : level, q: params.q ?? null, topic: topic || null, status: status === "semua" ? null : status, ...patch };
+    for (const [key, value] of Object.entries(next)) if (value) sp.set(key, value);
+    const qs = sp.toString();
+    return `/kosakata${qs ? `?${qs}` : ""}`;
+  };
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <p className="eyebrow text-ink-subtle">Kosakata</p>
-          <h1 className="font-display text-[2rem] font-extrabold leading-[1.05] tracking-[-0.025em] sm:text-[2.5rem]">
-            Flashcard dengan pengulangan pintar
-          </h1>
-          <p className="max-w-2xl text-[0.9375rem] text-ink-subtle">
-            Kartu yang sulit muncul lebih sering, yang mudah jadi jarang. {stats.due} kartu jatuh tempo
-            hari ini dari {stats.tracked} yang sedang dipelajari.
-          </p>
-        </div>
-        <StartReviewButton dueCount={stats.due} />
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-1.5">
+        <p className="eyebrow text-ink-subtle">Dek SRS-mu</p>
+        <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Kosakata</h1>
       </header>
 
-      <section aria-label="Statistik" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total kata" value={stats.total} hint="di bank kosakata" />
-        <StatCard label="Dipelajari" value={stats.tracked} hint="sudah punya kartu" />
-        <StatCard label="Jatuh tempo" value={stats.due} hint="hari ini" accent={stats.due > 0} />
-        <StatCard label="Dikuasai" value={stats.mastered} hint="box 5 ke atas" />
-      </section>
+      <div className="flex flex-wrap items-stretch gap-5">
+        <div className="flex min-w-0 flex-[1_1_420px] flex-wrap items-center gap-5 rounded-hero border-2 border-mango-line bg-mango-soft p-6 text-mango-ink shadow-[0_5px_0_var(--color-mango-line)] sm:p-7">
+          <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-2">
+            <span className="eyebrow">Ulang hari ini</span>
+            <span className="flex flex-wrap items-baseline gap-2">
+              <span className="font-round text-[4rem] font-extrabold leading-[0.9] text-ink">{stats.due}</span>
+              <span className="font-display text-[1.25rem] font-extrabold text-ink">kartu jatuh tempo</span>
+            </span>
+            <span className="text-[0.9375rem]">
+              ±{Math.max(1, Math.ceil((stats.due || 10) / 5))} menit
+              {newWaiting > 0 ? ` · ${newWaiting} kata baru menunggu` : ""} · +{XP_REWARDS.vocabCard} XP per kartu
+            </span>
+          </div>
+          <StartReviewButton dueCount={stats.due} />
+        </div>
 
-      <section aria-label="Perkiraan beban" className="clay p-5">
-        <p className="mb-3 text-[0.875rem] font-bold text-ink">Perkiraan ulangan 7 hari ke depan</p>
-        <div className="flex items-end gap-2" role="img" aria-label="Jumlah kartu jatuh tempo per hari">
-          {forecast.map((day) => (
-            <div key={day.date} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-              <span className="tnum font-mono text-[0.625rem] text-ink-faint">
-                {day.count > 0 ? day.count : ""}
+        <section aria-label="Prakiraan 7 hari" className="flex min-w-0 flex-[1_1_340px] flex-col gap-3 rounded-hero border-2 border-hairline bg-surface px-6 py-5">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-[1.0625rem] font-extrabold">Prakiraan 7 hari</h2>
+            <span className="text-[0.8125rem] text-ink-subtle">kartu/hari</span>
+          </div>
+          <div
+            role="img"
+            aria-label={`Jumlah kartu jatuh tempo: ${forecast.map((day) => `${day.date} ${day.count}`).join(", ")}`}
+            className="grid h-[120px] grid-cols-7 items-end gap-2"
+          >
+            {forecast.map((day) => (
+              <span key={day.date} className="flex h-full flex-col items-center justify-end gap-1 text-[0.75rem] font-extrabold">
+                <span className={day.date === today ? "text-mango-ink" : "text-ink-subtle"}>{day.count}</span>
+                <span
+                  className={cn("w-full rounded-[8px_8px_4px_4px]", day.date === today ? "bg-mango" : "bg-canvas-deep")}
+                  style={{ height: `${Math.max(4, (day.count / maxForecast) * 80)}px` }}
+                />
               </span>
-              <div
-                className={cn("w-full rounded-t-[4px]", day.date === today ? "bg-primary" : "bg-primary-bright/60")}
-                style={{ height: `${Math.max(3, (day.count / maxForecast) * 64)}px` }}
-                title={`${day.date}: ${day.count} kartu`}
-              />
-              <span className="text-[0.625rem] font-semibold text-ink-subtle">{day.date.slice(8)}</span>
-            </div>
+            ))}
+          </div>
+          <div aria-hidden className="grid grid-cols-7 gap-2 text-center text-[0.75rem] font-extrabold text-ink-subtle">
+            {forecast.map((day) => (
+              <span key={day.date} className={day.date === today ? "text-ink" : undefined}>
+                {day.date === today ? "Ini" : DAY[new Date(`${day.date}T00:00:00Z`).getUTCDay()]}
+              </span>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <dl aria-label="Statistik" className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+        {[
+          { label: "Total kata", value: stats.total, tone: "" },
+          { label: "Sedang dipelajari", value: stats.tracked, tone: "" },
+          { label: "Dikuasai", value: stats.mastered, tone: "text-primary" },
+          { label: "Ingatan rata-rata", value: recall !== null ? `${recall}%` : "–", tone: "" },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-plate border-2 border-hairline bg-surface px-5 py-[18px]">
+            <dt className="text-[0.8125rem] font-bold text-ink-subtle">{stat.label}</dt>
+            <dd className={cn("font-round text-[2rem] font-extrabold leading-tight", stat.tone)}>{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <form className="relative min-w-[240px] flex-[1_1_280px] sm:max-w-[420px]" action="/kosakata" role="search">
+          {level !== "semua" ? <input type="hidden" name="level" value={level} /> : null}
+          {topic ? <input type="hidden" name="topic" value={topic} /> : null}
+          {status !== "semua" ? <input type="hidden" name="status" value={status} /> : null}
+          <label htmlFor="kosa-q" className="sr-only">
+            Cari kosakata
+          </label>
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-ink-subtle" strokeWidth={2.4} aria-hidden />
+          <input
+            id="kosa-q"
+            name="q"
+            defaultValue={params.q ?? ""}
+            placeholder="Cari kata atau arti…"
+            className="h-12 w-full rounded-full border-2 border-hairline bg-surface pl-11 pr-4 text-[0.9375rem] focus:border-primary focus:outline-none"
+          />
+        </form>
+        <nav aria-label="Filter status" className="flex flex-wrap gap-2">
+          {STATUSES.map((value) => (
+            <Link
+              key={value}
+              href={href({ status: value === "semua" ? null : value })}
+              aria-current={status === value ? "true" : undefined}
+              className={cn(
+                "flex h-10 items-center rounded-full border-2 px-3.5 text-[0.875rem]",
+                status === value ? "border-ink bg-ink font-extrabold text-white" : "border-hairline bg-surface font-bold hover:border-hairline-strong",
+              )}
+            >
+              {STATUS_LABEL[value]}
+              {value === "due" && stats.due > 0 ? ` · ${stats.due}` : ""}
+            </Link>
           ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="daftar-title" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="daftar-title" className="flex items-center gap-2.5 font-display text-[1.375rem] font-extrabold">
-            <SpellCheck className="size-5 text-primary" aria-hidden />
-            Jelajahi kosakata
-          </h2>
-          <form className="relative" action="/kosakata">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint" aria-hidden />
-            {level !== "semua" ? <input type="hidden" name="level" value={level} /> : null}
-            {topic ? <input type="hidden" name="topic" value={topic} /> : null}
-            <Input
-              name="q"
-              defaultValue={params.q ?? ""}
-              placeholder="Cari kata atau arti…"
-              className="h-10 w-56 pl-9 text-[0.875rem]"
-              aria-label="Cari kosakata"
-            />
-          </form>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter level">
+        </nav>
+        <nav aria-label="Filter level" className="flex flex-wrap gap-2 sm:ml-auto">
           {LEVELS.map((value) => (
             <Link
               key={value}
-              href={`/kosakata${value === "semua" ? "" : `?level=${value}`}${params.q ? `${value === "semua" ? "?" : "&"}q=${encodeURIComponent(params.q)}` : ""}`}
-              role="radio"
-              aria-checked={level === value}
+              href={href({ level: value === "semua" ? null : value })}
+              aria-current={level === value ? "true" : undefined}
               className={cn(
-                "min-h-9 rounded-control border-2 px-3.5 py-1.5 text-[0.8125rem] font-bold transition-colors",
-                level === value
-                  ? "border-primary bg-primary-soft text-primary-deep"
-                  : "border-hairline bg-surface text-ink-subtle hover:border-primary",
+                "flex h-10 items-center rounded-[12px] border-2 px-3 text-[0.8125rem]",
+                level === value ? "border-primary-line bg-primary-soft font-extrabold text-primary-deep" : "border-hairline bg-surface font-bold text-ink-muted",
               )}
             >
               {LEVEL_LABEL[value]}
             </Link>
           ))}
+        </nav>
+      </div>
+
+      {topics.length > 0 ? (
+        <nav aria-label="Filter topik" className="-mt-2 flex flex-wrap gap-1.5">
+          <Link
+            href={href({ topic: null })}
+            aria-current={!topic ? "true" : undefined}
+            className={cn(
+              "rounded-full border-2 px-3 py-1 text-[0.75rem] font-bold",
+              !topic ? "border-primary-line bg-primary-soft text-primary-deep" : "border-hairline bg-surface text-ink-subtle",
+            )}
+          >
+            Semua topik
+          </Link>
+          {topics.slice(0, 11).map((value) => {
+            const active = topic === value.toLowerCase();
+            return (
+              <Link
+                key={value}
+                href={href({ topic: active ? null : value })}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "rounded-full border-2 px-3 py-1 text-[0.75rem] font-bold",
+                  active ? "border-primary-line bg-primary-soft text-primary-deep" : "border-hairline bg-surface text-ink-subtle",
+                )}
+              >
+                {value}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
+
+      {rows.length === 0 ? (
+        <Card className="p-6">
+          <p className="text-[0.9375rem] text-ink-subtle">
+            Tidak ada kata yang cocok. Bank kosakata bisa ditambah lewat{" "}
+            <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em]">npm run db:vocab</code>.
+          </p>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
+          <table className="w-full min-w-[820px] border-collapse text-[0.9375rem]">
+            <thead>
+              <tr className="bg-surface-muted text-left text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">
+                <th scope="col" className="px-5 py-3.5">Kata</th>
+                <th scope="col" className="px-3 py-3.5">Arti</th>
+                <th scope="col" className="px-3 py-3.5">Contoh</th>
+                <th scope="col" className="px-3 py-3.5">Level</th>
+                <th scope="col" className="px-3 py-3.5">Ingatan</th>
+                <th scope="col" className="py-3.5 pl-3 pr-5">Ulang</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ card, status: s }) => {
+                const filled = Math.min(4, Math.ceil((card.box * 4) / 5));
+                return (
+                  <tr key={card.id} className="border-t-2 border-hairline-soft align-middle">
+                    <td className="px-5 py-3.5">
+                      <span className="flex items-center gap-2.5">
+                        <SpeakButton text={card.word} label={`Dengarkan ${card.word}`} />
+                        <span>
+                          <strong className="block">{card.word}</strong>
+                          <span className="text-[0.8125rem] text-ink-subtle">
+                            {[card.phonetic, card.partOfSpeech].filter(Boolean).join(" · ") || card.topic || "umum"}
+                          </span>
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-3.5">{card.meaning}</td>
+                    <td className="max-w-[300px] px-3 py-3.5 text-ink-muted">{card.exampleEn ? emphasize(card.exampleEn, card.word) : "–"}</td>
+                    <td className="px-3 py-3.5">
+                      <LevelTag level={card.cefr ?? (card.level === "basic" ? "Dasar" : card.level === "intermediate" ? "Menengah" : "Lanjut")} />
+                    </td>
+                    <td className="px-3 py-3.5">
+                      {s.kind === "new" ? (
+                        <span className="rounded-full bg-mango px-2 py-0.5 text-[0.6875rem] font-extrabold text-mango-on">BARU</span>
+                      ) : (
+                        <span aria-label={`Ingatan ${filled} dari 4`} className="inline-flex gap-[3px]">
+                          {[0, 1, 2, 3].map((i) => (
+                            <span
+                              key={i}
+                              className={cn(
+                                "h-2 w-3.5 rounded-[3px]",
+                                i < filled ? (filled >= 3 ? "bg-primary" : "bg-mango") : "bg-canvas-deep",
+                              )}
+                            />
+                          ))}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 pl-3 pr-5">
+                      {s.kind === "due" || s.kind === "new" ? (
+                        <span className="rounded-full border-2 border-mango-line bg-mango-soft px-2.5 py-0.5 text-[0.75rem] font-extrabold text-mango-ink">
+                          {s.kind === "due" ? "Hari ini" : "Belum"}
+                        </span>
+                      ) : (
+                        <span className="text-[0.875rem] text-ink-subtle">{s.kind === "mastered" ? "Dikuasai" : s.label}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="border-t-2 border-hairline-soft px-5 py-3.5 text-[0.875rem] text-ink-subtle">
+            Menampilkan {rows.length} dari {matched.length} kata
+            {matched.length > rows.length ? ". Persempit filter untuk melihat lainnya." : ""}
+          </p>
         </div>
-
-        {topics.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter topik">
-            <Link
-              href={`/kosakata${level !== "semua" ? `?level=${level}` : ""}${params.q ? `${level !== "semua" ? "&" : "?"}q=${encodeURIComponent(params.q)}` : ""}`}
-              role="radio"
-              aria-checked={!topic}
-              className={cn(
-                "min-h-8 rounded-full border-2 px-3 py-1 text-[0.75rem] font-bold transition-colors",
-                !topic
-                  ? "border-primary bg-primary-soft text-primary-deep"
-                  : "border-hairline bg-surface text-ink-subtle hover:border-primary",
-              )}
-            >
-              Semua topik
-            </Link>
-            {topics.slice(0, 11).map((value) => {
-              const active = topic === value.toLowerCase();
-              const query = new URLSearchParams();
-              if (level !== "semua") query.set("level", level);
-              if (params.q) query.set("q", params.q);
-              if (!active) query.set("topic", value);
-              const qs = query.toString();
-              return (
-                <Link
-                  key={value}
-                  href={`/kosakata${qs ? `?${qs}` : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  className={cn(
-                    "min-h-8 rounded-full border-2 px-3 py-1 text-[0.75rem] font-bold transition-colors",
-                    active
-                      ? "border-primary bg-primary-soft text-primary-deep"
-                      : "border-hairline bg-surface text-ink-subtle hover:border-primary",
-                  )}
-                >
-                  {value}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
-
-        {filtered.length === 0 ? (
-          <Card className="p-6">
-            <p className="text-[0.9375rem] text-ink-subtle">
-              Tidak ada kata yang cocok. Bank kosakata bisa ditambah lewat{" "}
-              <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em]">npm run db:vocab</code>.
-            </p>
-          </Card>
-        ) : (
-          <>
-            {matched.length > filtered.length ? (
-              <p className="text-[0.8125rem] text-ink-faint">
-                Menampilkan {filtered.length} dari {matched.length} kata yang cocok. Persemp filter untuk melihat lainnya.
-              </p>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((word) => (
-              <Card key={word.id} className="flex flex-col gap-2 p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="flex min-w-0 items-center gap-2 font-display text-[1.125rem] font-extrabold text-ink">
-                    <span className="truncate">{word.word}</span>
-                    <SpeakButton text={word.word} label={`Dengarkan ${word.word}`} className="size-8" />
-                  </p>
-                  <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-[0.6875rem] font-bold text-ink-subtle">
-                    {levelLabel(word.level)}
-                  </span>
-                </div>
-                <p className="text-[0.9375rem] text-ink-muted">{word.meaning}</p>
-                {word.phonetic ? <p className="font-mono text-[0.75rem] text-ink-faint">{word.phonetic}</p> : null}
-                {word.exampleEn ? (
-                  <p className="mt-1 border-l-2 border-hairline pl-3 text-[0.8125rem] italic leading-snug text-ink-subtle">
-                    {word.exampleEn}
-                    {word.exampleId ? (
-                      <span className="mt-0.5 block not-italic text-ink-faint">{word.exampleId}</span>
-                    ) : null}
-                  </p>
-                ) : null}
-                <div className="mt-auto flex items-center justify-between pt-2">
-                  <span className="text-[0.75rem] font-semibold text-ink-faint">
-                    {word.topic ?? "umum"}
-                  </span>
-                  <GraduationCap className="size-4 text-ink-faint" aria-hidden />
-                </div>
-              </Card>
-            ))}
-            </div>
-          </>
-        )}
-      </section>
+      )}
     </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-  accent,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  accent?: boolean;
-}) {
-  return (
-    <Card className="flex flex-col gap-1.5 p-4 sm:p-5">
-      <span className="text-[0.875rem] font-bold text-ink-subtle">{label}</span>
-      <span
-        className={cn(
-          "tnum font-round text-[2rem] font-extrabold leading-none",
-          accent ? "text-warning" : "text-primary",
-        )}
-      >
-        {value}
-      </span>
-      <span className="text-[0.8125rem] text-ink-subtle">{hint}</span>
-    </Card>
   );
 }

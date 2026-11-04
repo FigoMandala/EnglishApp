@@ -38,28 +38,27 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
   }
 
   return (
-    <ul className="flex flex-col gap-1">
+    <ul className="flex flex-col">
       {rows.map((row) => (
-        <li key={row.id} className="group relative">
-          <Link
-            href={`/writing/${row.id}`}
-            className="row-hover flex min-h-11 items-center justify-between gap-2 rounded-control px-2 pr-10"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[0.875rem] font-bold text-ink">
-                {row.prompt || "Esai tanpa topik"}
-              </span>
-              <span className="text-[0.75rem] text-ink-faint">
-                {formatDate(row.createdAt)} · {row.wordCount} kata
-              </span>
-            </span>
+        <li key={row.id} className="group relative border-b-2 border-hairline-soft last:border-b-0">
+          <Link href={`/writing/${row.id}`} className="flex items-center gap-3 py-2.5 pr-10 text-ink hover:text-primary-deep">
             <span
               className={cn(
-                "tnum shrink-0 font-round text-[1.125rem] font-extrabold",
-                row.total >= 70 ? "text-primary" : row.total >= 50 ? "text-warning" : "text-negative",
+                "tnum flex size-11 shrink-0 items-center justify-center rounded-[12px] font-round text-[1.125rem] font-extrabold",
+                row.total >= 70
+                  ? "bg-primary-soft text-primary-deep"
+                  : row.total >= 50
+                    ? "bg-mango-soft text-mango-ink"
+                    : "bg-brick-soft text-brick-deep",
               )}
             >
               {row.total}
+            </span>
+            <span className="min-w-0 flex-1 leading-snug">
+              <strong className="block truncate text-[0.875rem]">{row.prompt || "Esai tanpa topik"}</strong>
+              <span className="text-[0.75rem] text-ink-subtle">
+                {formatDate(row.createdAt)} · {row.wordCount} kata
+              </span>
             </span>
           </Link>
           <button
@@ -68,7 +67,7 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
             title="Hapus esai"
             disabled={deleting !== null || pending}
             onClick={() => remove(row.id)}
-            className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-control text-ink-faint opacity-0 transition-opacity hover:bg-negative-soft hover:text-negative focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
+            className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-control text-ink-faint opacity-0 transition-opacity hover:bg-brick-soft hover:text-brick focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
           >
             {deleting === row.id ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />

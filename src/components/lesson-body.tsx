@@ -7,14 +7,14 @@ function SpanText({ spans }: { spans: Span[] }) {
       {spans.map((span, index) => {
         if (span.tone === "bold") {
           return (
-            <strong key={index} className="font-semibold text-ink">
+            <strong key={index} className="font-extrabold text-ink">
               {span.text}
             </strong>
           );
         }
         if (span.tone === "code") {
           return (
-            <code key={index} className="rounded-control bg-surface-muted px-1 py-px font-mono text-[0.85em]">
+            <code key={index} className="rounded-[6px] bg-primary-soft px-1.5 py-px font-bold text-primary-deep">
               {span.text}
             </code>
           );
@@ -34,8 +34,8 @@ export function LessonBody({ body }: { body: string }) {
             <h2
               key={index}
               className={cn(
-                "font-semibold text-ink",
-                block.level === 2 ? "mt-2 text-[1.125rem]" : "mt-1 text-[1rem]",
+                "font-display font-extrabold text-ink",
+                block.level === 2 ? "mt-2 text-[1.25rem]" : "mt-1 text-[1.0625rem]",
               )}
             >
               <SpanText spans={block.spans} />

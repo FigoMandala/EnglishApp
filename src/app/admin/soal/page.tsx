@@ -138,12 +138,12 @@ export default async function AdminBankPage({ searchParams }: { searchParams: Ad
                     <div className="flex gap-2">
                       <Link
                         href={`/admin/soal/${item.id}`}
-                        className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline px-3 font-bold text-ink hover:border-primary"
+                        className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline px-3 font-bold text-ink transition-[border-color,transform] hover:border-primary active:translate-y-[2px]"
                       >
                         Edit
                       </Link>
                       <details>
-                        <summary className="flex min-h-10 cursor-pointer list-none items-center rounded-[10px] border-2 border-hairline px-3 font-bold hover:border-brick hover:text-brick-deep">
+                        <summary className="flex min-h-10 cursor-pointer list-none items-center rounded-[10px] border-2 border-hairline px-3 font-bold transition-[border-color,transform] hover:border-brick hover:text-brick-deep active:translate-y-[2px]">
                           Tarik
                         </summary>
                         <form action={retireBankItemAction} className="mt-2 w-60 rounded-control border-2 border-brick/30 bg-surface p-3 shadow-overlay">
@@ -173,12 +173,12 @@ export default async function AdminBankPage({ searchParams }: { searchParams: Ad
           </span>
           <div className="flex gap-2">
             {page > 1 ? (
-              <Link href={href({ page: String(page - 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold">
+              <Link href={href({ page: String(page - 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform] active:translate-y-[2px]">
                 Sebelumnya
               </Link>
             ) : null}
             {page < pages ? (
-              <Link href={href({ page: String(page + 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold">
+              <Link href={href({ page: String(page + 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform] active:translate-y-[2px]">
                 Berikutnya
               </Link>
             ) : null}

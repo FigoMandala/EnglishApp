@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  ESSAY_MIN_WORDS,
+  PARAGRAPH_MAX_WORDS,
+  PARAGRAPH_MIN_WORDS,
   parseStoredScore,
   parseWritingScore,
   validateEssay,
+  validateParagraph,
   wordCount,
 } from "./writing";
 
@@ -89,5 +93,25 @@ describe("validateEssay", () => {
   it("menerima panjang yang wajar", () => {
     const essay = Array.from({ length: 150 }, () => "word").join(" ");
     assert.equal(validateEssay(essay), null);
+  });
+});
+
+describe("validateParagraph", () => {
+  const words = (count: number) => Array.from({ length: count }, () => "word").join(" ");
+
+  it("menolak paragraf kosong", () => {
+    assert.equal(validateParagraph("  \n "), "Paragraf masih kosong.");
+  });
+
+  it("memakai batas kata khusus paragraf kilat", () => {
+    assert.match(validateParagraph(words(PARAGRAPH_MIN_WORDS - 1)) ?? "", new RegExp(`minimal ${PARAGRAPH_MIN_WORDS}`));
+    assert.equal(validateParagraph(words(PARAGRAPH_MIN_WORDS)), null);
+    assert.equal(validateParagraph(words(PARAGRAPH_MAX_WORDS)), null);
+    assert.match(validateParagraph(words(PARAGRAPH_MAX_WORDS + 1)) ?? "", /maksimal 180 kata/);
+  });
+
+  it("lebih longgar dari batas esai penuh", () => {
+    assert.ok(PARAGRAPH_MIN_WORDS < ESSAY_MIN_WORDS);
+    assert.ok(PARAGRAPH_MAX_WORDS < 700);
   });
 });

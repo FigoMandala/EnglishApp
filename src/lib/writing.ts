@@ -19,6 +19,10 @@ export const ESSAY_MIN_WORDS = 120;
 export const ESSAY_MAX_WORDS = 700;
 export const ESSAY_MAX_CHARS = 8_000;
 
+/** Batas latihan "paragraf kilat": satu paragraf, bukan esai penuh. */
+export const PARAGRAPH_MIN_WORDS = 50;
+export const PARAGRAPH_MAX_WORDS = 180;
+
 export type AspectFeedback = {
   aspect: WritingAspect;
   score: number;
@@ -134,6 +138,16 @@ export function parseStoredScore(raw: string | null): WritingScore | null {
   } catch {
     return null;
   }
+}
+
+/** Cek panjang paragraf kilat; kembalikan pesan error atau null kalau lolos. */
+export function validateParagraph(text: string): string | null {
+  if (!text.trim()) return "Paragraf masih kosong.";
+  if (text.length > ESSAY_MAX_CHARS) return `Paragraf maksimal ${ESSAY_MAX_CHARS} karakter.`;
+  const words = wordCount(text);
+  if (words < PARAGRAPH_MIN_WORDS) return `Paragraf minimal ${PARAGRAPH_MIN_WORDS} kata (sekarang ${words}).`;
+  if (words > PARAGRAPH_MAX_WORDS) return `Paragraf maksimal ${PARAGRAPH_MAX_WORDS} kata (sekarang ${words}).`;
+  return null;
 }
 
 /** Cek panjang esai; kembalikan pesan error atau null kalau lolos. */

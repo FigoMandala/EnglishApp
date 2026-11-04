@@ -1,13 +1,11 @@
-import { Coins, ListChecks, ShieldAlert, Users } from "lucide-react";
 import Link from "next/link";
 
-import { ActivityBars, KpiCard } from "@/components/charts";
+import { ActivityBars } from "@/components/charts";
 import { Kaka } from "@/components/mascot";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
 import { adminCounts, listBankItems, recentAuditLogs } from "@/db/queries/admin";
 import { usageOverview } from "@/db/queries/ai-usage";
 import { dailyBudgetUsd } from "@/lib/ai-budget";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -38,95 +36,126 @@ export default async function AdminHome() {
     { n: counts.flagsOpen, text: "flag moderasi belum ditinjau", href: "/admin/moderasi", tone: "bg-sky-soft text-sky-deep" },
   ];
 
+  const kpis = [
+    { label: "Pengguna", value: String(counts.users), hint: `${counts.activeToday} aktif hari ini` },
+    { label: "Soal di bank", value: String(counts.bankEptr + counts.bankToefl), hint: `EPrT ${counts.bankEptr} · TOEFL ${counts.bankToefl}` },
+    { label: "Biaya AI hari ini", value: usd(spent), hint: `batas ${usd(budget)}`, progress: Math.min(100, (spent / budget) * 100) },
+    { label: "Flag belum ditinjau", value: String(counts.flagsOpen), hint: `${counts.flagsWeek} masuk 7 hari`, alert: counts.flagsOpen > 0 },
+  ];
+  const DOT: Record<string, string> = {
+    "bg-brick-soft text-brick-deep": "bg-brick",
+    "bg-mango-soft text-mango-ink": "bg-mango",
+    "bg-surface-muted text-ink-subtle": "bg-ink-faint",
+    "bg-sky-soft text-sky-deep": "bg-sky",
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Mode admin" title="Ringkasan" description="Kondisi aplikasi hari ini, dari data asli database." />
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-[2rem] font-black">Ringkasan</h1>
+          <p className="mt-0.5 text-ink-subtle">Kondisi aplikasi hari ini, dari data asli database.</p>
+        </div>
+      </header>
 
-      <section aria-label="Angka utama" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Pengguna" hint={`${counts.activeToday} aktif hari ini`} value={String(counts.users)} icon={<Users className="size-5" aria-hidden />} />
-        <KpiCard label="Soal di bank" hint={`EPrT ${counts.bankEptr} · TOEFL ${counts.bankToefl}`} value={String(counts.bankEptr + counts.bankToefl)} icon={<ListChecks className="size-5" aria-hidden />} />
-        <KpiCard
-          label="Biaya AI hari ini"
-          hint={`batas harian ${usd(budget)}`}
-          value={usd(spent)}
-          tone="dark"
-          progress={(spent / budget) * 100}
-          icon={<Coins className="size-5" aria-hidden />}
-        />
-        <KpiCard label="Flag belum ditinjau" hint={`${counts.flagsWeek} masuk 7 hari terakhir`} value={String(counts.flagsOpen)} icon={<ShieldAlert className="size-5" aria-hidden />} />
-      </section>
+      <dl aria-label="Angka utama" className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={cn(
+              "flex flex-col gap-1 rounded-[20px] border-2 px-5 py-[18px]",
+              kpi.alert ? "border-brick-line bg-brick-soft" : "border-hairline bg-surface",
+            )}
+          >
+            <dt className={cn("text-[0.8125rem] font-bold", kpi.alert ? "text-brick-deep" : "text-ink-subtle")}>{kpi.label}</dt>
+            <dd className="flex flex-wrap items-baseline gap-2">
+              <span className={cn("tnum font-round text-[2rem] font-extrabold leading-none", kpi.alert && "text-brick-deep")}>
+                {kpi.value}
+              </span>
+              <span className="text-[0.8125rem] text-ink-subtle">{kpi.hint}</span>
+            </dd>
+            {kpi.progress !== undefined ? (
+              <span className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                <span
+                  className={cn("block h-full rounded-full", kpi.progress >= 90 ? "bg-brick" : "bg-mango")}
+                  style={{ width: `${kpi.progress}%` }}
+                />
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </dl>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Biaya AI 7 hari (USD)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {days.length ? <ActivityBars data={days} unit=" USD" /> : <p className="text-ink-subtle">Belum ada pemakaian AI.</p>}
-            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-              {usage.byFeature.map((row) => (
-                <li key={row.feature} className="flex justify-between gap-3 rounded-control bg-surface-muted px-3 py-2 text-[0.875rem]">
-                  <span className="font-bold capitalize">{row.feature}</span>
-                  <span className="tnum text-ink-subtle">
-                    {row.totals.requests} panggilan · {usd(row.totals.costUsd)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-stretch gap-6">
+        <section aria-labelledby="cost-t" className="flex min-w-0 flex-[1_1_480px] flex-col gap-3.5 rounded-[24px] border-2 border-hairline bg-surface px-6 py-[22px]">
+          <h2 id="cost-t" className="font-display text-[1.125rem] font-extrabold">
+            Biaya AI 7 hari (USD)
+          </h2>
+          {days.length ? <ActivityBars data={days} unit=" USD" /> : <p className="text-ink-subtle">Belum ada pemakaian AI.</p>}
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {usage.byFeature.map((row) => (
+              <li key={row.feature} className="flex justify-between gap-3 rounded-[12px] bg-surface-muted px-3 py-2 text-[0.875rem]">
+                <span className="font-bold capitalize">{row.feature}</span>
+                <span className="tnum text-ink-subtle">
+                  {row.totals.requests} panggilan · {usd(row.totals.costUsd)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-3">
-            <Kaka mood={faulty > 0 ? "warn" : "coach"} size={64} />
-            <CardTitle>Perlu perhatian</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="flex flex-col gap-2">
-              {alerts.map((alert) => (
-                <li key={alert.href}>
-                  <Link href={alert.href} className={`flex min-h-12 items-center gap-3 rounded-control px-3 py-2 text-[0.875rem] ${alert.tone}`}>
-                    <strong className="font-round text-xl">{alert.n}</strong>
-                    <span>{alert.text}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <section aria-labelledby="att-t" className="flex min-w-[280px] flex-[0_1_360px] flex-col gap-2.5 rounded-[24px] border-2 border-hairline bg-surface px-6 py-[22px]">
+          <div className="flex items-center gap-3">
+            <Kaka mood={faulty > 0 ? "warn" : "coach"} size={48} still />
+            <h2 id="att-t" className="font-display text-[1.125rem] font-extrabold">
+              Perlu perhatian
+            </h2>
+          </div>
+          {alerts.map((alert) => (
+            <Link key={alert.href} href={alert.href} className={cn("flex gap-3 rounded-[14px] p-3 text-[0.875rem] text-ink", alert.tone.split(" ")[0])}>
+              <span className={cn("mt-[7px] size-2.5 shrink-0 rounded-full", DOT[alert.tone])} aria-hidden />
+              <span>
+                <strong className="block font-round text-[1.125rem]">{alert.n}</strong>
+                {alert.text}
+              </span>
+            </Link>
+          ))}
+        </section>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Aktivitas admin terbaru</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {logs.length ? (
-            <table className="w-full min-w-[560px] text-[0.875rem]">
-              <thead>
-                <tr className="text-left text-[0.75rem] uppercase tracking-[0.06em] text-ink-subtle">
-                  <th scope="col" className="py-2 pr-3">Waktu</th>
-                  <th scope="col" className="py-2 pr-3">Admin</th>
-                  <th scope="col" className="py-2 pr-3">Aksi</th>
-                  <th scope="col" className="py-2">Detail</th>
+      <section aria-labelledby="log-t" className="overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
+        <h2 id="log-t" className="px-6 pb-2 pt-[18px] font-display text-[1.125rem] font-extrabold">
+          Aktivitas admin terbaru
+        </h2>
+        {logs.length ? (
+          <table className="w-full min-w-[680px] text-[0.875rem]">
+            <thead>
+              <tr className="bg-surface-muted text-left text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">
+                <th scope="col" className="px-6 py-3">Waktu</th>
+                <th scope="col" className="p-3">Admin</th>
+                <th scope="col" className="p-3">Aksi</th>
+                <th scope="col" className="p-3">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr key={log.id} className="border-t-2 border-hairline-soft">
+                  <td className="tnum whitespace-nowrap px-6 py-3 text-ink-subtle">{log.createdAt}</td>
+                  <td className="p-3 font-bold">{log.actor ? `@${log.actor}` : "sistem"}</td>
+                  <td className="p-3">
+                    <span className="rounded-md bg-primary-soft px-2 py-0.5 font-mono text-[0.75rem] font-extrabold text-primary-deep">
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="p-3">{log.detail}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-t-2 border-hairline">
-                    <td className="tnum whitespace-nowrap py-2 pr-3 text-ink-subtle">{log.createdAt}</td>
-                    <td className="py-2 pr-3 font-bold">{log.actor ? `@${log.actor}` : "sistem"}</td>
-                    <td className="py-2 pr-3 font-mono text-[0.8125rem]">{log.action}</td>
-                    <td className="py-2">{log.detail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-ink-subtle">Belum ada catatan.</p>
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-6 pb-5 text-ink-subtle">Belum ada catatan.</p>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Loader2,
-  Timer,
-  Volume2,
-  X,
-} from "lucide-react";
+import { ArrowRight, Check, GraduationCap, Loader2, Pause, Timer, Volume2, X } from "lucide-react";
 import Link from "next/link";
 import {
   useActionState,
@@ -17,8 +9,10 @@ import {
   useState,
 } from "react";
 
+import { Kaka } from "@/components/mascot";
+import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
+import { SkillChip } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ProgressRule } from "@/components/ui/ledger";
 import {
   correctCount,
   SKILLS,
@@ -145,13 +139,13 @@ function Sentence({
         {before}
         {rest.length ? (
           revealed ? (
-            <span className="font-semibold text-positive underline decoration-2 underline-offset-4">
+            <span className="rounded-[8px] border-b-4 border-primary bg-primary-soft px-1.5 font-bold text-primary-deep">
               {question.options[question.answer]}
             </span>
           ) : (
             <span
               aria-label="bagian kosong"
-              className="mx-1 inline-block w-16 border-b-2 border-ink"
+              className="mx-1 inline-block w-24 border-b-[3px] border-ink"
             />
           )
         ) : null}
@@ -169,7 +163,7 @@ function Sentence({
       <>
         {parseInline(question.q).map((span, i) =>
           span.tone === "bold" ? (
-            <strong key={i} className="rounded-md bg-highlight px-1.5">
+            <strong key={i} className="rounded-md bg-sky-soft px-1.5 text-sky-deep">
               {span.text}
             </strong>
           ) : (
@@ -197,8 +191,8 @@ function Sentence({
       <span key={index} className="inline-flex flex-col items-center gap-1.5">
         <span
           className={cn(
-            "underline decoration-[3px] underline-offset-[8px]",
-            wrong && "text-negative decoration-negative",
+            "border-b-[3px] border-hairline-strong px-0.5",
+            wrong && "rounded-[6px] border-brick bg-brick-soft text-brick-deep",
           )}
         >
           {question.q.slice(start, end)}
@@ -206,8 +200,8 @@ function Sentence({
         <span
           aria-hidden
           className={cn(
-            "flex size-7 items-center justify-center rounded-lg font-mono text-[0.9375rem] font-semibold",
-            wrong ? "bg-negative text-surface" : "bg-surface-sunken text-ink",
+            "flex size-6 items-center justify-center rounded-[6px] text-[0.75rem] font-extrabold",
+            wrong ? "bg-brick text-white" : "bg-canvas text-ink-subtle",
           )}
         >
           {LETTERS[index]}
@@ -507,27 +501,29 @@ export function ToeflRunner({
   // ---------------------------------------------------------------------------
   // Tampilan
 
-  const header = (
-    <div className="sticky top-14 z-20 -mx-4 lg:top-4 border-b border-hairline bg-surface sm:mx-0 sm:rounded-plate sm:border">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
-        <Link
-          href={basePath}
-          className="flex h-11 items-center gap-2 rounded-control border-[1.5px] border-hairline-strong px-3.5 text-[0.9375rem] font-semibold text-ink hover:border-ink"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Simpan &amp; keluar
-        </Link>
-        <div className="order-last flex min-w-0 basis-full flex-col sm:order-none sm:basis-auto sm:flex-1">
-          <span className="eyebrow text-ink-subtle">
-            {exam ? "Simulasi · mode ujian" : "Latihan"}
-          </span>
-          <span className="truncate text-[1.0625rem] font-bold">
-            {session.label}
-          </span>
-        </div>
+  const audioSession = questions.some((item) => Boolean(item.audio));
+
+  /** Lompat ke soal lain yang belum dijawab (bukan untuk sesi audio: urutan putar harus terjaga). */
+  function jump(target: number) {
+    if (audioSession || target === index || answers[target] !== null) return;
+    silence();
+    const current = commit();
+    if (current[target] !== null) return;
+    setIndex(target);
+  }
+
+  const header = (trigger?: React.ReactNode) => (
+    <header className="sticky top-0 z-30 bg-charcoal text-charcoal-ink">
+      <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+        <span className="flex items-center gap-2 text-[0.8125rem] font-extrabold tracking-[0.06em] text-charcoal-muted">
+          <GraduationCap className="size-[18px] text-mango" strokeWidth={2.2} aria-hidden />
+          {exam ? "SIMULASI · MODE UJIAN" : "LATIHAN EPrT"}
+        </span>
+        <span className="hidden h-6 w-0.5 bg-charcoal-line sm:block" aria-hidden />
+        <span className="min-w-0 flex-1 truncate font-display text-[1rem] font-extrabold">{session.label}</span>
         {index !== null ? (
-          <span className="tnum ml-auto font-mono text-[0.9375rem] font-semibold text-ink-subtle sm:ml-0">
-            Soal {index + 1} / {questions.length}
+          <span className="tnum text-[0.875rem] font-bold text-charcoal-muted">
+            Soal {index + 1} dari {questions.length}
           </span>
         ) : null}
         {left !== null && !finished ? (
@@ -537,13 +533,11 @@ export function ToeflRunner({
                 role="timer"
                 aria-label={`Sisa waktu ${formatClock(left)}`}
                 className={cn(
-                  "tnum flex h-11 items-center gap-2 rounded-control px-3.5 font-mono text-[1.0625rem] font-semibold",
-                  lowTime
-                    ? "bg-warning text-surface"
-                    : "bg-night text-night-ink",
+                  "tnum flex h-10 items-center gap-1.5 rounded-[12px] px-3.5 font-round text-[1.25rem] font-extrabold",
+                  lowTime ? "bg-brick text-white" : "bg-mango text-mango-on",
                 )}
               >
-                <Timer className="size-4" aria-hidden />
+                <Timer className="size-[18px]" strokeWidth={2.6} aria-hidden />
                 {formatClock(left)}
               </span>
             ) : null}
@@ -552,89 +546,82 @@ export function ToeflRunner({
                 type="button"
                 aria-pressed={hideTimer}
                 onClick={toggleTimer}
-                className="h-11 rounded-control border-[1.5px] border-hairline-strong px-3 text-[0.875rem] font-semibold hover:border-ink"
+                className="h-10 cursor-pointer rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
               >
                 {hideTimer ? "Tampilkan timer" : "Sembunyikan timer"}
               </button>
             ) : null}
           </div>
         ) : null}
+        {trigger}
+        <Link
+          href={basePath}
+          aria-label="Simpan dan keluar"
+          title="Simpan & keluar"
+          className="flex h-10 items-center gap-1.5 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
+        >
+          <Pause className="size-4" aria-hidden />
+          <span className="hidden sm:inline">Simpan &amp; keluar</span>
+        </Link>
       </div>
       <div
         role="progressbar"
         aria-label={`${answeredCount} dari ${questions.length} soal dijawab`}
-        aria-valuenow={Math.round(
-          (answeredCount / Math.max(1, questions.length)) * 100,
-        )}
+        aria-valuenow={Math.round((answeredCount / Math.max(1, questions.length)) * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
-        className="h-1.5 bg-surface-sunken sm:mx-6 sm:mb-3 sm:rounded-full"
+        className="h-1 bg-charcoal-raised"
       >
         <div
-          className="h-full bg-accent transition-[width] duration-300 sm:rounded-full"
-          style={{
-            width: `${(answeredCount / Math.max(1, questions.length)) * 100}%`,
-          }}
+          className="h-full bg-mango transition-[width] duration-300"
+          style={{ width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }}
         />
       </div>
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
       {offline ? (
-        <p
-          role="status"
-          className="border-t border-hairline bg-warning-soft px-4 py-2 text-[0.9375rem] font-semibold text-warning-ink sm:px-6"
-        >
-          Kamu sedang offline. Jawaban disimpan sementara dan dikirim otomatis
-          saat tersambung lagi.
+        <p role="status" className="bg-mango-soft px-4 py-2 text-center text-[0.875rem] font-bold text-mango-ink">
+          Kamu sedang offline. Jawaban disimpan sementara dan dikirim otomatis saat tersambung lagi.
         </p>
       ) : null}
+    </header>
+  );
+
+  const shell = (children: React.ReactNode, trigger?: React.ReactNode) => (
+    <div className="flex min-h-screen flex-col bg-canvas">
+      {header(trigger)}
+      {children}
     </div>
   );
 
   if ((!question || index === null) && exam) {
-    return (
-      <div className="flex flex-col gap-6">
-        {header}
-        <section className="page-enter flex flex-col gap-4 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8">
-          <h1 className="font-display text-[2rem] font-extrabold">
-            Bagian selesai
-          </h1>
-          <p className="max-w-xl text-[1.0625rem] leading-relaxed text-ink-subtle">
-            Skor dan pembahasan muncul setelah semua bagian simulasi selesai.
+    return shell(
+      <main className="flex flex-1 items-center justify-center px-4 py-12">
+        <section className="page-enter flex w-full max-w-[560px] flex-col items-center gap-4 rounded-hero border-2 border-hairline bg-surface p-8 text-center shadow-card">
+          <Kaka mood={finished ? "proud" : "coach"} size={140} label="Kaka" />
+          <h1 className="font-display text-[2rem] font-black">Bagian selesai</h1>
+          <p className="max-w-md text-[1rem] leading-relaxed text-ink-subtle">
+            {answeredCount} dari {questions.length} soal dijawab. Skor dan pembahasan muncul setelah semua bagian simulasi selesai.
           </p>
           {error ? (
-            <p
-              role="alert"
-              className="text-[0.9375rem] font-semibold text-negative"
-            >
+            <p role="alert" className="text-[0.9375rem] font-bold text-brick-deep">
               {error}
             </p>
           ) : null}
-          <div className="flex justify-end">
-            {finished ? (
-              <Link
-                href={basePath}
-                className={cn(buttonVariants(), "h-14 px-7 text-lg")}
-              >
-                Lanjut ke bagian berikutnya
-                <ArrowRight className="size-5" aria-hidden />
-              </Link>
-            ) : (
-              <Button
-                onClick={finish}
-                disabled={busy}
-                className="h-14 px-7 text-lg"
-              >
-                {busy ? (
-                  <Loader2 className="size-5 animate-spin" aria-hidden />
-                ) : null}
-                Simpan bagian ini
-              </Button>
-            )}
-          </div>
+          {finished ? (
+            <Link href={basePath} className={buttonVariants({ variant: "exam", size: "lg" })}>
+              Lanjut ke bagian berikutnya
+              <ArrowRight className="size-5" aria-hidden />
+            </Link>
+          ) : (
+            <Button variant="exam" size="lg" onClick={finish} disabled={busy}>
+              {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+              Simpan bagian ini
+            </Button>
+          )}
         </section>
-      </div>
+      </main>,
     );
   }
 
@@ -649,9 +636,7 @@ export function ToeflRunner({
         total: entry.total + 1,
       });
     });
-    const pct = questions.length
-      ? Math.round((correct / questions.length) * 100)
-      : 0;
+    const pct = questions.length ? Math.round((correct / questions.length) * 100) : 0;
     // Urutan soal salah/tidak dijawab, untuk pembahasan di bawah rekap.
     const wrong = questions
       .map((item, i) => ({ item, i, answer: answers[i] }))
@@ -687,180 +672,132 @@ export function ToeflRunner({
       );
     })();
 
-    return (
-      <div className="flex flex-col gap-6">
-        {header}
-        <section className="page-enter flex flex-col gap-6 rounded-plate border-2 border-hairline bg-surface p-6 sm:p-8">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div className="flex flex-col gap-1">
-              <span className="text-[1.0625rem] font-bold text-ink-subtle">
-                Hasil latihan
-              </span>
-              <p className="tnum font-display text-[4rem] font-extrabold leading-none tracking-[-0.03em]">
+    return shell(
+      <main className="mx-auto flex w-full max-w-[1040px] flex-col gap-6 px-4 py-8 sm:px-6">
+        <section className="page-enter flex flex-wrap items-center gap-8 rounded-[32px] bg-charcoal p-6 text-charcoal-ink sm:p-8">
+          <Kaka mood={pct >= 70 ? "proud" : "warn"} size={150} label="Kaka melihat hasilmu" className="shrink-0" />
+          <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-2">
+            <span className="eyebrow text-mango-line">Hasil latihan</span>
+            <span className="flex flex-wrap items-baseline gap-3">
+              <span className="tnum font-round text-[4.5rem] font-extrabold leading-[0.9]">
                 {correct}
-                <span className="text-ink-faint">/{questions.length}</span>
-              </p>
-              <span className="text-[1.0625rem] text-ink-subtle">
-                jawaban benar
+                <span className="text-charcoal-muted">/{questions.length}</span>
               </span>
-            </div>
-            <div className="flex gap-8">
-              {session.score !== null ? (
-                <div className="flex flex-col gap-1">
-                  <span className="text-[0.9375rem] font-semibold text-ink-subtle">
-                    Skor bagian
-                  </span>
-                  <span className="tnum font-display text-[2.25rem] font-extrabold">
-                    {session.score}
-                  </span>
-                </div>
-              ) : null}
-              <div className="flex flex-col gap-1">
-                <span className="text-[0.9375rem] font-semibold text-ink-subtle">
-                  Akurasi
-                </span>
-                <span className="tnum font-display text-[2.25rem] font-extrabold text-accent">
-                  {pct}%
-                </span>
-              </div>
-            </div>
+              <span className="rounded-full bg-charcoal-raised px-3 py-1 text-[0.9375rem] font-extrabold text-mint">{pct}% benar</span>
+            </span>
+            <p className="text-charcoal-muted">
+              {pct >= 70 ? "Bagus. Pertahankan ritme ini." : "Masih bocor di beberapa pola. Pembahasan di bawah, lalu latih ulang."}
+            </p>
           </div>
-
-          <ProgressRule
-            value={pct}
-            tone={pct >= 75 ? "success" : pct >= 50 ? "accent" : "danger"}
-            className="h-3"
-          />
-
-          <ul className="flex flex-col gap-2">
-            {[...bySkill].map(([label, entry]) => {
-              const weak = entry.correct * 2 < entry.total;
-              return (
-                <li
-                  key={label}
-                  className="flex items-center justify-between gap-3 rounded-control bg-surface-muted px-4 py-3"
-                >
-                  <span className="text-base font-semibold">{label}</span>
-                  <span className="flex items-center gap-3">
-                    <span className="tnum font-mono text-[0.9375rem]">
-                      {entry.correct}/{entry.total}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[0.875rem] font-bold",
-                        weak ? "text-warning-ink" : "text-accent-ink",
-                      )}
-                    >
-                      {weak ? "Perlu latihan" : "Cukup"}
-                    </span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-
-          {wrong.length ? (
-            <div className="flex flex-col gap-3">
-              <h2 className="font-display text-[1.375rem] font-extrabold">
-                Pembahasan soal salah ({wrong.length})
-              </h2>
-              <ol className="flex flex-col gap-3">
-                {wrong.map(({ item, i, answer }) => {
-                  const unanswered = answer === null || answer < 0;
-                  return (
-                    <li
-                      key={i}
-                      className="flex flex-col gap-2 rounded-control border-2 border-hairline bg-surface-muted p-4"
-                    >
-                      <p className="text-base font-semibold leading-relaxed">
-                        <span className="mr-2 font-mono text-ink-subtle">
-                          {i + 1}.
-                        </span>
-                        {item.q}
-                      </p>
-                      <p className="text-[0.9375rem]">
-                        {unanswered ? (
-                          <span className="font-semibold text-warning-ink">
-                            Tidak dijawab
-                          </span>
-                        ) : (
-                          <span className="font-semibold text-[#7e1d1d]">
-                            Jawabanmu: {LETTERS[answer]}. {item.options[answer]}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[0.9375rem] font-semibold text-accent-ink">
-                        Jawaban benar: {LETTERS[item.answer]}.{" "}
-                        {item.options[item.answer]}
-                      </p>
-                      {item.explain_id ? (
-                        <p className="text-[0.9375rem] leading-relaxed text-ink-muted">
-                          {item.explain_id}
-                        </p>
-                      ) : null}
-                      {item.skill ? (
-                        <p className="eyebrow text-ink-subtle">
-                          Skill · {SKILLS[item.skill].label} — {SKILLS[item.skill].hint}
-                        </p>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
+          {session.score !== null ? (
+            <div className="rounded-[20px] bg-charcoal-raised px-5 py-4">
+              <span className="block text-[0.75rem] font-extrabold tracking-[0.06em] text-charcoal-muted">SKOR BAGIAN</span>
+              <span className="font-round text-[2.5rem] font-extrabold leading-none">{session.score}</span>
             </div>
           ) : null}
-
-          <div className="flex flex-wrap items-start justify-end gap-3">
-            {repeatState.status === "error" ? (
-              <p role="alert" className="w-full text-right text-[0.9375rem] font-semibold text-negative">
-                {repeatState.message}
-              </p>
-            ) : null}
-            <form action={repeatAction}>
-              <input type="hidden" name="kind" value={repeatKind} />
-              {repeatSkill ? (
-                <input type="hidden" name="skill" value={repeatSkill} />
-              ) : null}
-              <input type="hidden" name="track" value="eptr" />
-              <Button type="submit" disabled={repeatPending} className="h-14 px-7 text-lg">
-                {repeatPending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-                {repeatSkill
-                  ? `Latihan ulang: ${SKILLS[repeatSkill].label}`
-                  : "Latihan ulang"}
-              </Button>
-            </form>
-            <Link
-              href={basePath}
-              className={cn(buttonVariants({ variant: "secondary" }), "h-14 px-7 text-lg")}
-            >
-              Kembali ke EPrT
-            </Link>
-          </div>
         </section>
-      </div>
+
+        <section aria-label="Per skill" className="flex flex-col gap-2 rounded-[24px] border-2 border-hairline bg-surface p-5">
+          {[...bySkill].map(([label, entry], i) => {
+            const share = entry.total ? Math.round((entry.correct / entry.total) * 100) : 0;
+            const weak = entry.correct * 2 < entry.total;
+            return (
+              <div key={label} className={cn("flex flex-wrap items-center gap-3 py-2", i > 0 && "border-t-2 border-hairline-soft")}>
+                <span className="min-w-[160px] flex-1 font-bold">{label}</span>
+                <span className="h-2.5 w-full max-w-[220px] overflow-hidden rounded-full bg-canvas-deep">
+                  <span className={cn("block h-full", weak ? "bg-brick" : share >= 75 ? "bg-primary" : "bg-mango")} style={{ width: `${share}%` }} />
+                </span>
+                <span className="tnum w-12 text-right text-[0.875rem] font-extrabold">
+                  {entry.correct}/{entry.total}
+                </span>
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-[0.75rem] font-extrabold",
+                    weak ? "bg-brick-soft text-brick-deep" : "bg-primary-soft text-primary-deep",
+                  )}
+                >
+                  {weak ? "Perlu latihan" : "Cukup"}
+                </span>
+              </div>
+            );
+          })}
+        </section>
+
+        {wrong.length ? (
+          <section className="flex flex-col gap-3">
+            <h2 className="font-display text-[1.375rem] font-extrabold">Pembahasan · {wrong.length} salah</h2>
+            <ol className="flex flex-col gap-3">
+              {wrong.map(({ item, i, answer }) => {
+                const unanswered = answer === null || answer < 0;
+                return (
+                  <li key={i} className="flex flex-col gap-3 rounded-[24px] border-2 border-hairline bg-surface p-5">
+                    <p className="text-[1.0625rem] font-semibold leading-relaxed">
+                      <span className="mr-2 font-round font-extrabold text-ink-subtle">{i + 1}</span>
+                      {item.q}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-[0.875rem] font-bold">
+                      {unanswered ? (
+                        <span className="rounded-[12px] bg-mango-soft px-3 py-1.5 text-mango-ink">Tidak dijawab</span>
+                      ) : (
+                        <span className="rounded-[12px] bg-brick-soft px-3 py-1.5 text-brick-deep">
+                          Jawabanmu: {LETTERS[answer]} · {item.options[answer]}
+                        </span>
+                      )}
+                      <span className="rounded-[12px] bg-primary-soft px-3 py-1.5 text-primary-deep">
+                        Benar: {LETTERS[item.answer]} · {item.options[item.answer]}
+                      </span>
+                    </div>
+                    {item.explain_id ? (
+                      <p className="rounded-[14px] bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink-muted">
+                        <strong className="text-ink">Kenapa:</strong> {item.explain_id}
+                      </p>
+                    ) : null}
+                    {item.skill ? (
+                      <SkillChip skill={item.audio ? "listening" : session.section === "reading" ? "reading" : "structure"} className="self-start">
+                        {SKILLS[item.skill].label}
+                      </SkillChip>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        ) : null}
+
+        <div className="flex flex-wrap items-start justify-end gap-3">
+          {repeatState.status === "error" ? (
+            <p role="alert" className="w-full text-right text-[0.9375rem] font-bold text-brick-deep">
+              {repeatState.message}
+            </p>
+          ) : null}
+          <Link href={basePath} className={buttonVariants({ variant: "secondary", size: "lg" })}>
+            Kembali ke EPrT
+          </Link>
+          <form action={repeatAction}>
+            <input type="hidden" name="kind" value={repeatKind} />
+            {repeatSkill ? <input type="hidden" name="skill" value={repeatSkill} /> : null}
+            <input type="hidden" name="track" value="eptr" />
+            <Button type="submit" size="lg" disabled={repeatPending}>
+              {repeatPending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+              {repeatSkill ? `Latihan ulang: ${SKILLS[repeatSkill].label}` : "Latihan ulang"}
+            </Button>
+          </form>
+        </div>
+      </main>,
     );
   }
 
   const right = chosen === question.answer;
   const selected = chosen ?? pending;
-  const lastOpen =
-    chosen === null && answers.filter((answer) => answer === null).length === 1;
+  const lastOpen = chosen === null && answers.filter((answer) => answer === null).length === 1;
   const last = answers.every((answer, i) => answer !== null || i === index);
   const isListening = Boolean(question.audio);
   const isWritten = question.type === "written";
 
-  const optionGrid = isWritten
-    ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-    : isListening
-      ? "flex flex-col gap-3"
-      : "grid gap-3 sm:grid-cols-2";
+  const optionGrid = isWritten ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4" : isListening ? "flex flex-col gap-3" : "grid gap-3 sm:grid-cols-2";
 
   const options = (
-    <div
-      role="radiogroup"
-      aria-labelledby="question-text"
-      className={optionGrid}
-    >
+    <div role="radiogroup" aria-labelledby="question-text" className={optionGrid}>
       {question.options.map((option, i) => {
         const isAnswer = i === question.answer;
         const isWrongPick = chosen === i && !right;
@@ -874,39 +811,27 @@ export function ToeflRunner({
             disabled={chosen !== null}
             onClick={() => choose(i)}
             className={cn(
-              "flex min-h-16 items-center gap-4 rounded-[16px] px-4 py-3 text-left text-[1.0625rem] transition-colors sm:text-lg",
-              !revealed &&
-                !isSelected &&
-                "cursor-pointer border-2 border-hairline bg-surface text-ink hover:border-primary/50",
-              !revealed &&
-                isSelected &&
-                "border-2 border-primary bg-primary-soft font-semibold text-primary-deep",
-              revealed &&
-                isAnswer &&
-                "border-2 border-positive bg-positive-soft font-bold text-accent-ink",
-              revealed &&
-                isWrongPick &&
-                "border-2 border-dashed border-negative bg-negative-soft font-bold text-[#7e1d1d]",
-              revealed &&
-                !isAnswer &&
-                !isWrongPick &&
-                "border-[1.5px] border-hairline bg-surface text-ink-faint",
+              "flex min-h-[58px] items-center gap-3.5 rounded-[16px] border-2 px-4 py-2.5 text-left text-[1.0625rem] font-semibold transition-[transform,box-shadow,border-color] active:translate-y-0.5",
+              !revealed && !isSelected && "cursor-pointer border-hairline bg-surface shadow-[0_3px_0_var(--color-hairline)] hover:border-sky-line",
+              !revealed && isSelected && "border-sky bg-sky-soft font-bold text-sky-deep shadow-[0_3px_0_var(--color-sky-line)]",
+              revealed && isAnswer && "border-primary bg-primary-soft font-bold text-primary-deep shadow-[0_3px_0_var(--color-primary-line)]",
+              revealed && isWrongPick && "border-brick bg-brick-soft font-bold text-brick-deep shadow-[0_3px_0_var(--color-brick-line)]",
+              revealed && !isAnswer && !isWrongPick && "border-hairline bg-surface-muted text-ink-faint",
             )}
           >
             <span
               aria-hidden
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-[10px] font-mono text-base font-semibold",
-                !revealed && isSelected
-                  ? "bg-primary text-white"
-                  : "bg-surface-muted text-ink",
-                revealed && (isAnswer || isWrongPick) && "bg-transparent",
+                "flex size-[30px] shrink-0 items-center justify-center rounded-[8px] text-[0.8125rem] font-extrabold",
+                !revealed && isSelected ? "bg-sky text-white" : "border-2 border-hairline text-ink-subtle",
+                revealed && isAnswer && "border-0 bg-primary text-white",
+                revealed && isWrongPick && "border-0 bg-brick text-white",
               )}
             >
               {revealed && isAnswer ? (
-                <Check className="size-5" strokeWidth={2.5} />
+                <Check className="size-4" strokeWidth={3} />
               ) : revealed && isWrongPick ? (
-                <X className="size-5" strokeWidth={2.5} />
+                <X className="size-4" strokeWidth={3} />
               ) : (
                 LETTERS[i]
               )}
@@ -918,127 +843,153 @@ export function ToeflRunner({
     </div>
   );
 
-  const actionBar = (
-    <div className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-3 border-t border-hairline bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:bg-transparent sm:p-0">
-      <p className="text-center text-[0.9375rem] text-ink-subtle sm:text-left">
-        {pending !== null
-          ? exam
-            ? "Pilihan masih bisa diganti sebelum lanjut."
-            : "Pilihan masih bisa diganti sebelum diperiksa."
-          : complete
-            ? "Semua soal sudah dijawab."
-            : "Pilih salah satu jawaban."}
-      </p>
-      {pending !== null ? (
-        !exam ? (
-          <Button onClick={() => commit()} className="h-14 px-7 text-lg">
-            Periksa jawaban
-          </Button>
-        ) : lastOpen ? (
-          <Button
-            onClick={() => {
-              commit();
-              void finish();
-            }}
-            disabled={busy}
-            className="h-14 px-7 text-lg"
-          >
-            {busy ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : null}
-            Selesai
-          </Button>
-        ) : (
-          <Button onClick={next} className="h-14 px-7 text-lg">
-            Lanjut
-            <ArrowRight className="size-5" aria-hidden />
-          </Button>
-        )
-      ) : complete && !revealed ? (
-        <Button onClick={finish} disabled={busy} className="h-14 px-7 text-lg">
-          {busy ? (
-            <Loader2 className="size-5 animate-spin" aria-hidden />
-          ) : null}
+  const hint =
+    pending !== null
+      ? exam
+        ? "Pilihan masih bisa diganti sebelum lanjut."
+        : "Pilihan masih bisa diganti sebelum diperiksa."
+      : complete
+        ? "Semua soal sudah dijawab."
+        : "Pilih salah satu jawaban.";
+
+  const primaryAction =
+    pending !== null ? (
+      !exam ? (
+        <Button size="lg" onClick={() => commit()}>
+          PERIKSA
+        </Button>
+      ) : lastOpen ? (
+        <Button
+          variant="exam"
+          size="lg"
+          onClick={() => {
+            commit();
+            void finish();
+          }}
+          disabled={busy}
+        >
+          {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
           Selesai
         </Button>
+      ) : (
+        <Button variant="exam" size="lg" onClick={next}>
+          Berikutnya
+          <ArrowRight className="size-5" aria-hidden />
+        </Button>
+      )
+    ) : complete && !revealed ? (
+      <Button variant={exam ? "exam" : "primary"} size="lg" onClick={finish} disabled={busy}>
+        {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+        Selesai
+      </Button>
+    ) : null;
+
+  const numberNav =
+    questions.length <= 60 ? (
+      <nav aria-label="Navigasi nomor soal" className="grid min-w-0 flex-[1_1_420px] gap-1 [grid-template-columns:repeat(auto-fill,minmax(26px,1fr))]">
+        {questions.map((_, n) => {
+          const current = n === index;
+          const done = answers[n] !== null;
+          const canJump = !audioSession && !done && !current;
+          const cls = cn(
+            "flex h-[26px] items-center justify-center rounded-[6px] border-2 text-[0.6875rem] font-extrabold",
+            current && "border-sky bg-sky text-white",
+            !current && done && "border-ink-muted bg-ink-muted text-white",
+            !current && !done && "border-hairline-strong bg-surface text-ink-subtle",
+            canJump && "cursor-pointer hover:border-sky",
+          );
+          const label = `Soal ${n + 1}, ${current ? "sekarang" : done ? "dijawab" : "belum"}`;
+          return canJump ? (
+            <button key={n} type="button" aria-label={label} onClick={() => jump(n)} className={cls}>
+              {n + 1}
+            </button>
+          ) : (
+            <span key={n} aria-label={label} aria-current={current ? "step" : undefined} className={cls}>
+              {n + 1}
+            </span>
+          );
+        })}
+      </nav>
+    ) : (
+      <span className="flex-1" />
+    );
+
+  const actionBar = (
+    <footer className="sticky bottom-0 z-20 border-t-2 border-hairline bg-surface">
+      <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+        {numberNav}
+        <span className="hidden text-[0.8125rem] font-bold text-ink-subtle md:inline">{hint}</span>
+        {primaryAction}
+      </div>
+      {exam ? (
+        <p className="mx-auto max-w-[1360px] px-4 pb-3 text-[0.75rem] font-bold text-ink-subtle sm:px-6">
+          Benar/salah tidak ditampilkan sampai simulasi selesai.
+        </p>
       ) : null}
-    </div>
+    </footer>
   );
+
+  const structureParts =
+    revealed && question.type === "structure" && chosen !== null
+      ? blankAnatomy(question.q, right ? null : question.options[chosen], question.options[question.answer])
+      : null;
 
   const feedback = revealed ? (
     <div
       role="status"
-      className="page-enter flex flex-col gap-3 rounded-plate border-2 border-hairline bg-surface p-5 sm:p-6"
+      className={cn(
+        "page-enter flex flex-col gap-4 rounded-[24px] border-2 p-5 sm:p-6",
+        right ? "border-primary-line bg-primary-soft" : "border-brick-line bg-brick-soft",
+      )}
     >
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3.5">
         <span
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.9375rem] font-bold",
-            right
-              ? "bg-positive-soft text-accent-ink"
-              : "bg-negative-soft text-[#7e1d1d]",
-          )}
+          aria-hidden
+          className={cn("grid size-12 shrink-0 place-items-center rounded-full text-white", right ? "bg-primary" : "bg-brick")}
         >
-          {right ? (
-            <Check className="size-4" strokeWidth={3} aria-hidden />
-          ) : (
-            <X className="size-4" strokeWidth={3} aria-hidden />
-          )}
-          {right ? "Benar" : "Belum tepat"}
+          {right ? <Check className="size-6" strokeWidth={3} /> : <X className="size-6" strokeWidth={3} />}
         </span>
-        {!right ? (
-          <span className="text-base">
-            Jawaban benar:{" "}
-            <strong>
-              {LETTERS[question.answer]}. {question.options[question.answer]}
-            </strong>
-          </span>
-        ) : null}
+        <div className={cn("min-w-0 flex-1", right ? "text-primary-deep" : "text-brick-deep")}>
+          <p className="font-display text-[1.375rem] font-black">{right ? "Benar!" : "Belum tepat"}</p>
+          {!right ? (
+            <p className="text-[0.9375rem]">
+              Jawaban benar:{" "}
+              <strong>
+                {LETTERS[question.answer]}. {question.options[question.answer]}
+              </strong>
+            </p>
+          ) : null}
+        </div>
+        <Button autoFocus size="lg" onClick={next} disabled={busy} className={right ? undefined : "bg-brick shadow-[0_5px_0_var(--color-brick-deep)] hover:bg-brick-bright"}>
+          {last ? "Lihat hasil" : "Soal berikutnya"}
+          <ArrowRight className="size-5" aria-hidden />
+        </Button>
       </div>
+      {structureParts && !right ? (
+        <div className="rounded-[18px] bg-surface p-4">
+          <Anatomy parts={structureParts} size="sm" />
+        </div>
+      ) : null}
       {question.explain_id ? (
-        <p className="text-[1.0625rem] leading-relaxed text-ink-muted">
-          {question.explain_id}
-        </p>
+        <p className="rounded-[14px] bg-surface px-4 py-3 text-[1rem] leading-relaxed text-ink-muted">{question.explain_id}</p>
       ) : null}
       {question.audio ? (
-        <details className="rounded-control bg-surface-muted px-4 py-3">
-          <summary className="cursor-pointer text-[0.9375rem] font-semibold">
-            Lihat transkrip
-          </summary>
-          <div className="mt-2 flex flex-col gap-1 text-base leading-relaxed">
+        <details className="rounded-[14px] bg-surface px-4 py-3">
+          <summary className="cursor-pointer text-[0.9375rem] font-extrabold">Lihat transkrip</summary>
+          <div className="mt-2 flex flex-col gap-1 text-[0.9375rem] leading-relaxed">
             {question.audio.map((line, i) => (
               <p key={i}>
-                <span className="font-bold">{SPEAKER[line.speaker]}:</span>{" "}
-                {line.text}
+                <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
               </p>
             ))}
           </div>
         </details>
       ) : null}
-      {question.skill ? (
-        <p className="eyebrow text-ink-subtle">
-          Skill · {SKILLS[question.skill].label}
-        </p>
-      ) : null}
       {error ? (
-        <p
-          role="alert"
-          className="text-[0.9375rem] font-semibold text-negative"
-        >
+        <p role="alert" className="text-[0.9375rem] font-bold text-brick-deep">
           {error}
         </p>
       ) : null}
-      <div className="flex justify-end">
-        <Button
-          autoFocus
-          onClick={next}
-          disabled={busy}
-          className="h-14 px-7 text-lg"
-        >
-          {last ? "Lihat hasil" : "Soal berikutnya"}
-          <ArrowRight className="size-5" aria-hidden />
-        </Button>
-      </div>
     </div>
   ) : null;
 
@@ -1046,17 +997,11 @@ export function ToeflRunner({
     <h1
       id="question-text"
       className={cn(
-        "font-display font-semibold leading-snug",
-        isWritten || question.type === "structure"
-          ? "text-[1.625rem] sm:text-[2.25rem]"
-          : "text-[1.5rem] sm:text-[1.875rem]",
+        "font-semibold leading-[1.5]",
+        isWritten || question.type === "structure" ? "text-[1.375rem] sm:text-[1.625rem]" : "text-[1.25rem] sm:text-[1.375rem]",
       )}
     >
-      {isListening ? (
-        question.q
-      ) : (
-        <Sentence question={question} revealed={revealed} />
-      )}
+      {isListening ? question.q : <Sentence question={question} revealed={revealed} />}
     </h1>
   );
 
@@ -1077,194 +1022,163 @@ export function ToeflRunner({
         .filter(Boolean)
         .join("\n")}
     >
-      {(askOpen) => (
-        <div className="flex flex-col gap-6">
-          {header}
-
-          <div
-            key={index}
-            className={cn(
-              "page-enter grid gap-6 lg:gap-10",
-              // Panel AI terbuka = ruang sempit: tumpuk teks/audio di atas soal.
-              (isListening || session.passage) &&
-                !askOpen &&
-                "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]",
-            )}
-          >
-            {isListening ? (
-              <section
-                aria-label="Audio"
-                className="flex flex-col justify-between gap-4 rounded-[24px] bg-night p-4 text-night-ink sm:gap-6 sm:rounded-[28px] sm:p-8 lg:min-h-[480px]"
+      {(askOpen, trigger) =>
+        shell(
+          <>
+            <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 sm:px-6">
+              <div
+                className={cn(
+                  "grid gap-6",
+                  // Panel AI terbuka = ruang sempit: tumpuk teks/audio di atas soal.
+                  (isListening || session.passage) && !askOpen && "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]",
+                )}
               >
-                <div className="hidden flex-col gap-2 sm:flex">
-                  <span className="eyebrow text-[#bfe3cf]">
-                    {TYPE_LABEL.listening}
-                  </span>
-                  <p className="text-[1.0625rem] leading-relaxed text-night-muted">
-                    {exam
-                      ? "Dengarkan percakapan, lalu narator membacakan pertanyaan."
-                      : "Putar audio, dengarkan, lalu pilih jawaban."}
-                  </p>
-                </div>
-                <div
-                  aria-hidden
-                  className={cn(
-                    "h-28 items-center justify-center gap-1.5",
-                    speaking ? "flex" : "hidden sm:flex",
-                  )}
-                >
-                  {[60, 100, 130, 80, 110, 70, 120, 50, 90].map((height, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "w-2 rounded bg-mint",
-                        speaking && !loadingAudio ? "wave-bar" : "opacity-40",
-                      )}
-                      style={{
-                        height: speaking && !loadingAudio ? height : 16,
-                        animationDelay: `${i * 0.08}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="flex flex-col gap-3">
-                  {speaking ? (
-                    <p
-                      role="status"
-                      className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-raised text-lg font-bold"
-                    >
-                      {loadingAudio ? (
-                        <Loader2
-                          className="size-5 animate-spin text-mint"
-                          aria-hidden
+                {isListening ? (
+                  <section
+                    aria-label="Audio"
+                    className="flex flex-col justify-between gap-5 rounded-[28px] bg-charcoal p-5 text-charcoal-ink sm:p-8 lg:min-h-[440px]"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <span className="eyebrow text-mango-line">{TYPE_LABEL.listening}</span>
+                      <p className="text-charcoal-muted">
+                        {exam ? "Dengarkan percakapan, lalu narator membacakan pertanyaan." : "Putar audio, dengarkan, lalu pilih jawaban."}
+                      </p>
+                    </div>
+                    <div aria-hidden className={cn("h-24 items-center justify-center gap-1.5", speaking ? "flex" : "hidden sm:flex")}>
+                      {[60, 100, 130, 80, 110, 70, 120, 50, 90, 75, 105].map((height, i) => (
+                        <span
+                          key={i}
+                          className={cn("w-2 rounded bg-sky-bright", speaking && !loadingAudio ? "wave-bar" : "opacity-35")}
+                          style={{ height: speaking && !loadingAudio ? height * 0.75 : 16, animationDelay: `${i * 0.08}s` }}
                         />
-                      ) : (
-                        <Volume2 className="size-5 text-mint" aria-hidden />
-                      )}
-                      {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={play}
-                      className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-night-ink text-lg font-bold text-ink hover:bg-white"
-                    >
-                      <Volume2 className="size-5" aria-hidden />
-                      {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
-                    </button>
-                  )}
-                  <p className="text-center text-[0.9375rem] text-night-muted">
-                    {silent
-                      ? "Browser tanpa suara. Transkrip ditampilkan."
-                      : exam
-                        ? audioUsed
-                          ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
-                          : "Audio hanya diputar sekali, seperti tes asli."
-                        : "Transkrip muncul setelah jawaban diperiksa."}
-                  </p>
-                </div>
-                {silent ? (
-                  <div className="flex flex-col gap-1 rounded-control bg-night-raised p-4 text-base leading-relaxed">
-                    {question.audio?.map((line, i) => (
-                      <p key={i}>
-                        <span className="font-bold">
-                          {SPEAKER[line.speaker]}:
-                        </span>{" "}
-                        {line.text}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
-              </section>
-            ) : session.passage ? (
-              <article
-                aria-label="Teks bacaan"
-                className="flex flex-col gap-4 self-start rounded-plate border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-44"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="eyebrow text-ink-subtle">Teks bacaan</span>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      aria-label="Perkecil teks bacaan"
-                      disabled={textSize === 0}
-                      onClick={() => changeTextSize(-1)}
-                      className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-[0.9375rem] font-bold disabled:opacity-40"
-                    >
-                      A−
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Perbesar teks bacaan"
-                      disabled={textSize === TEXT_SIZES.length - 1}
-                      onClick={() => changeTextSize(1)}
-                      className="size-11 rounded-[10px] border-[1.5px] border-hairline-strong text-lg font-bold disabled:opacity-40"
-                    >
-                      A+
-                    </button>
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "flex max-h-[62dvh] max-w-[64ch] flex-col gap-4 overflow-y-auto leading-[1.75]",
-                    TEXT_SIZES[textSize],
-                  )}
-                >
-                  {session.passage
-                    .split(/\n\s*\n/)
-                    .filter((paragraph) => paragraph.trim())
-                    .map((paragraph, i) => (
-                      <p key={i}>
-                        <span className="mr-2.5 font-mono text-[0.9375rem] font-semibold text-ink-subtle">
-                          {i + 1}
-                        </span>
-                        {parseInline(paragraph.trim()).map((span, j) =>
-                          span.tone === "bold" ? (
-                            <strong
-                              key={j}
-                              className="rounded bg-highlight px-1"
-                            >
-                              {span.text}
-                            </strong>
+                      ))}
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {speaking ? (
+                        <p role="status" className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-charcoal-raised text-[1.0625rem] font-bold">
+                          {loadingAudio ? (
+                            <Loader2 className="size-5 animate-spin text-sky-bright" aria-hidden />
                           ) : (
-                            span.text
-                          ),
-                        )}
+                            <Volume2 className="size-5 text-sky-bright" aria-hidden />
+                          )}
+                          {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={play}
+                          className="flex h-14 cursor-pointer items-center justify-center gap-2.5 rounded-[16px] bg-sky text-[1.0625rem] font-extrabold text-white shadow-[0_5px_0_var(--color-sky-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
+                        >
+                          <Volume2 className="size-5" aria-hidden />
+                          {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
+                        </button>
+                      )}
+                      <p className="text-center text-[0.875rem] text-charcoal-muted">
+                        {silent
+                          ? "Browser tanpa suara. Transkrip ditampilkan."
+                          : exam
+                            ? audioUsed
+                              ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
+                              : "Audio hanya diputar sekali, seperti tes asli."
+                            : "Transkrip muncul setelah jawaban diperiksa."}
                       </p>
-                    ))}
-                </div>
-              </article>
-            ) : null}
+                    </div>
+                    {silent ? (
+                      <div className="flex flex-col gap-1 rounded-[14px] bg-charcoal-raised p-4 leading-relaxed">
+                        {question.audio?.map((line, i) => (
+                          <p key={i}>
+                            <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : session.passage ? (
+                  <article
+                    aria-label="Teks bacaan"
+                    className="flex flex-col gap-3.5 self-start rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-24"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="eyebrow text-ink-subtle">Teks bacaan</span>
+                      <div role="group" aria-label="Ukuran teks" className="flex gap-1.5">
+                        <button
+                          type="button"
+                          aria-label="Perkecil teks bacaan"
+                          disabled={textSize === 0}
+                          onClick={() => changeTextSize(-1)}
+                          className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[0.875rem] font-extrabold disabled:opacity-40"
+                        >
+                          A−
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Perbesar teks bacaan"
+                          disabled={textSize === TEXT_SIZES.length - 1}
+                          onClick={() => changeTextSize(1)}
+                          className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[1rem] font-extrabold disabled:opacity-40"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+                    <div className={cn("flex max-h-[62dvh] max-w-[68ch] flex-col gap-4 overflow-y-auto leading-[1.75]", TEXT_SIZES[textSize])}>
+                      {session.passage
+                        .split(/\n\s*\n/)
+                        .filter((paragraph) => paragraph.trim())
+                        .map((paragraph, i) => (
+                          <p key={i}>
+                            <span className="mr-2 font-round text-[0.9375rem] font-extrabold text-ink-subtle">{i + 1}</span>
+                            {parseInline(paragraph.trim()).map((span, j) =>
+                              span.tone === "bold" ? (
+                                <strong key={j} className="rounded bg-sky-soft px-1 font-bold text-sky-deep">
+                                  {span.text}
+                                </strong>
+                              ) : (
+                                span.text
+                              ),
+                            )}
+                          </p>
+                        ))}
+                    </div>
+                  </article>
+                ) : null}
 
-            <section
-              className={cn(
-                "flex flex-col gap-6",
-                !isListening && !session.passage && "mx-auto w-full max-w-5xl",
-              )}
-            >
-              <div className="flex flex-col gap-3">
-                <span className="eyebrow text-ink-subtle">
-                  {isListening
-                    ? "Pertanyaan narator"
-                    : (TYPE_LABEL[question.type] ?? "Soal")}
-                </span>
-                {questionHeading}
-              </div>
-              {options}
-              {feedback}
-              {!revealed ? actionBar : null}
-              {!revealed && error ? (
-                <p
-                  role="alert"
-                  className="text-[0.9375rem] font-semibold text-negative"
+                <section
+                  key={index}
+                  className={cn(
+                    "pop-in flex flex-col gap-5",
+                    !isListening && !session.passage && "mx-auto w-full max-w-[860px]",
+                  )}
                 >
-                  {error}
-                </p>
-              ) : null}
-            </section>
-          </div>
-        </div>
-      )}
+                  <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-round text-[1.375rem] font-extrabold text-sky-deep">{index + 1}</span>
+                      <span className="eyebrow text-ink-subtle">
+                        {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
+                      </span>
+                    </div>
+                    {questionHeading}
+                    {options}
+                  </div>
+                  {feedback}
+                  {!revealed && error ? (
+                    <p role="alert" className="text-[0.9375rem] font-bold text-brick-deep">
+                      {error}
+                    </p>
+                  ) : null}
+                </section>
+              </div>
+            </main>
+            <div
+              aria-hidden={revealed}
+              className={cn("sticky bottom-0", revealed && "invisible pointer-events-none")}
+            >
+              {actionBar}
+            </div>
+          </>,
+          trigger,
+        )
+      }
     </AskAi>
   );
 }

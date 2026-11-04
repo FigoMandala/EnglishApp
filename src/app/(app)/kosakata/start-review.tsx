@@ -1,10 +1,8 @@
 "use client";
 
-import { Loader2, Play } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-import { cn } from "@/lib/utils";
 
 const COUNTS = [10, 20, 40] as const;
 
@@ -19,34 +17,41 @@ export function StartReviewButton({ dueCount }: { dueCount: number }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="relative flex flex-col items-start gap-2">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className={cn(
-          "flex h-12 items-center gap-2 rounded-control px-6 text-[0.9375rem] font-bold shadow-card transition-transform hover:-translate-y-0.5",
-          dueCount > 0 ? "bg-primary text-white" : "border-2 border-hairline bg-surface text-ink-subtle hover:border-primary",
-        )}
+        onClick={() => (dueCount > 0 ? start(Math.min(60, Math.max(10, dueCount))) : setOpen((prev) => !prev))}
+        aria-expanded={dueCount > 0 ? undefined : open}
+        disabled={loading !== null}
+        className="flex h-[58px] cursor-pointer items-center gap-2.5 rounded-[18px] bg-mango px-7 font-display text-[1.125rem] font-extrabold tracking-[0.02em] text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] transition-transform active:translate-y-[5px] active:shadow-none disabled:opacity-70"
       >
-        <Play className="size-4" aria-hidden />
-        {dueCount > 0 ? `Ulangi ${dueCount} kartu jatuh tempo` : "Belum ada kartu jatuh tempo"}
+        {loading !== null && dueCount > 0 ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+        {dueCount > 0 ? "MULAI ULANG" : "PELAJARI KATA BARU"}
+        <ArrowRight className="size-5" strokeWidth={2.8} aria-hidden />
       </button>
+      {dueCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}
+          className="cursor-pointer text-[0.8125rem] font-extrabold text-mango-ink underline-offset-2 hover:underline"
+        >
+          Atur jumlah kartu
+        </button>
+      ) : null}
       {open ? (
-        <div className="pop-in flex items-center gap-2 rounded-control border-2 border-hairline bg-surface p-2 shadow-card">
-          <span className="px-2 text-[0.8125rem] font-semibold text-ink-subtle">
-            {dueCount > 0 ? "Pelajari:" : "Belum jatuh tempo — pelajari kata baru:"}
-          </span>
+        <div className="pop-in flex flex-wrap items-center gap-2 rounded-control border-2 border-mango-line bg-surface p-2 shadow-overlay">
+          <span className="px-2 text-[0.8125rem] font-bold text-ink-subtle">{dueCount > 0 ? "Ulang:" : "Kata baru:"}</span>
           {COUNTS.map((count) => (
             <button
               key={count}
               type="button"
               onClick={() => start(count)}
               disabled={loading !== null}
-              className="flex h-10 min-w-12 items-center justify-center rounded-[10px] border-2 border-hairline bg-surface-muted px-3 text-[0.875rem] font-bold text-ink transition-colors hover:border-primary hover:text-primary disabled:opacity-60"
+              className="flex h-10 min-w-12 cursor-pointer items-center justify-center rounded-[10px] border-2 border-hairline bg-surface-muted px-3 text-[0.875rem] font-extrabold text-ink hover:border-mango disabled:opacity-60"
             >
               {loading === count ? <Loader2 className="size-4 animate-spin" aria-hidden /> : count}
-              <span className="ml-1 text-[0.6875rem] font-semibold text-ink-faint">kartu</span>
+              <span className="ml-1 text-[0.6875rem] font-bold text-ink-subtle">kartu</span>
             </button>
           ))}
         </div>

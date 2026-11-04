@@ -34,6 +34,29 @@ export async function listWritingSubmissions(userId: number, limit = 12) {
     .limit(limit);
 }
 
+/** Topik + skor semua esai, untuk statistik pemakaian prompt. */
+export async function listWritingScores(userId: number, limit = 300) {
+  return db
+    .select({
+      prompt: writingSubmissions.prompt,
+      total: writingSubmissions.total,
+      createdAt: writingSubmissions.createdAt,
+    })
+    .from(writingSubmissions)
+    .where(eq(writingSubmissions.userId, userId))
+    .orderBy(desc(writingSubmissions.id))
+    .limit(limit);
+}
+
+/** Judul prompt yang pernah dipakai pengguna, untuk menandai topik yang sudah ditulis. */
+export async function listWrittenPrompts(userId: number) {
+  const rows = await db
+    .selectDistinct({ prompt: writingSubmissions.prompt })
+    .from(writingSubmissions)
+    .where(eq(writingSubmissions.userId, userId));
+  return rows.map((row) => row.prompt).filter((prompt) => prompt.trim().length > 0);
+}
+
 export type WritingSummary = {
   id: number;
   prompt: string;

@@ -25,7 +25,7 @@ export function DrillToolbar({ level }: { level: string }) {
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tingkat kesulitan">
+      <nav className="flex gap-1 rounded-control bg-canvas-deep p-1" aria-label="Tingkat kesulitan">
         {OPTIONS.map((option) => {
           const active = option.key === level;
           const href = option.key === "all" ? "/latihan/soal" : `/latihan/soal?t=${option.key}`;
@@ -33,25 +33,22 @@ export function DrillToolbar({ level }: { level: string }) {
             <Link
               key={option.key}
               href={href}
-              role="tab"
-              aria-selected={active}
+              aria-current={active ? "true" : undefined}
               className={cn(
-                "flex h-10 items-center rounded-control border-2 px-4 text-[0.875rem] font-bold transition-colors",
-                active
-                  ? "border-primary bg-primary-soft text-primary-deep"
-                  : "border-hairline bg-surface text-ink-subtle hover:border-primary hover:text-primary",
+                "flex h-10 items-center rounded-[10px] px-4 text-[0.875rem] transition-colors",
+                active ? "bg-surface font-extrabold shadow-[0_2px_0_var(--color-hairline-strong)]" : "font-bold text-ink-muted hover:text-ink",
               )}
             >
               {option.label}
             </Link>
           );
         })}
-      </div>
+      </nav>
       <button
         type="button"
         onClick={newSet}
         disabled={pending}
-        className="flex h-10 cursor-pointer items-center gap-2 rounded-control border-2 border-hairline bg-surface px-4 text-[0.875rem] font-bold text-ink transition-colors hover:border-primary hover:text-primary disabled:opacity-60"
+        className="flex h-11 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-hairline bg-surface px-4 text-[0.875rem] font-extrabold text-ink shadow-[0_3px_0_var(--color-hairline)] transition-transform active:translate-y-[3px] active:shadow-none disabled:opacity-60"
       >
         <RefreshCw className={cn("size-4", pending && "animate-spin")} aria-hidden />
         Ganti soal

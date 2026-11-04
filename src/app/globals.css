@@ -11,79 +11,104 @@
   --font-round: var(--font-round), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-code), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Canvas kertas hangat (redesign "Lori & Kaka") */
+  /* ═══ Sistem desain v2 "Buku Catatan Hangat" ═══
+     4 hue bermakna + netral kertas. Hijau = maju/benar, mangga = XP/streak/hadiah,
+     bata = salah, langit = audio/info, arang = mode ujian (Kaka). */
+
+  /* Kertas */
   --color-canvas: #f4efe6;
   --color-canvas-deep: #e9dfcc;
   --color-surface: #ffffff;
   --color-surface-muted: #fbf8f2;
   --color-surface-sunken: #e9dfcc;
+  --color-hairline: #e2dacb;
+  --color-hairline-soft: #f0eadf;
+  --color-hairline-strong: #d6c8ae;
 
-  /* Ink scale */
+  /* Tinta (ink-faint dinaikkan ke #646a71 supaya lolos AA di atas kertas) */
   --color-ink: #1b1f22;
   --color-ink-muted: #3b4147;
   --color-ink-subtle: #565d64;
-  --color-ink-faint: #6f767d;
+  --color-ink-faint: #646a71;
 
-  /* Primary — hijau tenang (satu-satunya hue yang "berbicara") */
+  /* Hijau */
   --color-primary: #1e7a4c;
   --color-primary-deep: #145536;
   --color-primary-bright: #2b9160;
   --color-primary-soft: #e2f1e8;
+  --color-primary-line: #9fd0b3;
   --color-mint: #79c79a;
 
-  /* Aksen redesign: mangga (XP/streak/mode tes), bata (salah), langit (audio/fokus) */
+  /* Mangga */
   --color-mango: #f2a93b;
   --color-mango-deep: #c4831f;
   --color-mango-soft: #fdf0d8;
+  --color-mango-line: #f2c878;
   --color-mango-ink: #6b4300;
+  --color-mango-on: #3a2400;
+  --color-mango-mark: #fde3b0;
+
+  /* Bata */
   --color-brick: #c2462b;
   --color-brick-deep: #8a2e17;
+  --color-brick-bright: #d9583b;
   --color-brick-soft: #fbe6df;
+  --color-brick-line: #f0b7a6;
+
+  /* Langit */
   --color-sky: #2f6fde;
   --color-sky-deep: #1e4faf;
+  --color-sky-bright: #5b8fe8;
   --color-sky-soft: #e6eefb;
-  --color-charcoal: #1f2126;
+  --color-sky-line: #a9c3f2;
+
+  /* Arang (mode ujian, admin) */
+  --color-charcoal: #23252b;
   --color-charcoal-raised: #2e3138;
+  --color-charcoal-line: #3a3d46;
+  --color-charcoal-ink: #f4efe6;
+  --color-charcoal-muted: #c9c2b4;
 
-  /* Data — biru kalem (bukan indigo neon) */
-  --color-data: #2563eb;
-  --color-data-soft: #e6edfc;
+  /* Locked node */
+  --color-locked: #e2dacb;
+  --color-locked-ledge: #c9bba2;
 
-  /* Reward — amber matte, ≤10% area */
-  --color-reward: #b8862f;
-  --color-reward-soft: #f5ecd9;
-  --color-reward-ink: #7a4b08;
-
-  /* Neutral status (pengganti terra untuk status normal) */
-  --color-status: #64748b;
-  --color-status-soft: #eef1f4;
-
-  /* Semantik */
+  /* Alias lama dipetakan ke palet baru (jangan dipakai di kode baru) */
+  --color-data: #2f6fde;
+  --color-data-soft: #e6eefb;
+  --color-reward: #c4831f;
+  --color-reward-soft: #fdf0d8;
+  --color-reward-ink: #6b4300;
+  --color-status: #565d64;
+  --color-status-soft: #f4efe6;
   --color-positive: #1e7a4c;
   --color-positive-soft: #e2f1e8;
-  --color-negative: #9c4a2a;
-  --color-negative-soft: #f4e6df;
-  --color-warning: #b8862f;
-  --color-warning-soft: #f5ecd9;
-  --color-warning-ink: #7a5518;
-  --color-highlight: #f5ecd9;
-
-  /* Legacy aliases agar komponen lama tetap kompilasi */
+  --color-negative: #c2462b;
+  --color-negative-soft: #fbe6df;
+  --color-warning: #c4831f;
+  --color-warning-soft: #fdf0d8;
+  --color-warning-ink: #6b4300;
+  --color-highlight: #fdf0d8;
   --color-accent: #1e7a4c;
   --color-accent-soft: #e2f1e8;
   --color-accent-ink: #145536;
-  --color-hairline: #e2dacb;
-  --color-hairline-strong: #d6c8ae;
-  --color-night: #1b1f22;
-  --color-night-raised: #2a2d31;
-  --color-night-ink: #f4f3ef;
-  --color-night-muted: #c4c0b6;
+  --color-night: #23252b;
+  --color-night-raised: #2e3138;
+  --color-night-ink: #f4efe6;
+  --color-night-muted: #c9c2b4;
 
-  --radius-plate: 24px;
+  --radius-chip: 8px;
   --radius-control: 14px;
+  --radius-plate: 20px;
+  --radius-hero: 28px;
 
   --shadow-card: 0 4px 0 var(--color-hairline);
-  --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.06), 0 12px 32px -8px oklch(0 0 0 / 0.14);
+  --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.06), 0 12px 32px -8px oklch(0 0 0 / 0.16);
+
+  /* ═══ Token motion (sumber kurva — jangan hand-type bezier baru) ═══ */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entrance/exit UI */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* pop dengan overshoot tipis */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* drawer/panel geser */
 }
 
 :root {
@@ -102,11 +127,6 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--color-ink);
   background-color: var(--color-canvas);
-  background-image: radial-gradient(
-    1000px 500px at 12% -10%,
-    rgba(21, 128, 61, 0.04),
-    transparent 60%
-  );
 }
 
 h1,
@@ -137,9 +157,9 @@ h3 {
 }
 
 .eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   line-height: 1.2;
@@ -151,16 +171,6 @@ h3 {
   background: var(--color-surface);
   border: 2px solid var(--color-hairline);
   box-shadow: var(--shadow-card);
-}
-
-.clay-hover {
-  transition: transform 200ms cubic-bezier(0.34, 1.4, 0.64, 1),
-    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.clay-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 7px 0 var(--color-hairline);
 }
 
 /* Hero action — panel hijau gelap dominan */
@@ -217,7 +227,7 @@ h3 {
   min-height: 7px;
   border-radius: 10px 10px 5px 5px;
   background: var(--color-primary-bright);
-  transition: transform 200ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: transform 200ms var(--ease-spring);
 }
 
 .bar-col .bar.below {
@@ -225,19 +235,10 @@ h3 {
   border: 1px solid var(--color-hairline);
 }
 
-.bar-col:hover .bar {
-  transform: scaleY(1.04) translateY(-2px);
-}
-
-/* Row hover */
-.row-hover {
-  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
-}
-
-.row-hover:hover {
-  border-color: var(--color-primary);
-  background: var(--color-surface-muted);
-  transform: translateX(3px);
+@media (hover: hover) {
+  .bar-col:hover .bar {
+    transform: scaleY(1.04) translateY(-2px);
+  }
 }
 
 /* Page enter */
@@ -253,7 +254,7 @@ h3 {
 }
 
 .page-enter {
-  animation: register-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: register-in 300ms var(--ease-out) both;
 }
 
 @keyframes pop-in {
@@ -268,7 +269,8 @@ h3 {
 }
 
 .pop-in {
-  animation: pop-in 220ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  animation: pop-in 220ms var(--ease-spring) both;
+  animation-delay: var(--delay, 0ms);
 }
 
 /* Tumpukan lembar ujian 3D (CSS transform) */
@@ -299,7 +301,7 @@ h3 {
 
 .bar-rise {
   transform-origin: bottom;
-  animation: bar-rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: bar-rise 900ms var(--ease-out) both;
 }
 
 @keyframes wave {
@@ -319,10 +321,13 @@ h3 {
 /* ═══ Tombol "ledge": tepi bawah tebal, turun saat ditekan ═══ */
 .ledge {
   box-shadow: 0 5px 0 var(--ledge, var(--color-primary-deep));
-  transition: transform 120ms ease, box-shadow 120ms ease, filter 150ms ease;
+  transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out),
+    filter 150ms var(--ease-out);
 }
-.ledge:hover {
-  filter: brightness(1.05);
+@media (hover: hover) {
+  .ledge:hover {
+    filter: brightness(1.05);
+  }
 }
 .ledge:active {
   transform: translateY(5px);
@@ -380,7 +385,7 @@ h3 {
 .m-cheer { animation: m-swing 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: 80% 90%; }
 .m-talk { animation: m-talk 0.3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .m-tilt { animation: m-tilt 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 90%; }
-.m-hop { animation: m-hop 1.1s cubic-bezier(0.3, 0, 0.3, 1) infinite; }
+.m-hop { animation: m-hop 1.1s var(--ease-spring) infinite; }
 .m-flap { animation: m-flap 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 8%; }
 .m-zz { animation: m-zz 2.4s ease-out infinite; }
 
@@ -390,8 +395,7 @@ h3 {
   to { opacity: 1; transform: none; }
 }
 @keyframes fx-pop {
-  0% { opacity: 0; transform: scale(0.6); }
-  70% { transform: scale(1.06); }
+  0% { opacity: 0; transform: scale(0.94); }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes fx-shake {
@@ -427,37 +431,34 @@ h3 {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
-@keyframes fx-peek {
-  0%, 30%, 100% { transform: translateY(60px); }
-  45%, 85% { transform: translateY(0); }
-}
 @keyframes fx-xp {
   0% { opacity: 0; transform: translateY(6px) scale(0.8); }
   20% { opacity: 1; transform: translateY(-6px) scale(1.1); }
   100% { opacity: 0; transform: translateY(-44px) scale(1); }
-}
-@keyframes fx-ember {
-  0% { opacity: 0; transform: translate(0, 0) scale(1); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx), -150px) scale(0.4); }
 }
 @keyframes fx-confetti {
   0% { opacity: 1; transform: translate(0, 0) rotate(0); }
   100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
 }
 
-.rise { animation: fx-rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
-.pop { animation: fx-pop 500ms cubic-bezier(0.2, 1.3, 0.4, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+.rise { animation: fx-rise 280ms var(--ease-out) both; animation-delay: var(--delay, calc(var(--i, 0) * 60ms)); }
+.pop { animation: fx-pop 300ms var(--ease-spring) both; animation-delay: var(--delay, calc(var(--i, 0) * 60ms)); }
 .shake { animation: fx-shake 420ms ease-in-out both; }
-.grow-x { transform-origin: left; animation: fx-grow-x 900ms cubic-bezier(0.2, 1.1, 0.4, 1) both; }
-.grow-y { transform-origin: bottom; animation: fx-grow-y 600ms cubic-bezier(0.2, 1.3, 0.4, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes fx-shake-b {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+.shake-b { animation: fx-shake-b 420ms ease-in-out both; }
+.grow-x { transform-origin: left; animation: fx-grow-x 600ms var(--ease-out) both; }
+.grow-y { transform-origin: bottom; animation: fx-grow-y 400ms var(--ease-spring) both; animation-delay: calc(var(--i, 0) * 70ms); }
 .ping { animation: fx-ping 1.8s ease-out infinite; }
 .float { animation: fx-float 5s ease-in-out infinite; }
 .dot-wave { animation: fx-dot 1.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 200ms); }
 .flick { animation: fx-flick 900ms ease-in-out infinite; transform-origin: 50% 90%; }
-.ember { animation: fx-ember 2.6s ease-out infinite; }
 .bob { animation: fx-bob 1.6s ease-in-out infinite; }
-.peek { animation: fx-peek 7s ease-in-out infinite; }
 /* Awal opacity 0 supaya hilang total saat "kurangi gerakan" (animasi dimatikan). */
 .xp-float { opacity: 0; animation: fx-xp 1100ms ease-out both; }
 .confetti-bit {
@@ -472,11 +473,31 @@ h3 {
   animation-delay: calc(var(--i, 0) * 12ms);
 }
 
+/* ═══ Drawer "Lainnya" (app-shell) ═══ */
+@keyframes drawer-panel-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawer-panel-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes drawer-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes drawer-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.drawer-panel-in { animation: drawer-panel-in 300ms var(--ease-drawer) both; }
+.drawer-panel-out { animation: drawer-panel-out 240ms var(--ease-drawer) both; }
+.drawer-fade-in { animation: drawer-fade-in 200ms var(--ease-out) both; }
+.drawer-fade-out { animation: drawer-fade-out 200ms var(--ease-out) both; }
+
+@keyframes prm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* Spinner tetap menunjukkan "sedang bekerja" lewat pulse opacity (tanpa gerakan). */
+  .animate-spin {
+    animation: prm-pulse 1s ease-in-out infinite !important;
   }
 }

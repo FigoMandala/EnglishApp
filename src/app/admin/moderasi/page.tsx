@@ -65,7 +65,7 @@ export default async function AdminModerationPage({ searchParams }: { searchPara
 
           {flags.length === 0 ? (
             <Card className="flex items-center gap-4 p-5">
-              <Lori mood="cheer" size={80} />
+              <Lori mood="cheer" size={80} still />
               <p className="font-bold text-primary-deep">
                 {view === "open" ? "Antrean bersih! Semua flag sudah ditinjau." : "Belum ada flag yang ditinjau."}
               </p>

@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import { register, type AuthState } from "@/app/auth-actions";
 import { Confetti } from "@/components/fx/confetti";
+import { CountUp } from "@/components/fx/count-up";
 import { Lori } from "@/components/mascot";
 import { FieldError, Input, Label } from "@/components/ui/field";
 import { CEFR_TO_LEVEL, type WordLevel } from "@/lib/cefr";
@@ -43,12 +44,12 @@ export default function HasilPage() {
           <div className="flex flex-wrap items-center gap-6">
             <Lori mood="cheer" size={200} label="Lori melompat gembira" />
             <div className="rise min-w-[280px] flex-1">
-              <p className="text-[0.9375rem] font-extrabold tracking-[0.06em] text-[#17603c]">{tested ? "HASIL TES PENEMPATAN" : "TITIK MULAIMU"}</p>
+              <p className="text-[0.9375rem] font-extrabold tracking-[0.06em] text-primary-deep">{tested ? "HASIL TES PENEMPATAN" : "TITIK MULAIMU"}</p>
               <h1 className="mt-1.5 font-display text-[2.5rem] font-black leading-[1.02] tracking-[-0.03em] sm:text-[2.875rem]">
-                Kamu mulai dari <span className="text-primary">{cefr}</span>
+                Kamu mulai dari <span className="pop inline-block text-primary">{cefr}</span>
                 {skipped > 0 ? ", bukan dari nol!" : "."}
               </h1>
-              <p className="mt-2.5 text-[1.125rem] text-ink-subtle">
+              <p className="mt-1 text-[0.875rem] text-ink-subtle sm:mt-2.5 sm:text-[1.125rem]">
                 {skipped === 0
                   ? "Jalurmu dimulai dari unit pertama, dengan Lori menemani tiap langkah."
                   : skipped === 1
@@ -68,10 +69,10 @@ export default function HasilPage() {
                     <div className="flex items-baseline justify-between">
                       <span className="text-[1rem] font-extrabold">{LEVEL_NAME[level]}</span>
                       <span className="font-display text-[1.375rem] font-black">
-                        {good}/{total}
+                        <CountUp to={good} ms={600} />/{total}
                       </span>
                     </div>
-                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#f1ece2]">
+                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-surface-sunken">
                       <div className={cn("grow-x h-full rounded-full", LEVEL_TONE[level])} style={{ width: `${(good / total) * 100}%`, animationDelay: `${0.3 + i * 0.15}s` }} />
                     </div>
                   </div>

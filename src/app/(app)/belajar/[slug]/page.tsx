@@ -1,18 +1,27 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Circle, Lock, SpellCheck } from "lucide-react";
+import { Check, ChevronRight, Lock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Lori } from "@/components/mascot";
+import { SpeakButton } from "@/components/speak-button";
+import { LevelTag } from "@/components/ui/badge";
+import { SpeechBubble } from "@/components/ui/bubble";
 import { Card } from "@/components/ui/card";
-import { getUnitBySlug, isUnitCompleted, listUnitsWithItems, completedUnitIds } from "@/db/queries/learning";
-import { requireUser } from "@/lib/session";
-import { listVocabularyCards } from "@/db/queries/vocabulary";
 import { listGrammarLessons } from "@/db/queries/grammar";
+import { completedUnitIds, getUnitBySlug, isUnitCompleted, listUnitsWithItems } from "@/db/queries/learning";
+import { listVocabularyCards } from "@/db/queries/vocabulary";
+import { todayISO } from "@/lib/dates";
+import { requireUser } from "@/lib/session";
 import { pickUnitWords } from "@/lib/unit-words";
 import { cn } from "@/lib/utils";
+import { wordStatus } from "@/lib/word-status";
+import { XP_REWARDS } from "@/lib/xp";
 
 import { CompleteUnitButton } from "./complete-button";
 
 export const metadata = { title: "Unit · Jalur Belajar" };
+
+const LEVEL_LABEL = { basic: "DASAR", intermediate: "MENENGAH", advanced: "LANJUT" } as const;
 
 export default async function UnitPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,7 +30,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
   const unit = await getUnitBySlug(slug);
   if (!unit) notFound();
 
-  const [units, completedLessons, unitDone, completed] = await Promise.all([
+  const [units, lessons, unitDone, completed] = await Promise.all([
     listUnitsWithItems(),
     listGrammarLessons(user.id),
     isUnitCompleted(user.id, unit.id),
@@ -32,19 +41,22 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
   const order = units.findIndex((u) => u.id === unit.id);
   const previous = order > 0 ? units[order - 1] : null;
   const locked = previous ? !completed.has(previous.id) : false;
+  const title = unit.title.replace(/^Unit \d+:\s*/, "");
 
   if (locked) {
     // Kembali lebih awal: tidak perlu memuat kosakata dan materi.
     return (
-      <div className="flex flex-col items-start gap-4">
-        <BackLink />
+      <div className="flex flex-col items-start gap-5">
+        <Crumb title={`Unit ${order + 1}`} />
         <Card className="flex w-full flex-col items-center gap-3 p-10 text-center">
-          <Lock className="size-10 text-ink-faint" aria-hidden />
-          <h1 className="font-display text-[1.5rem] font-extrabold">Unit masih terkunci</h1>
+          <span className="grid size-20 place-items-center rounded-full bg-locked text-ink-faint shadow-[0_5px_0_var(--color-locked-ledge)]">
+            <Lock className="size-8" strokeWidth={2.6} aria-hidden />
+          </span>
+          <h1 className="mt-2 font-display text-[1.75rem] font-black">Unit masih terkunci</h1>
           <p className="max-w-md text-[0.9375rem] text-ink-subtle">
             Selesaikan <strong>{previous?.title}</strong> dulu untuk membuka unit ini.
           </p>
-          <Link href="/belajar" className="text-[0.9375rem] font-bold text-primary hover:underline">
+          <Link href="/belajar" className="font-extrabold text-primary-deep hover:underline">
             Kembali ke peta jalur
           </Link>
         </Card>
@@ -52,130 +64,218 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
     );
   }
 
-  const lessonDone = new Set(
-    completedLessons.filter((lesson) => lesson.completed).map((lesson) => lesson.id),
+  const bySlug = new Map(lessons.map((lesson) => [lesson.slug, lesson]));
+  const firstOpen = unit.items.findIndex(
+    (item) => item.kind === "grammar" && !(item.refSlug && bySlug.get(item.refSlug)?.completed),
   );
+  const steps = unit.items.map((item, i) => {
+    const state = unitDone || firstOpen === -1 || i < firstOpen ? "done" : i === firstOpen ? "current" : "todo";
+    return { item, state, lesson: item.refSlug ? (bySlug.get(item.refSlug) ?? null) : null };
+  });
+  const doneCount = steps.filter((step) => step.state === "done").length;
+  const nextStep = steps.find((step) => step.state === "current");
 
   // Kata untuk langkah kosakata: dicocokkan dari judul item.
   const allWords = await listVocabularyCards(user.id);
-  const vocabSteps = unit.items.map((item) => {
-    if (item.kind !== "vocab") return { item, words: [] as typeof allWords };
-    const words = pickUnitWords(
-      allWords.map((word) => ({
-        id: word.id,
-        word: word.word,
-        level: word.level,
-        topic: word.topic,
-        frequencyRank: word.frequencyRank,
-      })),
-      { title: item.title, level: unit.level, unitOrder: order + 1, count: item.vocabCount ?? 10 },
-    );
-    const resolved = words
-      .map((candidate) => allWords.find((word) => word.id === candidate.id))
-      .filter((word) => Boolean(word));
-    return { item, words: resolved as typeof allWords };
-  });
+  const unitWords = unit.items
+    .filter((item) => item.kind === "vocab")
+    .flatMap((item) =>
+      pickUnitWords(
+        allWords.map((word) => ({
+          id: word.id,
+          word: word.word,
+          level: word.level,
+          topic: word.topic,
+          frequencyRank: word.frequencyRank,
+        })),
+        { title: item.title, level: unit.level, unitOrder: order + 1, count: item.vocabCount ?? 10 },
+      ),
+    )
+    .map((candidate) => allWords.find((word) => word.id === candidate.id))
+    .filter((word): word is (typeof allWords)[number] => Boolean(word));
+  const today = todayISO();
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <BackLink />
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-[2rem] font-extrabold leading-tight tracking-[-0.02em]">
-              {unit.title}
-            </h1>
-            <p className="max-w-2xl text-[0.9375rem] text-ink-subtle">{unit.description}</p>
-          </div>
-          {unitDone ? (
-            <span className="flex items-center gap-2 rounded-full bg-primary-soft px-4 py-2 text-[0.875rem] font-bold text-primary-deep">
-              <CheckCircle2 className="size-4" aria-hidden />
-              Unit selesai
-            </span>
-          ) : (
-            <CompleteUnitButton unitId={unit.id} />
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Crumb title={`Unit ${order + 1}`} />
 
-      <ol className="flex flex-col gap-3">
-        {unit.items.map((item) => {
-          if (item.kind === "grammar") {
-            const lesson = completedLessons.find((row) => row.slug === item.refSlug) ?? null;
-            const done = lesson ? lessonDone.has(lesson.id) : false;
-            return (
-              <li key={item.id}>
-                <Link
-                  href={lesson ? `/materi/${lesson.slug}` : "/materi"}
-                  className="clay clay-hover row-hover flex items-center gap-4 p-5"
-                >
-                  <span
+      <header className="flex flex-wrap items-center gap-6 rounded-hero border-2 border-hairline bg-surface p-6 shadow-card sm:p-7">
+        <span
+          className={cn(
+            "grid size-[88px] shrink-0 place-items-center rounded-full font-round text-[2.5rem] font-extrabold text-white",
+            unitDone ? "bg-primary shadow-[0_5px_0_var(--color-primary-deep)]" : "bg-primary shadow-[0_5px_0_var(--color-primary-deep)]",
+          )}
+        >
+          {unitDone ? <Check className="size-10" strokeWidth={3} aria-hidden /> : order + 1}
+        </span>
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <LevelTag level={LEVEL_LABEL[unit.level]} />
+            <span className="text-[0.8125rem] font-bold text-ink-subtle">{unit.items.length} langkah</span>
+          </div>
+          <h1 className="font-display text-[1.875rem] font-black leading-[1.15] tracking-[-0.02em] sm:text-[2.125rem]">{title}</h1>
+          {unit.description ? <p className="max-w-[620px] text-ink-subtle">{unit.description}</p> : null}
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:w-[220px]">
+          <div className="flex justify-between text-[0.8125rem] font-extrabold">
+            <span>Progres unit</span>
+            <span className="text-primary-deep">
+              {doneCount} / {steps.length}
+            </span>
+          </div>
+          <div
+            role="progressbar"
+            aria-label={`Progres unit ${order + 1}`}
+            aria-valuenow={steps.length ? Math.round((doneCount / steps.length) * 100) : 0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-3.5 overflow-hidden rounded-full bg-canvas-deep"
+          >
+            <div
+              className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
+              style={{ transform: `scaleX(${steps.length ? doneCount / steps.length : 0})` }}
+            />
+          </div>
+          <span className="text-[0.8125rem] text-ink-subtle">
+            {unitDone ? "Unit selesai" : `Selesai unit: +${XP_REWARDS.unitComplete} XP`}
+          </span>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap items-start gap-6">
+        <section aria-label="Langkah unit" className="flex min-w-0 flex-[1_1_560px] flex-col gap-3.5">
+          <h2 className="font-display text-[1.375rem] font-extrabold">Langkah</h2>
+          <ol className="flex flex-col gap-3">
+            {steps.map(({ item, state, lesson }, i) => {
+              const href = item.kind === "grammar" ? (lesson ? `/materi/${lesson.slug}` : "/materi") : "/kosakata";
+              const kind =
+                item.kind === "grammar" ? `MATERI${lesson ? "" : " · BELUM TERSEDIA"}` : `KOSAKATA · ${item.vocabCount ?? 10} KATA`;
+              const sub =
+                item.kind === "grammar"
+                  ? (lesson?.summary ?? "Materi belum tersedia")
+                  : unitWords.slice(0, 6).map((word) => word.word).join(", ") || "Kosakata sedang menunggu ulasan";
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={href}
+                    aria-current={state === "current" ? "step" : undefined}
                     className={cn(
-                      "flex size-11 shrink-0 items-center justify-center rounded-full border-2",
-                      done ? "border-primary bg-primary text-white" : "border-hairline bg-surface-muted text-primary",
+                      "flex items-center gap-4 rounded-plate border-2 px-[18px] py-4 transition-transform active:translate-y-0.5",
+                      state === "done" && "border-hairline bg-surface",
+                      state === "current" && "border-primary-line bg-primary-soft shadow-[0_4px_0_var(--color-primary-line)]",
+                      state === "todo" && "border-dashed border-hairline-strong",
                     )}
                   >
-                    {done ? <CheckCircle2 className="size-5" aria-hidden /> : <BookOpen className="size-5" aria-hidden />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-display text-[1.0625rem] font-extrabold text-ink">
-                      {item.title}
+                    <span
+                      className={cn(
+                        "flex size-12 shrink-0 items-center justify-center rounded-full font-round text-[1.375rem] font-extrabold",
+                        state === "done" && "bg-primary text-white",
+                        state === "current" && "bg-primary text-white shadow-[0_0_0_4px_#fff,0_0_0_7px_var(--color-mint)]",
+                        state === "todo" && "bg-locked text-ink-faint",
+                      )}
+                    >
+                      {state === "done" ? <Check className="size-[22px]" strokeWidth={3} aria-hidden /> : i + 1}
                     </span>
-                    <span className="block text-[0.8125rem] text-ink-subtle">
-                      {lesson ? lesson.summary : "Materi belum tersedia"}
-                      {lesson ? ` · ${lesson.level === "basic" ? "Dasar" : lesson.level === "intermediate" ? "Menengah" : "Lanjut"}` : ""}
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("eyebrow block", state === "current" ? "text-primary-deep" : "text-ink-subtle")}>
+                        {kind}
+                        {state === "current" ? " · BERIKUTNYA" : ""}
+                      </span>
+                      <strong className={cn("block text-[1.0625rem]", state === "current" && "text-primary-deep")}>
+                        {item.title}
+                      </strong>
+                      <span className={cn("block truncate text-[0.875rem]", state === "current" ? "text-primary-deep" : "text-ink-subtle")}>
+                        {sub}
+                      </span>
                     </span>
-                  </span>
-                  <ArrowRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
-                </Link>
-              </li>
-            );
-          }
+                    {state === "current" ? (
+                      <span className="flex h-12 shrink-0 items-center rounded-[14px] bg-primary px-5 font-display text-[0.9375rem] font-extrabold tracking-[0.03em] text-white shadow-[0_4px_0_var(--color-primary-deep)]">
+                        MULAI
+                      </span>
+                    ) : (
+                      <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
 
-          const step = vocabSteps.find((entry) => entry.item.id === item.id);
-          const words = step?.words ?? [];
-          return (
-            <li key={item.id}>
-              <Link href="/kosakata" className="clay clay-hover row-hover flex items-center gap-4 p-5">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-hairline bg-surface-muted text-data">
-                  <SpellCheck className="size-5" aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-display text-[1.0625rem] font-extrabold text-ink">
-                    {item.title}
-                  </span>
-                  <span className="block truncate text-[0.8125rem] text-ink-subtle">
-                    {words.length
-                      ? words.map((word) => word.word).slice(0, 6).join(", ") + (words.length > 6 ? ", …" : "")
-                      : "Kosakata sedang menunggu ulasan"}
-                  </span>
-                </span>
-                <Circle className="size-4 shrink-0 text-ink-faint" aria-hidden />
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
+          {unitDone ? null : (
+            <div className="flex flex-wrap items-center gap-4 rounded-plate border-2 border-mango-line bg-mango-soft p-[18px] text-mango-ink">
+              <span className="flex-1">
+                <strong className="block">Sudah paham semua langkah?</strong>
+                <span className="text-[0.875rem]">Tandai unit selesai untuk membuka unit berikutnya. +{XP_REWARDS.unitComplete} XP.</span>
+              </span>
+              <CompleteUnitButton unitId={unit.id} />
+            </div>
+          )}
+        </section>
 
-      <Link
-        href="/belajar"
-        className="mx-auto flex h-11 items-center gap-2 rounded-control border-2 border-hairline bg-surface px-5 text-[0.9375rem] font-bold text-ink-subtle transition-colors hover:border-primary hover:text-primary"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Peta jalur
-      </Link>
+        <aside className="flex w-full flex-col gap-4 lg:w-[340px] lg:shrink-0">
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display text-[1.125rem] font-extrabold">Kosakata unit</h2>
+              <span className="text-[0.8125rem] font-extrabold text-ink-subtle">{unitWords.length} kata</span>
+            </div>
+            {unitWords.length ? (
+              <ul className="flex flex-col">
+                {unitWords.slice(0, 6).map((word, i) => {
+                  const status = wordStatus(word, today);
+                  return (
+                    <li key={word.id} className={cn("flex items-center gap-2.5 py-2.5", i > 0 && "border-t-2 border-hairline-soft")}>
+                      <SpeakButton text={word.word} label={`Dengarkan ${word.word}`} />
+                      <span className="min-w-0 flex-1">
+                        <strong className="block text-[0.9375rem]">{word.word}</strong>
+                        <span className="block truncate text-[0.8125rem] text-ink-subtle">{word.meaning}</span>
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-extrabold",
+                          status.kind === "new" && "bg-mango text-mango-on",
+                          status.kind === "due" && "bg-mango-soft text-mango-ink",
+                          status.kind === "mastered" && "bg-primary-soft text-primary-deep",
+                          status.kind === "later" && "bg-canvas text-ink-subtle",
+                        )}
+                      >
+                        {status.kind === "new" ? "BARU" : status.label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-[0.875rem] text-ink-subtle">Kosakata sedang menunggu ulasan.</p>
+            )}
+            <Link href="/kosakata" className="text-[0.875rem] font-extrabold text-primary-deep hover:underline">
+              {unitWords.length > 6 ? `Lihat ${unitWords.length - 6} kata lainnya` : "Buka Kosakata"}
+            </Link>
+          </Card>
+
+          <div className="flex items-end gap-1">
+            <Lori mood="talk" size={92} />
+            <SpeechBubble who="Lori" className="mb-9">
+              {unitDone
+                ? "Unit ini sudah beres. Ulangi kapan saja kalau mau menyegarkan ingatan."
+                : nextStep
+                  ? `Berikutnya: ${nextStep.item.title}. Kerjakan berurutan biar fondasinya kuat.`
+                  : "Semua langkah beres. Tinggal tandai unit selesai!"}
+            </SpeechBubble>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
 
-function BackLink() {
+function Crumb({ title }: { title: string }) {
   return (
-    <Link
-      href="/belajar"
-      className="flex items-center gap-1.5 text-[0.875rem] font-bold text-ink-subtle transition-colors hover:text-primary"
-    >
-      <ArrowLeft className="size-4" aria-hidden />
-      Jalur Belajar
-    </Link>
+    <nav aria-label="Remah roti" className="flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
+      <Link href="/belajar" className="text-ink-muted hover:text-primary-deep hover:underline">
+        Jalur Belajar
+      </Link>
+      <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
+      <span aria-current="page">{title}</span>
+    </nav>
   );
 }

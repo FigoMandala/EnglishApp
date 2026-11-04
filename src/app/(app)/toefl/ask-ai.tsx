@@ -19,7 +19,8 @@ const STRUCTURE_TIPS = [
 
 /**
  * Asisten AI di samping soal. Layar lebar: panel di kolom kanan yang mendorong soal.
- * Layar kecil: panel menutupi layar. Tombol "Tanya AI" di atas soal membukanya.
+ * Layar kecil: panel menutupi layar. `children` menerima `trigger` (tombol "Tanya AI")
+ * supaya pemanggil bisa menaruhnya di header.
  */
 export function AskAi({
   context,
@@ -28,9 +29,20 @@ export function AskAi({
 }: {
   context: string;
   section: string;
-  children: (open: boolean) => ReactNode;
+  children: (open: boolean, trigger: ReactNode) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+
+  const trigger = open ? null : (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.875rem] font-bold text-charcoal-ink transition-colors hover:bg-charcoal-raised"
+    >
+      <Sparkles className="size-4 text-mango" aria-hidden />
+      Tanya AI
+    </button>
+  );
 
   return (
     <div
@@ -39,26 +51,12 @@ export function AskAi({
           "lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6",
       )}
     >
-      <div className="min-w-0">
-        {!open ? (
-          <div className="mb-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="flex h-10 items-center gap-2 rounded-full border-2 border-primary/30 bg-primary-soft px-4 text-[0.9375rem] font-bold text-primary-deep transition-colors hover:border-primary"
-            >
-              <Sparkles className="size-4" aria-hidden />
-              Tanya AI
-            </button>
-          </div>
-        ) : null}
-        {children(open)}
-      </div>
+      <div className="min-w-0">{children(open, trigger)}</div>
 
       {open ? (
         <aside
           aria-label="Asisten AI"
-          className="fixed inset-0 z-40 flex flex-col gap-3 bg-surface p-4 lg:sticky lg:inset-auto lg:top-4 lg:z-auto lg:h-[calc(100dvh-2rem)] lg:rounded-plate lg:border-2 lg:border-hairline"
+          className="fixed inset-0 z-40 flex flex-col gap-3 bg-surface p-4 lg:sticky lg:inset-auto lg:top-[80px] lg:z-auto lg:mr-4 lg:mt-4 lg:h-[calc(100dvh-6rem)] lg:rounded-plate lg:border-2 lg:border-hairline"
         >
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 font-bold">
@@ -76,7 +74,7 @@ export function AskAi({
           </div>
 
           {section === "structure" ? (
-            <details className="rounded-control border-2 border-hairline px-4 py-3 text-[0.9375rem]">
+            <details className="rounded-control border-2 border-hairline bg-surface-muted px-4 py-3 text-[0.9375rem]">
               <summary className="cursor-pointer font-bold">
                 Trik cepat Structure
               </summary>

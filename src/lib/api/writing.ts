@@ -23,18 +23,32 @@ const FORMAT = [
   "Beri 3 sampai 6 koreksi paling penting saja. Skor 0-100 untuk tiap aspek.",
 ].join(" ");
 
-export async function analyzeEssay(userId: number, prompt: string, essay: string): Promise<WritingScore> {
+const PARAGRAPH_SYSTEM = [
+  "Kamu editor Bahasa Inggris untuk pembelajar Indonesia yang melatih satu paragraf akademik.",
+  "Nilai hanya paragraf yang dikirim: kejelasan ide pokok, kerapian alur, grammar, dan pilihan kata.",
+  "Kalau pengguna menulis kerangka, cek apakah paragrafnya benar-benar mengikuti kerangka itu.",
+  "Jujur dan membangun; kalimat lemah tetap diberi skor rendah tanpa ragu.",
+  "Seluruh catatan, alasan koreksi, dan ringkasan WAJIB dalam Bahasa Indonesia yang ringkas dan jelas.",
+  "Koreksi hanya kesalahan yang benar-benar ada di paragraf; jangan mengarang kalimat.",
+  "Jangan pakai karakter em dash.",
+  "Balas HANYA dengan objek JSON valid tanpa pagar kode dan tanpa teks lain.",
+].join(" ");
+
+const PARAGRAPH_FORMAT = [
+  "Format balasan:",
+  '{"aspects":[{"aspect":"task","score":0-100,"note":"..."},{"aspect":"organization","score":0-100,"note":"..."},{"aspect":"grammar","score":0-100,"note":"..."},{"aspect":"vocabulary","score":0-100,"note":"..."}],',
+  '"strengths":["kekuatan singkat"],"improvements":["saran perbaikan konkret"],',
+  '"corrections":[{"original":"potongan asli dari paragraf","correction":"perbaikannya","reason":"alasan singkat"}],',
+  '"summary":"1 sampai 2 kalimat penilaian paragraf"}',
+  "Untuk latihan satu paragraf ini, beri 2 sampai 4 koreksi paling penting saja. Skor 0-100 untuk tiap aspek.",
+].join(" ");
+
+/** Panggil model, validasi JSON, dan catat pemakaian. Dipakai esai maupun paragraf. */
+async function scoreWriting(userId: number, system: string, userMessage: string): Promise<WritingScore> {
   const config = await getAiConfig();
   if (!aiConfigured(config)) {
     throw new AiError("Tutor AI belum dikonfigurasi. Isi API key di Pengaturan.");
   }
-
-  const userMessage = [
-    prompt.trim() ? `Topik esai: ${prompt.trim()}` : "Topik esai: bebas (esai argumentatif umum).",
-    "",
-    "Esai pengguna:",
-    essay.trim(),
-  ].join("\n");
 
   const budget = await checkBudget();
   if (!budget.allowed) {
@@ -44,8 +58,8 @@ export async function analyzeEssay(userId: number, prompt: string, essay: string
   const startedAt = Date.now();
   let totalLatency = 0;
   const messages = [
-    { role: "system" as const, content: SYSTEM },
-    { role: "user" as const, content: `${userMessage}\n\n${FORMAT}` },
+    { role: "system" as const, content: system },
+    { role: "user" as const, content: userMessage },
   ];
 
   try {
@@ -82,4 +96,35 @@ export async function analyzeEssay(userId: number, prompt: string, essay: string
     });
     throw error;
   }
+}
+
+export async function analyzeEssay(userId: number, prompt: string, essay: string): Promise<WritingScore> {
+  const userMessage = [
+    prompt.trim() ? `Topik esai: ${prompt.trim()}` : "Topik esai: bebas (esai argumentatif umum).",
+    "",
+    "Esai pengguna:",
+    essay.trim(),
+    "",
+    FORMAT,
+  ].join("\n");
+
+  return scoreWriting(userId, SYSTEM, userMessage);
+}
+
+/** Koreksi satu paragraf untuk latihan kilat; kerangka opsional ikut dinilai. */
+export async function reviewParagraph(
+  userId: number,
+  input: { prompt: string; outline: string; paragraph: string },
+): Promise<WritingScore> {
+  const userMessage = [
+    input.prompt.trim() ? `Topik: ${input.prompt.trim()}` : "Topik: bebas.",
+    input.outline.trim() ? `Kerangka yang direncanakan pengguna:\n${input.outline.trim()}` : "Pengguna tidak menulis kerangka.",
+    "",
+    "Paragraf pengguna:",
+    input.paragraph.trim(),
+    "",
+    PARAGRAPH_FORMAT,
+  ].join("\n");
+
+  return scoreWriting(userId, PARAGRAPH_SYSTEM, userMessage);
 }
