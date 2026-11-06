@@ -230,14 +230,19 @@ async function chatCompletionRaw(
 /**
  * Streaming teks (SSE) untuk tutor. onDelta dipanggil tiap potongan.
  * Mengembalikan teks lengkap + usage (kalau disediakan provider di akhir).
+ * `externalSignal` (mis. request.signal klien) digabung dengan timeout supaya
+ * pembatalan klien ikut menghentikan panggilan provider.
  */
 export async function chatCompletionStream(
   config: AiConfig,
   messages: ProviderMessage[],
   onDelta: (text: string) => void,
+  externalSignal?: AbortSignal,
 ): Promise<ChatResult> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   const startedAt = Date.now();
+  const timeoutSignal = AbortSignal.timeout(TIMEOUT_MS);
+  const signal = externalSignal ? AbortSignal.any([timeoutSignal, externalSignal]) : timeoutSignal;
   let response: Response;
   try {
     response = await fetch(url, {
@@ -247,7 +252,7 @@ export async function chatCompletionStream(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({ model: config.model, messages: foldSystemMessages(messages), stream: true }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal,
     });
   } catch {
     throw new AiError("Tidak bisa menghubungi layanan AI. Coba lagi sebentar lagi.");

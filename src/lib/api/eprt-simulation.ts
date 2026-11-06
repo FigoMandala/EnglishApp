@@ -8,6 +8,7 @@ import {
   getToeflSession,
   listSimulations,
   listSimulationSessions,
+  mergePartQuestions,
   updateSimulation,
   updateToeflSession,
 } from "@/db/queries/toefl";
@@ -178,17 +179,41 @@ async function createPartBatch(
 
   await warmTts(block.questions);
 
-  const existing = parseQuestions(row.questions);
-  const merged = [...existing, ...block.questions];
-  const progress = parseProgress(row.progress);
-  if (!progress.includes(batchIndex)) progress.push(batchIndex);
+  const partSessionId = row.id;
+  // Merge optimistik: batch paralel untuk bagian yang sama (dua tab) bisa
+  // membaca snapshot lama. Update hanya lolos kalau kolom questions masih
+  // persis snapshot saat dibaca; kalau kalah, baca ulang dan merge ulang.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const fresh = attempt === 0 ? row : await getToeflSession(userId, partSessionId);
+    if (!fresh) throw new AiError("Bagian simulasi tidak ditemukan.");
+    const progress = parseProgress(fresh.progress);
+    if (progress.includes(batchIndex)) return fresh.id;
+    const existing = parseQuestions(fresh.questions);
+    const merged = [...existing, ...block.questions];
+    if (!progress.includes(batchIndex)) progress.push(batchIndex);
+    const written = await mergePartQuestions(
+      fresh.id,
+      fresh.questions,
+      JSON.stringify(merged),
+      fresh.passage ?? block.passage,
+      JSON.stringify(progress.sort((a, b) => a - b)),
+    );
+    if (written) return fresh.id;
+  }
 
-  await updateToeflSession(row.id, {
-    questions: JSON.stringify(merged),
-    passage: row.passage ?? block.passage,
+  // Fallback: snapshot terus berubah (race ekstrem); tulis apa adanya supaya
+  // batch tidak pernah hilang.
+  const last = await getToeflSession(userId, partSessionId);
+  if (!last) throw new AiError("Bagian simulasi tidak ditemukan.");
+  const existing = parseQuestions(last.questions);
+  const progress = parseProgress(last.progress);
+  if (!progress.includes(batchIndex)) progress.push(batchIndex);
+  await updateToeflSession(last.id, {
+    questions: JSON.stringify([...existing, ...block.questions]),
+    passage: last.passage ?? block.passage,
     progress: JSON.stringify(progress.sort((a, b) => a - b)),
   });
-  return row.id;
+  return last.id;
 }
 
 export async function loadSimulation(userId: number, id: number): Promise<SimulationView | null> {

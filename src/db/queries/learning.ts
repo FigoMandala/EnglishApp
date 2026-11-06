@@ -89,9 +89,29 @@ export async function completeUnit(userId: number, unitId: number) {
     return true;
   }
 
-  await db
+  // Dua klik paralel bisa sama-sama lolos cek di atas; yang kalah dilarikan
+  // ke jalur update oleh onConflictDoNothing (unique user+unit).
+  const [inserted] = await db
     .insert(learningUnitProgress)
-    .values({ userId, unitId, completedAt: sql`(datetime('now'))` });
+    .values({ userId, unitId, completedAt: sql`(datetime('now'))` })
+    .onConflictDoNothing()
+    .returning({ id: learningUnitProgress.id });
+  if (inserted) return true;
+
+  const [row] = await db
+    .select({ completedAt: learningUnitProgress.completedAt })
+    .from(learningUnitProgress)
+    .where(
+      and(eq(learningUnitProgress.userId, userId), eq(learningUnitProgress.unitId, unitId)),
+    )
+    .limit(1);
+  if (row?.completedAt) return false;
+  await db
+    .update(learningUnitProgress)
+    .set({ completedAt: sql`(datetime('now'))` })
+    .where(
+      and(eq(learningUnitProgress.userId, userId), eq(learningUnitProgress.unitId, unitId)),
+    );
   return true;
 }
 
@@ -128,6 +148,45 @@ export async function learningPath(userId: number) {
 
 export async function addXp(userId: number, amount: number, reason: string, date: string) {
   await db.insert(xpEvents).values({ userId, amount, reason, date });
+}
+
+/**
+ * Tambah XP dengan batas harian per-reason secara atomik: syarat kuota
+ * dievaluasi di statement INSERT yang sama, jadi dua submit paralel tidak
+ * bisa sama-sama lolos cek baca-lalu-tulis (TOCTOU) dan menembus cap.
+ * Mengembalikan jumlah yang benar-benar ditulis (0 kalau kuota penuh).
+ */
+export async function addCappedXp(
+  userId: number,
+  reason: string,
+  date: string,
+  want: number,
+  cap: number,
+): Promise<number> {
+  const attempt = async (amount: number): Promise<number> => {
+    if (amount <= 0) return 0;
+    const result = await db.run(sql`
+      insert into xp_events (user_id, amount, reason, date)
+      select ${userId}, ${amount}, ${reason}, ${date}
+      where (
+        select coalesce(sum(amount), 0) from xp_events
+        where user_id = ${userId} and reason = ${reason} and date = ${date}
+      ) + ${amount} <= ${cap}
+    `);
+    return result.rowsAffected > 0 ? amount : 0;
+  };
+
+  const granted = await attempt(want);
+  if (granted > 0) return granted;
+
+  // Kuota tidak cukup untuk `want` penuh: coba sisa ruangnya (perilaku lama
+  // memberi XP parsial di ujung cap).
+  const [earned] = await db
+    .select({ n: sql<number>`coalesce(sum(${xpEvents.amount}), 0)` })
+    .from(xpEvents)
+    .where(and(eq(xpEvents.userId, userId), eq(xpEvents.reason, reason), eq(xpEvents.date, date)));
+  const room = Math.max(0, cap - Number(earned?.n ?? 0));
+  return attempt(Math.min(want, room));
 }
 
 export async function totalXp(userId: number) {

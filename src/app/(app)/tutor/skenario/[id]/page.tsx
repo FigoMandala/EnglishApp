@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/session";
 
 import { TutorChat } from "../../tutor-chat";
 
-export const metadata = { title: "Skenario · Tutor AI" };
+export const metadata = { title: "Skenario Tutor · EnglishApp" };
 
 export default async function ScenarioSessionPage({
   params,

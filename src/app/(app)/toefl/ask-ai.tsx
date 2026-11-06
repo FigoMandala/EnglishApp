@@ -1,9 +1,10 @@
 "use client";
 
 import { Sparkles, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { TutorChat } from "@/app/(app)/tutor/tutor-chat";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { cn } from "@/lib/utils";
 
 const STRUCTURE_TIPS = [
@@ -32,6 +33,30 @@ export function AskAi({
   children: (open: boolean, trigger: ReactNode) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  // Layar kecil: panel jadi overlay layar penuh (dialog sungguhan). Layar lg:
+  // panel hanya kolom samping, halaman di belakang tetap bisa digulir.
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  // Layar kecil: panel overlay layar penuh, kunci scroll halaman di belakang
+  // (teknik position:fixed agar iOS Safari tidak rubber-band).
+  useBodyScrollLock(open && !isDesktop);
 
   const trigger = open ? null : (
     <button
@@ -55,6 +80,8 @@ export function AskAi({
 
       {open ? (
         <aside
+          role="dialog"
+          aria-modal={isDesktop ? undefined : true}
           aria-label="Asisten AI"
           className="fixed inset-0 z-40 flex flex-col gap-3 bg-surface p-4 lg:sticky lg:inset-auto lg:top-[80px] lg:z-auto lg:mr-4 lg:mt-4 lg:h-[calc(100dvh-6rem)] lg:rounded-plate lg:border-2 lg:border-hairline"
         >
@@ -67,6 +94,7 @@ export function AskAi({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Tutup asisten"
+              autoFocus
               className="flex size-10 items-center justify-center rounded-control hover:bg-surface-muted"
             >
               <X className="size-5" aria-hidden />

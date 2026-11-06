@@ -21,10 +21,11 @@ const ZIGZAG = [0, 70, 104, 70, 0, -70, -104, -70];
 
 export function UnitMap({ units }: { units: UnitView[] }) {
   return (
-    <ol className="mx-auto flex w-full max-w-[620px] flex-col items-center gap-7 overflow-x-clip pb-6 pt-14">
+    <ol className="mx-auto flex w-full max-w-[620px] flex-col items-center gap-7 pb-6 pt-14">
       {units.map((unit, i) => {
         const current = unit.state === "current";
         const locked = unit.state === "locked";
+        const dx = ZIGZAG[i % ZIGZAG.length];
         const aria = `Unit ${unit.order}, ${unit.title}: ${unit.state === "done" ? "selesai" : locked ? "terkunci" : "sedang berjalan"}`;
         const Icon = unit.state === "done" ? Check : locked ? Lock : Star;
         const node = (
@@ -39,7 +40,7 @@ export function UnitMap({ units }: { units: UnitView[] }) {
             key={unit.id}
             aria-current={current ? "step" : undefined}
             className="rise relative flex flex-col items-center left-[calc(var(--dx)*0.45)] sm:left-[var(--dx)]"
-            style={{ "--dx": `${ZIGZAG[i % ZIGZAG.length]}px`, "--i": i } as React.CSSProperties}
+            style={{ "--dx": `${dx}px`, "--i": i } as React.CSSProperties}
           >
             <div className="relative">
               {current ? (
@@ -71,10 +72,22 @@ export function UnitMap({ units }: { units: UnitView[] }) {
               )}
             </div>
             {current ? (
-              <div className="absolute -top-10 left-[124px] hidden w-[300px] items-end lg:flex">
-                <Lori mood="wave" size={112} label="Lori melambai di samping unit sekarang" />
+              <>
+                {/* Lori selalu di kanan node; bubble dipindah ke sisi yang dijamin
+                    muat supaya tidak terpotong tepi kontainer jalur. */}
+                <Lori
+                  mood="wave"
+                  size={112}
+                  label="Lori melambai di samping unit sekarang"
+                  className="absolute bottom-1 left-[calc(100%+8px)] hidden lg:block"
+                />
                 <div
-                  className="pop mb-14 rounded-[16px_16px_16px_4px] border-2 border-hairline bg-surface px-3 py-2.5 text-[0.8125rem] leading-[1.4] shadow-[0_3px_0_var(--color-hairline)]"
+                  className={cn(
+                    "pop absolute bottom-10 hidden border-2 border-hairline bg-surface px-3 py-2.5 text-[0.8125rem] leading-[1.4] shadow-[0_3px_0_var(--color-hairline)] lg:block",
+                    dx >= 0
+                      ? "right-[calc(100%+8px)] w-[230px] rounded-[16px_16px_4px_16px]"
+                      : "left-[calc(100%+118px)] w-[200px] rounded-[16px_16px_16px_4px]",
+                  )}
                   style={{ "--delay": "600ms" } as React.CSSProperties}
                 >
                   <strong className="block text-[0.875rem]">
@@ -82,11 +95,14 @@ export function UnitMap({ units }: { units: UnitView[] }) {
                   </strong>
                   Selesaikan unit ini: +30 XP
                 </div>
-              </div>
+              </>
             ) : null}
+            {/* Label samping baru aman di lg+ (margin kontainer cukup); di bawah
+                itu label di bawah node — di 640-767px label samping terpotong
+                overflow-x-clip halaman. */}
             <span
               className={cn(
-                "mt-2 w-[150px] text-center text-[0.875rem] font-bold leading-tight sm:absolute sm:left-full sm:top-1/2 sm:ml-5 sm:mt-0 sm:w-44 sm:-translate-y-1/2 sm:text-left",
+                "mt-2 w-[150px] text-center text-[0.875rem] font-bold leading-tight lg:absolute lg:left-full lg:top-1/2 lg:ml-5 lg:mt-0 lg:w-44 lg:-translate-y-1/2 lg:text-left",
                 current && "lg:hidden",
                 locked ? "text-ink-subtle" : "text-ink-subtle",
               )}

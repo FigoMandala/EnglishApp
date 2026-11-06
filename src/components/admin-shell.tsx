@@ -33,7 +33,7 @@ export function AdminShell({ username, children }: { username: string; children:
       >
         Lewati ke konten
       </a>
-      <aside className="flex shrink-0 flex-col gap-1 bg-charcoal px-3 py-4 text-night-muted lg:sticky lg:top-0 lg:h-screen lg:w-64">
+      <aside className="flex shrink-0 flex-col gap-1 bg-charcoal px-3 py-4 text-night-muted lg:sticky lg:top-0 lg:h-dvh lg:w-64">
         <div className="flex items-center gap-2.5 px-2 pb-3">
           <LoriIconBadge size={28} />
           <span className="font-display text-lg font-extrabold text-white">EnglishApp</span>

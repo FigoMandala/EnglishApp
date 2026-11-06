@@ -49,7 +49,7 @@ export function wordCount(text: string) {
 }
 
 function extractJson(raw: string) {
-  const stripped = raw.replace(/ thinking[\s\S]*?<\/think>/gi, "").trim();
+  const stripped = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   const fenced = stripped.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = (fenced?.[1] ?? stripped).trim();
   const start = candidate.search(/[{[]/);

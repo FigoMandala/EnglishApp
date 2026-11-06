@@ -263,6 +263,7 @@ export async function listDataRequests(limit = 30) {
   return db
     .select({
       id: dataRequests.id,
+      userId: dataRequests.userId,
       kind: dataRequests.kind,
       status: dataRequests.status,
       createdAt: dataRequests.createdAt,
@@ -272,6 +273,11 @@ export async function listDataRequests(limit = 30) {
     .leftJoin(users, eq(users.id, dataRequests.userId))
     .orderBy(desc(dataRequests.id))
     .limit(limit);
+}
+
+/** Penuhi permintaan hapus data: hapus user; FK cascade membersihkan datanya. */
+export async function deleteUser(id: number) {
+  await db.delete(users).where(eq(users.id, id));
 }
 
 export async function findUserRole(id: number) {

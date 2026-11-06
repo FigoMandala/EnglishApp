@@ -10,6 +10,7 @@ import { LEAGUE_TIERS, type LeagueRow } from "@/lib/league";
 import { cn } from "@/lib/utils";
 
 import { setLeagueOptInAction } from "./actions";
+import { todayISO } from "@/lib/srs";
 
 const AVATARS = ["#bcd3f6", "#f6c9bd", "#d5bfe6", "#bfe0cb", "#f2c878"];
 const initials = (name: string) => name.slice(0, 2).toUpperCase();
@@ -36,15 +37,23 @@ export function LeagueView({
 }) {
   const [on, setOn] = useState(optIn);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const current = LEAGUE_TIERS[tier];
   const top = Math.max(1, ...rows.map((r) => r.xp));
-  const daysLeft = Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00Z")) / 86_400_000));
+  const daysLeft = Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(todayISO() + "T00:00:00Z")) / 86_400_000));
   const peak = Math.max(1, weekXp, lastWeekXp);
 
   function toggle(next: boolean) {
     setOn(next);
+    setError(null);
     startTransition(async () => {
-      await setLeagueOptInAction(next);
+      try {
+        await setLeagueOptInAction(next);
+      } catch {
+        // Batalkan optimisme: kembalikan saklar agar sesuai keadaan server.
+        setOn(!next);
+        setError("Gagal mengubah status liga. Coba lagi.");
+      }
     });
   }
 
@@ -81,10 +90,16 @@ export function LeagueView({
         </div>
       </header>
 
+      {error ? (
+        <p role="alert" className="rounded-[12px] bg-brick-soft px-4 py-2.5 text-[0.875rem] font-bold text-brick-deep">
+          {error}
+        </p>
+      ) : null}
+
       {on ? (
         <ol
           aria-label="Tingkatan liga"
-          className="grid grid-cols-5 gap-3 rounded-[24px] border-2 border-hairline bg-surface px-5 py-[18px] text-center"
+          className="grid grid-cols-5 gap-1.5 rounded-[24px] border-2 border-hairline bg-surface px-2.5 py-3 text-center sm:gap-3 sm:px-5 sm:py-[18px]"
         >
           {LEAGUE_TIERS.map((t, i) => {
             const cur = i === tier;
@@ -93,20 +108,23 @@ export function LeagueView({
                 key={t.name}
                 aria-current={cur ? "true" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-[16px] p-2",
+                  "flex min-w-0 flex-col items-center gap-1.5 rounded-[16px] p-1.5 sm:p-2",
                   cur ? "border-2 bg-surface-muted" : "opacity-55",
                 )}
                 style={cur ? { borderColor: t.fill } : undefined}
               >
                 <Shield
-                  className={cn("size-10", cur && "float")}
+                  className={cn("size-8 sm:size-10", cur && "float")}
                   strokeWidth={1.8}
                   style={{ color: t.stroke, fill: t.fill }}
                   aria-hidden
                 />
-                <span className={cn("text-[0.8125rem]", cur ? "font-black" : "font-extrabold")}>
+                <span
+                  title={t.name}
+                  className={cn("w-full max-w-full truncate px-0.5 text-[0.625rem] leading-tight tracking-tight sm:text-[0.8125rem] sm:tracking-normal", cur ? "font-black" : "font-extrabold")}
+                >
                   {t.name}
-                  {cur ? " · kamu" : ""}
+                  {cur ? <span className="hidden sm:inline"> · kamu</span> : null}
                 </span>
                 <span className="text-[0.75rem] text-ink-subtle">Lv {t.minLevel}</span>
               </li>

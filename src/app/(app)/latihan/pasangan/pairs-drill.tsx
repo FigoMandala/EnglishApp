@@ -25,6 +25,7 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
   const [mistakes, setMistakes] = useState(0);
   const [sec, setSec] = useState(0);
   const [xp, setXp] = useState(0);
+  const [saveFailed, setSaveFailed] = useState(false);
   const saved = useRef(false);
 
   const total = pairs.length;
@@ -48,9 +49,15 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
     sfx.levelUp();
     // Skor 0–10: pasangan + bonus combo − kesalahan (server membatasi XP).
     const score = Math.max(1, Math.min(10, total + Math.floor(best / 2) - mistakes));
-    void finishDrillAction("pairs", score, 10).then((res) => {
-      if (res.xp) setXp(res.xp);
-    });
+    finishDrillAction("pairs", score, 10)
+      .then((res) => {
+        if (res.xp) setXp(res.xp);
+      })
+      .catch(() => {
+        // Izinkan percobaan ulang kalau pengguna menekan "Main lagi".
+        saved.current = false;
+        setSaveFailed(true);
+      });
   }, [allDone, best, mistakes, total]);
 
   function evaluate(l: number | null, r: number | null) {
@@ -116,7 +123,7 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
         disabled={done}
         aria-pressed={sel}
         className={cn(
-          "min-h-16 cursor-pointer rounded-[18px] border-2 px-5 text-left transition-[transform,box-shadow,opacity] active:translate-y-1 active:shadow-none disabled:cursor-default",
+          "min-h-16 w-full min-w-0 cursor-pointer break-words rounded-[18px] border-2 px-4 text-left transition-[transform,box-shadow,opacity] active:translate-y-1 active:shadow-none disabled:cursor-default sm:px-5",
           side === "L" ? "font-display text-[1.25rem] font-extrabold" : "text-[1.0625rem] font-bold",
           "border-hairline bg-surface text-ink shadow-[0_4px_0_var(--color-hairline)]",
           sel && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky-line)]",
@@ -161,7 +168,7 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
           </span>
         </div>
 
-        <section aria-label="Papan pasangan" className="grid grid-cols-2 gap-x-6 gap-y-3">
+        <section aria-label="Papan pasangan" className="grid grid-cols-2 gap-x-4 gap-y-3 sm:gap-x-6">
           <div className="flex flex-col gap-3">{pairs.map((p) => tile(p.id, "L", p.word))}</div>
           <div className="flex flex-col gap-3">{rightOrder.map((id) => tile(id, "R", byId.get(id)?.meaning ?? ""))}</div>
         </section>
@@ -186,7 +193,8 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
             <div className="min-w-0 flex-[1_1_240px] text-primary-deep">
               <p className="font-display text-[1.5rem] font-black">Semua cocok! Cepat banget.</p>
               <p className="text-[0.9375rem]">
-                {clock} · salah {mistakes}× · {xp ? `+${xp} XP` : "XP dihitung…"}
+                {clock} · salah {mistakes}× ·{" "}
+                {xp ? `+${xp} XP` : saveFailed ? "XP gagal disimpan" : "XP dihitung…"}
               </p>
             </div>
             <SecondaryButton onClick={() => window.location.reload()} className="border-primary-line text-primary-deep">

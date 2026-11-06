@@ -3,7 +3,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiUsage, users } from "@/db/schema";
 import { estimateCostUsd, type TokenUsage } from "@/lib/ai-pricing";
-import { todayISO } from "@/lib/srs";
+import { shiftDate, todayISO } from "@/lib/srs";
 
 export type AiFeature = "tutor" | "toefl" | "eptr" | "writing" | "grammar";
 
@@ -99,7 +99,9 @@ const TOTALS_SELECT = {
 };
 
 export async function usageOverview(sinceDays = 30) {
-  const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString().slice(0, 10);
+  // Kolom date diisi todayISO() (Asia/Jakarta); batas window juga harus dari
+  // sana, bukan dari tanggal UTC server, supaya boundary tidak meleset 7 jam.
+  const since = shiftDate(todayISO(), -sinceDays);
   const today = todayISO();
 
   const [allTime] = await db.select(TOTALS_SELECT).from(aiUsage);
@@ -199,7 +201,8 @@ export async function usageOverview(sinceDays = 30) {
 export type UsageOverview = Awaited<ReturnType<typeof usageOverview>>;
 
 export async function userActivitySummary(sinceDays = 30) {
-  const since = new Date(Date.now() - sinceDays * 86_400_000).toISOString().slice(0, 10);
+  // Sama seperti usageOverview: window mengikuti tanggal WIB kolom date.
+  const since = shiftDate(todayISO(), -sinceDays);
   const rows = await db
     .select({
       userId: users.id,

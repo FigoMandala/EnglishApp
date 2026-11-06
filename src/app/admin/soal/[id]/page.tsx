@@ -10,6 +10,7 @@ import { parseQuestions } from "@/lib/toefl";
 
 import { Notice, param, type AdminSearchParams } from "../../notice";
 import { BankItemForm } from "./bank-item-form";
+import { requireAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function AdminBankItemPage({
   params: Promise<{ id: string }>;
   searchParams: AdminSearchParams;
 }) {
+  await requireAdmin();
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const row = await getBankItem(Number(id));
   if (!row) notFound();

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { ensurePartBatch } from "@/lib/api/eprt-simulation";
 import { AiError } from "@/lib/ai-client";
+import { checkBudget } from "@/lib/ai-budget";
 import { partBatches, SIM_PARTS } from "@/lib/eprt-simulation";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/session";
 
 export const maxDuration = 300;
@@ -13,6 +15,25 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+
+  // Satu simulasi penuh butuh ~10-20 batch; batas ini cukup longgar untuk
+  // pemain sah dan menahan pemanggil borongan.
+  const limit = await checkRateLimit(`eprt-prepare:user:${user.id}`, 40, 10 * 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, message: "Terlalu banyak permintaan. Coba lagi sebentar." },
+      { status: 429 },
+    );
+  }
+  // Cek di sini (bukan hanya di ask()) supaya sesi soal tidak dibuat dulu
+  // lalu yatim ketika kuota sudah habis.
+  const budget = await checkBudget();
+  if (!budget.allowed) {
+    return NextResponse.json(
+      { ok: false, message: "Kuota AI harian habis. Coba lagi besok." },
+      { status: 429 },
+    );
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     id?: unknown;

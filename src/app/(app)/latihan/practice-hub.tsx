@@ -40,8 +40,8 @@ const MODES: Mode[] = [
   { title: "Susun kalimat & soal", desc: "Isian, pilihan ganda, susun kata. Acak lintas materi.", skill: "Structure", sid: "structure", meta: "12 soal", xp: "+5/soal", href: "/latihan/soal", Icon: PenLine, tone: "bg-primary-soft text-primary" },
   { title: "Dengar & jawab", desc: "Dengarkan kalimat, pilih kata yang tertangkap. Bisa 0.75×.", skill: "Listening", sid: "listening", meta: "8 kalimat", xp: "+40 penuh", href: "/latihan/dengar", Icon: Headphones, tone: "bg-sky-soft text-sky" },
   { title: "Ucapkan", desc: "Pilih topik, ucapkan 5 kalimat, lihat kata yang belum terdengar jelas.", skill: "Speaking", sid: "speaking", meta: `${SPEAKING_PROMPTS.length} topik`, xp: "+20 maks", href: "/latihan/ucapkan", Icon: Mic, tone: "bg-sky-soft text-sky", isNew: true },
-  { title: "Cocokkan pasangan", desc: "Adu cepat jodohkan kata dan arti. Combo bikin skor naik.", skill: "Kosakata", sid: "kosakata", meta: "6 pasang", xp: "+40 tanpa salah", href: "/latihan/pasangan", Icon: null, glyph: "A↔a", tone: "bg-mango-soft text-mango-deep" },
-  { title: "Kartu SRS", desc: "Ulang kata tepat sebelum kamu lupa, dengan 4 tingkat ingatan.", skill: "Kosakata", sid: "kosakata", meta: "SRS", xp: "+3/kartu", href: "/kosakata/review", Icon: null, glyph: "Aa", tone: "bg-mango-soft text-mango-deep" },
+  { title: "Cocokkan pasangan", desc: "Adu cepat jodohkan kata dan arti. Combo bikin skor naik.", skill: "Vocabulary", sid: "kosakata", meta: "6 pasang", xp: "+40 tanpa salah", href: "/latihan/pasangan", Icon: null, glyph: "A↔a", tone: "bg-mango-soft text-mango-ink" },
+  { title: "Kartu SRS", desc: "Ulang kata tepat sebelum kamu lupa, dengan 4 tingkat ingatan.", skill: "Vocabulary", sid: "kosakata", meta: "SRS", xp: "+3/kartu", href: "/kosakata/review", Icon: null, glyph: "Aa", tone: "bg-mango-soft text-mango-ink" },
   { title: "Soal EPrT per topik", desc: "Pilih satu bagian tes, kerjakan dengan timer asli.", skill: "Reading", sid: "reading", meta: "10 soal", xp: "+5/soal", href: "/eptr", Icon: GraduationCap, tone: "bg-charcoal text-mango" },
   { title: "Ngobrol skenario", desc: "Role-play interview, presentasi, sampai check-in hotel bersama Lori.", skill: "Speaking", sid: "speaking", meta: "±10 mnt", xp: "+20 selesai", href: "/tutor/skenario", Icon: MessageCircle, tone: "bg-primary-soft text-primary" },
 ];
@@ -51,7 +51,7 @@ const SKILLS: { id: "all" | SkillId; label: string }[] = [
   { id: "structure", label: "Structure" },
   { id: "listening", label: "Listening" },
   { id: "speaking", label: "Speaking" },
-  { id: "kosakata", label: "Kosakata" },
+  { id: "kosakata", label: "Vocabulary" },
   { id: "reading", label: "Reading" },
 ];
 
@@ -201,7 +201,7 @@ export function PracticeHub({
                 <span className="text-[0.875rem] text-ink-subtle">{m.desc}</span>
                 <span className="mt-auto flex gap-3 text-[0.8125rem] font-extrabold text-ink-muted">
                   <span>{m.href === "/kosakata/review" && dueCount > 0 ? `${dueCount} jatuh tempo` : m.meta}</span>
-                  <span className="text-mango-deep">{m.xp}</span>
+                  <span className="text-mango-ink">{m.xp}</span>
                 </span>
               </Link>
             ))}

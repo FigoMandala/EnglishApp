@@ -127,6 +127,8 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--color-ink);
   background-color: var(--color-canvas);
+  /* Hilangkan kilat abu-abu default Android Chrome di atas state active: kustom. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,

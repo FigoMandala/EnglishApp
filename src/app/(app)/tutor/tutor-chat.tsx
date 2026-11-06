@@ -122,6 +122,9 @@ export function TutorChat({
               full += payload.text;
               setMessages((prev) => {
                 const copy = [...prev];
+                // Riwayat bisa saja dikosongkan di tengah streaming; jangan menulis
+                // ke indeks -1 kalau array sudah kosong.
+                if (copy.length === 0 || copy[copy.length - 1].role !== "assistant") return prev;
                 copy[copy.length - 1] = { role: "assistant", content: full };
                 return copy;
               });
@@ -167,6 +170,7 @@ export function TutorChat({
         value={input}
         rows={1}
         maxLength={2000}
+        enterKeyHint="send"
         placeholder="Tulis pertanyaanmu…"
         onChange={(event) => setInput(event.target.value)}
         onKeyDown={(event) => {
@@ -184,8 +188,9 @@ export function TutorChat({
             type="button"
             variant="ghost"
             size="md"
+            disabled={streaming}
             aria-label="Bersihkan riwayat"
-            title="Bersihkan riwayat"
+            title={streaming ? "Tunggu jawaban selesai" : "Bersihkan riwayat"}
             onClick={() => {
               void clearChat();
             }}
@@ -293,7 +298,7 @@ export function TutorChat({
                 type="button"
                 disabled={streaming}
                 onClick={() => send(suggestion)}
-                className="min-h-9 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-muted hover:border-primary-line hover:text-primary-deep disabled:opacity-50"
+                className="min-h-10 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-muted hover:border-primary-line hover:text-primary-deep disabled:opacity-50"
               >
                 {suggestion}
               </button>

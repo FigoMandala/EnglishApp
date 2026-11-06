@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUp, Check, ChevronRight, Clock, Lock } from "lucide-react";
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -25,6 +26,8 @@ import { getVoiceConfig } from "@/lib/voice-config";
 import { ToeflRunner } from "../../toefl/toefl-runner";
 import { OpenPartButton, PrefetchPart } from "./simulation-client";
 import { SimulationReview } from "./simulation-review";
+
+export const metadata = { title: "Simulasi EPrT · EnglishApp" };
 
 export const maxDuration = 300;
 
@@ -308,7 +311,7 @@ function Result({
         <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
           <span className="text-[0.75rem] font-extrabold tracking-[0.08em] text-mango-line">
             {sim.scope ? `MINI-TEST ${bars[0].label.toUpperCase()}` : "SIMULASI PENUH"} · {totalQuestions} SOAL ·{" "}
-            {minutes} MNT
+            {minutes} mnt
           </span>
           <span className="flex flex-wrap items-baseline gap-3.5">
             <CountUp to={shown} ms={1200} className="font-round text-[4.5rem] font-extrabold leading-[0.9] tabular-nums sm:text-[5.5rem]" />
@@ -344,7 +347,7 @@ function Result({
         <div className="flex flex-[0_1_220px] flex-col gap-2.5">
           <Link
             href="/eptr#practice-title"
-            className="flex h-[52px] items-center justify-center rounded-[16px] bg-mango px-5 font-display text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
+            className={buttonVariants({ variant: "reward", size: "md", className: "text-[0.9375rem]" })}
           >
             LATIH {lowest.label.toUpperCase()}
           </Link>

@@ -121,7 +121,7 @@ function pctTone(pct: number | null) {
 const MINI_TESTS = [
   { section: "listening", title: "Listening", Icon: Headphones, tone: "bg-sky-soft text-sky", note: "audio sekali putar" },
   { section: "structure", title: "Structure", Icon: PenLine, tone: "bg-primary-soft text-primary", note: "completion & error" },
-  { section: "reading", title: "Reading", Icon: BookOpen, tone: "bg-mango-soft text-mango-deep", note: "beberapa teks bacaan" },
+  { section: "reading", title: "Reading", Icon: BookOpen, tone: "bg-mango-soft text-mango-ink", note: "beberapa teks bacaan" },
 ] as const;
 
 export function EprtHome(props: EprtHomeProps) {
@@ -437,7 +437,9 @@ export function EprtHome(props: EprtHomeProps) {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
+        {/* relative: containing block untuk span sr-only di header tabel, supaya
+            tidak menambah ruang scroll horizontal di root pada layar sempit. */}
+        <div className="relative overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
           <table className="w-full min-w-[760px] border-collapse text-[0.9375rem]">
             <thead>
               <tr className="bg-surface-muted text-left text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">

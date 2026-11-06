@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 import { Notice, param, type AdminSearchParams } from "../notice";
 import { WordForm } from "./word-form";
+import { requireAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,9 @@ const TABS = {
 } as const;
 type Tab = keyof typeof TABS;
 
-export default async function AdminVocabularyPage({ searchParams }: { searchParams: AdminSearchParams }) {
+export default async function AdminVocabularyPage({
+  searchParams }: { searchParams: AdminSearchParams }) {
+  await requireAdmin();
   const params = await searchParams;
   const tabParam = param(params, "tab");
   const tab: Tab = tabParam && tabParam in TABS ? (tabParam as Tab) : "all";
@@ -87,10 +90,10 @@ export default async function AdminVocabularyPage({ searchParams }: { searchPara
             </Link>
           ))}
         </nav>
-        <form className="ml-auto flex gap-2" role="search">
+        <form className="ml-auto flex w-full min-w-0 flex-wrap gap-2 sm:w-auto" role="search">
           <input type="hidden" name="tab" value={tab} />
           <label htmlFor="cari" className="sr-only">Cari kata atau arti</label>
-          <Input id="cari" name="q" defaultValue={q} placeholder="Cari kata atau arti…" className="h-11 w-64" />
+          <Input id="cari" name="q" defaultValue={q} placeholder="Cari kata atau arti…" className="h-11 min-w-0 flex-1 sm:w-64 sm:flex-none" />
           <button type="submit" className={buttonVariants({ variant: "secondary", size: "sm", className: "h-11" })}>
             Cari
           </button>

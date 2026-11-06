@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Lori } from "@/components/mascot";
@@ -45,14 +45,22 @@ export function PendingOverlay() {
   const [start] = useState(() => Date.now());
   const seconds = Math.floor((useNow() - start) / 1000);
   const stalled = seconds >= STALL_SECONDS;
+  // Fokus dipindah ke kartu status supaya Tab tidak menjelajah konten di
+  // balik overlay layar penuh ini.
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    cardRef.current?.focus();
+  }, []);
   return createPortal(
     <div
       aria-busy="true"
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm"
     >
       <div
+        ref={cardRef}
         role="status"
-        className="flex max-w-md flex-col items-center gap-4 rounded-[24px] bg-surface px-8 py-8 shadow-overlay"
+        tabIndex={-1}
+        className="flex max-w-md flex-col items-center gap-4 rounded-[24px] bg-surface px-8 py-8 shadow-overlay focus:outline-none"
       >
         <Lori mood="think" size={112} />
         <div className="flex flex-col items-center gap-1 text-center">

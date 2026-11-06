@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { logActivity } from "@/db/queries/activity";
 import { addXp } from "@/db/queries/learning";
-import { getCardProgress, reviewCard } from "@/db/queries/vocabulary";
+import { reviewCard } from "@/db/queries/vocabulary";
 
 import { requireUser } from "@/lib/session";
 import { todayISO, type ReviewGrade } from "@/lib/srs";
@@ -26,12 +26,13 @@ export async function reviewCardAction(
     return { status: "error", message: "Kartu tidak valid." };
   }
 
-  const progress = await getCardProgress(user.id, vocabularyId);
   const safeGrade: ReviewGrade = grade === "hard" || grade === "easy" ? grade : "good";
   const next = await reviewCard(user.id, vocabularyId, correct, safeGrade);
 
-  // XP hanya untuk kartu yang pertama kali dikuasai (review pertama, jawab benar).
-  if (correct && (progress?.reviewCount ?? 0) === 0) {
+  // XP hanya untuk kartu yang pertama kali dikuasai (review pertama, jawab
+  // benar). Penanda firstReview dihitung di statement UPDATE yang sama, jadi
+  // dua review paralel tidak bisa sama-sama dapat XP.
+  if (correct && next.firstReview) {
     await addXp(user.id, XP_REWARDS.vocabCard, "vocab", todayISO());
     revalidatePath("/kosakata");
     revalidatePath("/belajar");

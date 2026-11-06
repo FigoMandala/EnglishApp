@@ -34,6 +34,17 @@ test("parseGeneratedWords menolak entri tanpa arti atau bukan kata", () => {
   assert.deepEqual(words.map((item) => item.word), ["milk"]);
 });
 
+test("parseGeneratedWords menolak kata tanpa vokal (akronim, kata rusak)", () => {
+  const raw = JSON.stringify([
+    { word: "sbjct", meaning: "subjek" },
+    { word: "html", meaning: "bahasa markup" },
+    { word: "gym", meaning: "pusat kebugaran" },
+  ]);
+  const words = parseGeneratedWords(raw, fallback, new Set());
+  // gym lolos karena y dihitung vokal; sbjct dan html ditolak.
+  assert.deepEqual(words.map((item) => item.word), ["gym"]);
+});
+
 test("parseGeneratedWords aman untuk JSON rusak", () => {
   assert.deepEqual(parseGeneratedWords("bukan json", fallback, new Set()), []);
   assert.deepEqual(parseGeneratedWords("{}", fallback, new Set()), []);

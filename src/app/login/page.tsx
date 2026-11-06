@@ -1,4 +1,5 @@
 import { Flame } from "lucide-react";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -7,6 +8,8 @@ import { Lori } from "@/components/mascot";
 import { getCurrentUser, homePath } from "@/lib/session";
 
 import { AuthForm } from "./auth-form";
+
+export const metadata = { title: "Masuk · EnglishApp" };
 
 export default async function LoginPage() {
   const user = await getCurrentUser();

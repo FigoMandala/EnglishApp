@@ -84,19 +84,30 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   if (!username || !password) return { error: "Username dan password wajib diisi." };
 
   const ip = clientIp(await headers());
-  const [perUser, perIp] = await Promise.all([
-    checkRateLimit(`login:user:${username.toLowerCase()}`, LOGIN_LIMIT, LOGIN_WINDOW_MS),
-    checkRateLimit(`login:ip:${ip}`, LOGIN_IP_LIMIT, LOGIN_WINDOW_MS),
-  ]);
-  const limit = !perUser.ok ? perUser : perIp;
-  if (!limit.ok) {
+  // Limit per-IP dihitung untuk semua percobaan (menahan credential stuffing
+  // ke banyak username sebelum menyentuh DB).
+  const perIp = await checkRateLimit(`login:ip:${ip}`, LOGIN_IP_LIMIT, LOGIN_WINDOW_MS);
+  if (!perIp.ok) {
     await logAudit({ action: "login_rate_limited", detail: username });
-    const minutes = Math.max(1, Math.ceil(limit.retryAfterMs / 60_000));
+    const minutes = Math.max(1, Math.ceil(perIp.retryAfterMs / 60_000));
     return { error: `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.` };
   }
 
   const user = await findUserByUsername(username);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    // Hanya percobaan GAGAL yang menghitung limit per-username: username
+    // terlihat di papan liga, jadi limit atas semua percobaan memudahkan
+    // lockout tertarget terhadap pengguna sah.
+    const perUser = await checkRateLimit(
+      `login:user:${username.toLowerCase()}`,
+      LOGIN_LIMIT,
+      LOGIN_WINDOW_MS,
+    );
+    if (!perUser.ok) {
+      await logAudit({ action: "login_rate_limited", detail: username });
+      const minutes = Math.max(1, Math.ceil(perUser.retryAfterMs / 60_000));
+      return { error: `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.` };
+    }
     await logAudit({ action: "login_failed", detail: username });
     return { error: "Username atau password salah." };
   }

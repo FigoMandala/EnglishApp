@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { moveUnitAction, moveUnitItemAction, toggleUnitAction } from "../actions";
 import { Notice, param, type AdminSearchParams } from "../notice";
+import { requireAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,9 @@ function MoveButtons({
   );
 }
 
-export default async function AdminMaterialsPage({ searchParams }: { searchParams: AdminSearchParams }) {
+export default async function AdminMaterialsPage({
+  searchParams }: { searchParams: AdminSearchParams }) {
+  await requireAdmin();
   const params = await searchParams;
   const units = await listAllUnits();
   const selected = units.find((unit) => unit.id === Number(param(params, "unit"))) ?? units[0] ?? null;

@@ -47,6 +47,41 @@ export type MistakeGroup = {
   items: MistakeItem[];
 };
 
+/**
+ * Ringkasan Bank Kesalahan untuk shell: tiga aggregate SQL alih-alih memuat
+ * seluruh riwayat percobaan user (yang dulu di-scan penuh di setiap navigasi).
+ */
+export async function mistakeSummary(userId: number) {
+  const [attempts, lapsed, reviews] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`count(*)`,
+        correct: sql<number>`coalesce(sum(case when ${grammarAttempts.correct} then 1 else 0 end), 0)`,
+      })
+      .from(grammarAttempts)
+      .where(eq(grammarAttempts.userId, userId)),
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(vocabularyProgress)
+      .where(
+        and(
+          eq(vocabularyProgress.userId, userId),
+          sql`${vocabularyProgress.reviewCount} >= 1`,
+          sql`${vocabularyProgress.box} = 0`,
+        ),
+      ),
+    // Halaman penuh mengambil maks 30 baris ulangan EPrT; ikuti batas itu.
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(toeflReviews)
+      .where(eq(toeflReviews.userId, userId)),
+  ]);
+  const openGrammar = Number(attempts[0]?.total ?? 0) - Number(attempts[0]?.correct ?? 0);
+  const openVocab = Number(lapsed[0]?.n ?? 0);
+  const openEptr = Math.min(Number(reviews[0]?.n ?? 0), 30);
+  return { openTotal: openGrammar + openVocab + openEptr };
+}
+
 export async function mistakeGroups(userId: number) {
   const groups: MistakeGroup[] = [];
 

@@ -1,12 +1,9 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { db } from "@/db";
-import { xpEvents } from "@/db/schema";
 import { getSpeakingBest, logActivity, setSpeakingBest } from "@/db/queries/activity";
-import { addXp } from "@/db/queries/learning";
+import { addCappedXp } from "@/db/queries/learning";
 import { requireUser } from "@/lib/session";
 import { SPEAKING_PROMPTS } from "@/lib/speaking-prompts";
 import { normalizeSpeakingBest, recordSpeakingScore } from "@/lib/speaking-scores";
@@ -38,21 +35,25 @@ export async function finishDrillAction(
   topicId?: string,
 ): Promise<DrillResult> {
   const user = await requireUser();
-  const rule = RULES[kind];
+  // Server action menerima JSON bebas: kind bisa berupa string aneh seperti
+  // "constructor" yang lolos lewat prototype. Cek keanggotaan key secara eksplisit.
+  const rule = Object.prototype.hasOwnProperty.call(RULES, kind) ? RULES[kind] : undefined;
   if (!rule || !Number.isInteger(score) || !Number.isInteger(total) || total <= 0 || total > rule.maxTotal) {
     return { status: "error", message: "Data sesi tidak valid." };
   }
   const clamped = Math.max(0, Math.min(score, kind === "speaking" ? 100 : total));
   const topic = kind === "speaking" && topicId ? SPEAKING_PROMPTS.find((prompt) => prompt.id === topicId) : undefined;
   const today = todayISO();
-  const [earned] = await db
-    .select({ n: sql<number>`coalesce(sum(${xpEvents.amount}), 0)` })
-    .from(xpEvents)
-    .where(and(eq(xpEvents.userId, user.id), eq(xpEvents.reason, "drill"), eq(xpEvents.date, today)));
-  const room = Math.max(0, DAILY_DRILL_XP_CAP - Number(earned?.n ?? 0));
-  const xp = Math.min(rule.cap, room, Math.round(clamped * rule.perPoint));
 
-  if (xp > 0) await addXp(user.id, xp, "drill", today);
+  // Cap harian dicek di dalam INSERT (atomik): submit paralel tidak bisa
+  // menembus batas 120 XP/hari walau sama-sama membaca sisa kuota lama.
+  const xp = await addCappedXp(
+    user.id,
+    "drill",
+    today,
+    Math.min(rule.cap, Math.round(clamped * rule.perPoint)),
+    DAILY_DRILL_XP_CAP,
+  );
 
   if (topic) {
     const stored = normalizeSpeakingBest(

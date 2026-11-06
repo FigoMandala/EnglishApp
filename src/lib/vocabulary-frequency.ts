@@ -19,11 +19,22 @@ const BLOCKLIST = new Set([
   "aa", "ab", "ad", "ae", "af", "ag", "ah", "ai", "aj", "ak", "al", "an", "ao",
 ]);
 
+/**
+ * Kata Inggris sungguhan selalu punya vokal (y dihitung: gym, shy, rhythm).
+ * Menolak kata tanpa vokal menyaring akronim dan kata rusak hasil crawl:
+ * sbjct, html, xnxx, dll. Satu sumber aturan untuk seeder, generator AI,
+ * dan skrip pembersihan database.
+ */
+export function isVowellessWord(word: string) {
+  return /^[a-z]+$/.test(word) && !/[aeiouy]/.test(word);
+}
+
 /** Hanya terima kata Inggris yang wajar: huruf, panjang cukup, bukan singkatan. */
 export function isLearnableWord(word: string) {
   const clean = word.trim().toLowerCase();
   if (clean.length < 3 || clean.length > 18) return false;
   if (!/^[a-z]+$/.test(clean)) return false;
+  if (isVowellessWord(clean)) return false;
   if (BLOCKLIST.has(clean)) return false;
   return true;
 }

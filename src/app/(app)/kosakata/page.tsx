@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SpeakButton } from "@/components/speak-button";
 import { LevelTag } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { dueForecast, listVocabularyCards, vocabularyStats } from "@/db/queries/vocabulary";
+import { dueForecast, listVocabularyPage, vocabularyStats } from "@/db/queries/vocabulary";
 import { requireUser } from "@/lib/session";
 import { todayISO } from "@/lib/srs";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ import { StartReviewButton } from "./start-review";
 export const metadata = { title: "Kosakata · EnglishApp" };
 
 const LEVELS = ["semua", "basic", "intermediate", "advanced"] as const;
-const LEVEL_LABEL = { semua: "Semua level", basic: "Dasar", intermediate: "Menengah", advanced: "Lanjut" } as const;
+const LEVEL_LABEL = { semua: "Semua tingkat", basic: "Dasar", intermediate: "Menengah", advanced: "Lanjut" } as const;
 const STATUSES = ["semua", "due", "new", "mastered"] as const;
 const STATUS_LABEL = { semua: "Semua", due: "Jatuh tempo", new: "Baru", mastered: "Dikuasai" } as const;
 const DAY = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -44,30 +44,31 @@ export default async function KosakataPage({
   const params = await searchParams;
   const today = todayISO();
 
-  const [stats, forecast, cards] = await Promise.all([
-    vocabularyStats(user.id),
-    dueForecast(user.id, today, 7),
-    listVocabularyCards(user.id),
-  ]);
-
   const level = LEVELS.includes(params.level as (typeof LEVELS)[number]) ? (params.level as (typeof LEVELS)[number]) : "semua";
   const status = STATUSES.includes(params.status as (typeof STATUSES)[number])
     ? (params.status as (typeof STATUSES)[number])
     : "semua";
   const needle = (params.q ?? "").trim().toLowerCase();
   const topic = (params.topic ?? "").trim().toLowerCase();
-  const topics = [...new Set(cards.map((word) => word.topic).filter(Boolean))] as string[];
 
-  const withStatus = cards.map((card) => ({ card, status: wordStatus(card, today) }));
-  const matched = withStatus
-    .filter(({ card }) => (level === "semua" ? true : card.level === level))
-    .filter(({ card }) => (topic ? (card.topic ?? "").toLowerCase() === topic : true))
-    .filter(({ status: s }) => (status === "semua" ? true : s.kind === status))
-    .filter(({ card }) =>
-      needle ? card.word.toLowerCase().includes(needle) || card.meaning.toLowerCase().includes(needle) : true,
-    );
-  const rows = matched.slice(0, MAX_ROWS);
-  const newWaiting = withStatus.filter(({ status: s }) => s.kind === "new").length;
+  // Filter didorong ke SQL; hanya 60 baris pertama yang pernah keluar dari DB.
+  const [stats, forecast, list] = await Promise.all([
+    vocabularyStats(user.id),
+    dueForecast(user.id, today, 7),
+    listVocabularyPage(user.id, {
+      level: level === "semua" ? undefined : level,
+      topic: topic || undefined,
+      q: needle || undefined,
+      status: status === "semua" ? undefined : status,
+      today,
+      limit: MAX_ROWS,
+    }),
+  ]);
+
+  const topics = list.topics;
+  const rows = list.rows.map((card) => ({ card, status: wordStatus(card, today) }));
+  const matchedCount = list.matchedCount;
+  const newWaiting = list.newWaiting;
 
   const maxForecast = Math.max(1, ...forecast.map((day) => day.count));
   const recall = stats.tracked > 0 ? Math.round(((stats.tracked - stats.due) / stats.tracked) * 100) : null;
@@ -180,7 +181,7 @@ export default async function KosakataPage({
             </Link>
           ))}
         </nav>
-        <nav aria-label="Filter level" className="flex flex-wrap gap-2 sm:ml-auto">
+        <nav aria-label="Filter tingkat" className="flex flex-wrap gap-2 sm:ml-auto">
           {LEVELS.map((value) => (
             <Link
               key={value}
@@ -243,7 +244,7 @@ export default async function KosakataPage({
                 <th scope="col" className="px-5 py-3.5">Kata</th>
                 <th scope="col" className="px-3 py-3.5">Arti</th>
                 <th scope="col" className="px-3 py-3.5">Contoh</th>
-                <th scope="col" className="px-3 py-3.5">Level</th>
+                <th scope="col" className="px-3 py-3.5">Tingkat</th>
                 <th scope="col" className="px-3 py-3.5">Ingatan</th>
                 <th scope="col" className="py-3.5 pl-3 pr-5">Ulang</th>
               </tr>
@@ -301,8 +302,8 @@ export default async function KosakataPage({
             </tbody>
           </table>
           <p className="border-t-2 border-hairline-soft px-5 py-3.5 text-[0.875rem] text-ink-subtle">
-            Menampilkan {rows.length} dari {matched.length} kata
-            {matched.length > rows.length ? ". Persempit filter untuk melihat lainnya." : ""}
+            Menampilkan {rows.length} dari {matchedCount} kata
+            {matchedCount > rows.length ? ". Persempit filter untuk melihat lainnya." : ""}
           </p>
         </div>
       )}

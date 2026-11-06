@@ -7,7 +7,14 @@ import { users } from "./schema";
 import { hashPassword } from "@/lib/password";
 
 const USERNAME = (process.env.ADMIN_USERNAME ?? "admin").trim();
-const PASSWORD = process.env.ADMIN_PASSWORD ?? "admin12345678";
+// Password wajib eksplisit. Tanpa ini, satu `db:admin` yang lupa isi env akan
+// mengembalikan password admin ke nilai bawaan yang diketahui siapa saja.
+const PASSWORD = process.env.ADMIN_PASSWORD?.trim() ?? "";
+
+if (!PASSWORD) {
+  console.error("ADMIN_PASSWORD wajib diisi di .env.local (lokal) atau .env.production.local (produksi).");
+  process.exit(1);
+}
 
 async function main() {
   const lower = USERNAME.toLowerCase();
@@ -33,8 +40,8 @@ async function main() {
     displayName: "Administrator",
     role: "admin",
   });
-  console.log(`Admin dibuat: username="${USERNAME}" password="${PASSWORD}"`);
-  console.log("Segera ganti password lewat .env atau daftar ulang bila ini produksi.");
+  console.log(`Admin dibuat: username="${USERNAME}"`);
+  console.log("Password diambil dari ADMIN_PASSWORD dan tidak dicetak ke terminal.");
 }
 
 main()

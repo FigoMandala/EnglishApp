@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { retireBankItemAction } from "../actions";
 import { Notice, param, type AdminSearchParams } from "../notice";
+import { requireAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,9 @@ const STATUS: Record<BankStatus, { label: string; tone: string; dot: string }> =
   unknown: { label: "Data kurang", tone: "bg-surface-muted text-ink-subtle", dot: "bg-hairline-strong" },
 };
 
-export default async function AdminBankPage({ searchParams }: { searchParams: AdminSearchParams }) {
+export default async function AdminBankPage({
+  searchParams }: { searchParams: AdminSearchParams }) {
+  await requireAdmin();
   const params = await searchParams;
   const track = param(params, "track") === "toefl" ? "toefl" : "eptr";
   const statusParam = param(params, "status");
@@ -84,7 +87,8 @@ export default async function AdminBankPage({ searchParams }: { searchParams: Ad
         })}
       </nav>
 
-      <Card className="overflow-x-auto">
+      {/* relative: containing block untuk span sr-only di header tabel. */}
+      <Card className="relative overflow-x-auto">
         <table className="w-full min-w-[860px] text-[0.875rem]">
           <thead className="bg-surface-muted text-left text-[0.75rem] uppercase tracking-[0.06em] text-ink-subtle">
             <tr>
@@ -150,7 +154,7 @@ export default async function AdminBankPage({ searchParams }: { searchParams: Ad
                           <input type="hidden" name="id" value={item.id} />
                           <input type="hidden" name="track" value={track} />
                           <input type="hidden" name="status" value={status} />
-                          <p className="text-[0.8125rem] text-ink-muted">Hapus item ini dari bank? Pelajar tidak akan mendapatkannya lagi. Statistik jawaban tetap tersimpan.</p>
+                          <p className="text-[0.8125rem] text-ink-muted">Hapus item ini dari bank? Pengguna tidak akan mendapatkannya lagi. Statistik jawaban tetap tersimpan.</p>
                           <button type="submit" className="ledge mt-2 min-h-10 w-full rounded-[10px] bg-brick font-bold text-white [--ledge:var(--color-brick-deep)]">
                             Ya, tarik soal #{item.id}
                           </button>

@@ -88,7 +88,7 @@ export default async function BelajarPage() {
     vocabStats.due > 0
       ? `${vocabStats.due} kartu siap diulang`
       : dueCards.length > 0
-        ? `${dueCards.length} kata baru menantimu`
+        ? `${dueCards.length} kata baru menunggu`
         : "Ulangi kata dengan flashcard";
 
   // Minggu ini (Senin–Minggu) untuk strip streak.
@@ -117,7 +117,10 @@ export default async function BelajarPage() {
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-      <section aria-label="Jalur unit" className="flex min-w-0 flex-1 flex-col gap-6">
+      <section
+        aria-label="Jalur unit"
+        className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-clip"
+      >
         <div className="rise flex flex-col gap-1">
           <p className="text-[0.9375rem] font-bold text-ink-subtle">
             {greeting()}, {user.displayName ?? user.username}

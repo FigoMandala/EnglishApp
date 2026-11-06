@@ -1,6 +1,6 @@
 import { logAiUsage } from "@/db/queries/ai-usage";
 import { chatJsonRaw, AiError } from "@/lib/ai-client";
-import { checkBudget } from "@/lib/ai-budget";
+import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
 import { EMPTY_USAGE } from "@/lib/ai-pricing";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { parseWritingScore, type WritingScore } from "@/lib/writing";
@@ -50,8 +50,10 @@ async function scoreWriting(userId: number, system: string, userMessage: string)
     throw new AiError("Tutor AI belum dikonfigurasi. Isi API key di Pengaturan.");
   }
 
-  const budget = await checkBudget();
-  if (!budget.allowed) {
+  // Reservasi atomik mencegah request paralel menembus anggaran harian.
+  // Satu reservasi menutup panggilan pertama + 1x retry di dalamnya.
+  const reservation = await reserveBudget(userId, "writing", config.model);
+  if (!reservation) {
     throw new AiError("Kuota AI harian habis. Coba lagi besok, atau hubungi admin.");
   }
 
@@ -95,6 +97,8 @@ async function scoreWriting(userId: number, system: string, userMessage: string)
       ok: false,
     });
     throw error;
+  } finally {
+    await releaseReservation(reservation);
   }
 }
 

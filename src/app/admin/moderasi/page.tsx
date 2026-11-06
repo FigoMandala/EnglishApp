@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 
 import { resolveFlagAction, setBudgetAction } from "../actions";
 import { Notice, param, type AdminSearchParams } from "../notice";
+import { requireAdmin } from "@/lib/session";
+import { formatDateTime } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,9 @@ const REASON: Record<string, string> = {
 
 const usd = (value: number) => `$${value.toFixed(2)}`;
 
-export default async function AdminModerationPage({ searchParams }: { searchParams: AdminSearchParams }) {
+export default async function AdminModerationPage({
+  searchParams }: { searchParams: AdminSearchParams }) {
+  await requireAdmin();
   const params = await searchParams;
   const view = param(params, "lihat") === "selesai" ? "reviewed" : "open";
   const [flags, usage, budget, counts] = await Promise.all([
@@ -80,7 +84,7 @@ export default async function AdminModerationPage({ searchParams }: { searchPara
                     {flag.direction === "input" ? "dari pengguna" : "dari AI"}
                   </span>
                   <span className="ml-auto text-ink-subtle">
-                    {flag.username ? `@${flag.username}` : "pengguna dihapus"} · {flag.createdAt}
+                    {flag.username ? `@${flag.username}` : "pengguna dihapus"} · {formatDateTime(flag.createdAt)}
                   </span>
                 </div>
                 {/* Cuplikan disembunyikan dulu supaya peninjau tidak terpapar konten tanpa sengaja. */}
@@ -90,7 +94,7 @@ export default async function AdminModerationPage({ searchParams }: { searchPara
                 </details>
                 {flag.resolution ? (
                   <p className={cn("text-[0.8125rem] font-bold", flag.resolution === "safe" ? "text-primary-deep" : "text-brick-deep")}>
-                    {flag.resolution === "safe" ? "Ditandai aman" : "Ditindak"} · {flag.reviewedAt}
+                    {flag.resolution === "safe" ? "Ditandai aman" : "Ditindak"} · {flag.reviewedAt ? formatDateTime(flag.reviewedAt) : "-"}
                   </p>
                 ) : (
                   <form action={resolveFlagAction} className="flex flex-wrap gap-2">

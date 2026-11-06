@@ -40,7 +40,7 @@ export function SpeakButton({
         speakLines([{ speaker: "woman", text }], DEFAULT_PREFS, undefined, () => setLoading(false));
       }}
       className={cn(
-        "flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] bg-sky-soft text-sky transition-colors hover:bg-sky-line/50 hover:text-sky-deep",
+        "flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] bg-sky-soft text-sky transition-colors hover:bg-sky-line/50 hover:text-sky-deep",
         className,
       )}
     >

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { EssayReview } from "./essay-review";
 
-export const metadata = { title: "Hasil Esai · Writing Coach" };
+export const metadata = { title: "Hasil Esai · EnglishApp" };
 
 export default async function EssayResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

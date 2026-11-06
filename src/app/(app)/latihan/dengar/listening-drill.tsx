@@ -9,7 +9,7 @@ import { DrillSummary } from "@/components/drill/summary";
 import { Lori } from "@/components/mascot";
 import { sfx } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
-import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
+import { DEFAULT_PREFS, speakLines, stopSpeaking } from "@/lib/voices";
 
 import { finishDrillAction } from "../actions";
 
@@ -48,6 +48,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
   const [done, setDone] = useState(false);
   const [xp, setXp] = useState(0);
   const [supported, setSupported] = useState(true);
+  const [saveFailed, setSaveFailed] = useState(false);
   const saved = useRef(false);
 
   const item = items[index];
@@ -78,6 +79,9 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
   }
 
   async function next() {
+    // Hentikan audio soal sebelumnya agar tidak menumpuk di soal berikutnya.
+    stopSpeaking();
+    setPlaying(false);
     if (index + 1 < items.length) {
       setIndex(index + 1);
       setPicked(null);
@@ -89,8 +93,12 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
     sfx.levelUp();
     if (!saved.current) {
       saved.current = true;
-      const result = await finishDrillAction("listening", correct, items.length);
-      if (result.xp) setXp(result.xp);
+      try {
+        const result = await finishDrillAction("listening", correct, items.length);
+        if (result.xp) setXp(result.xp);
+      } catch {
+        setSaveFailed(true);
+      }
     }
   }
 
@@ -118,7 +126,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
     return (
       <DrillSummary
         title="Telingamu makin tajam!"
-        subtitle={`Dengar & jawab · ${correct} dari ${items.length} kalimat berhasil kamu tangkap.`}
+        subtitle={`Dengar & jawab · ${correct} dari ${items.length} kalimat berhasil kamu tangkap.${saveFailed ? " XP gagal disimpan, coba muat ulang halaman." : ""}`}
         onAgain={again}
         stats={[
           { label: "TOTAL XP", value: xp, bg: "bg-mango", ink: "text-mango-ink" },
@@ -181,7 +189,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
                     aria-checked={slow === s.slow}
                     onClick={() => setSlow(s.slow)}
                     className={cn(
-                      "h-9 min-w-[52px] cursor-pointer rounded-[9px] px-3 text-[0.875rem] font-extrabold",
+                      "h-10 min-w-[52px] cursor-pointer rounded-[9px] px-3 text-[0.875rem] font-extrabold",
                       slow === s.slow ? "bg-surface shadow-[0_2px_0_var(--color-hairline-strong)]" : "text-ink-muted",
                     )}
                   >

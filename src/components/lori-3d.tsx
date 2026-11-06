@@ -80,7 +80,7 @@ export function Lori3D({
         exposure={1.3}
         animation-name="LoriAlive"
         autoplay
-        loading="eager"
+        loading="lazy"
         reveal="auto"
         className="absolute inset-0 size-full cursor-grab touch-pan-y active:cursor-grabbing"
         style={{ visibility: ready ? "visible" : "hidden" }}

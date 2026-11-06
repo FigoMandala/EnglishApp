@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowRight, Loader2 } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -13,6 +15,9 @@ export function StartReviewButton({ dueCount }: { dueCount: number }) {
 
   function start(count: number) {
     setLoading(count);
+    // Navigasi kadang batal (popstate, route tergantung); kembalikan tombol
+    // setelah jeda supaya tidak spin selamanya kalau pindah halaman gagal.
+    window.setTimeout(() => setLoading((cur) => (cur === count ? null : cur)), 4000);
     router.push(`/kosakata/review?n=${count}`);
   }
 
@@ -23,7 +28,11 @@ export function StartReviewButton({ dueCount }: { dueCount: number }) {
         onClick={() => (dueCount > 0 ? start(Math.min(60, Math.max(10, dueCount))) : setOpen((prev) => !prev))}
         aria-expanded={dueCount > 0 ? undefined : open}
         disabled={loading !== null}
-        className="flex h-[58px] cursor-pointer items-center gap-2.5 rounded-[18px] bg-mango px-7 font-display text-[1.125rem] font-extrabold tracking-[0.02em] text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] transition-transform active:translate-y-[5px] active:shadow-none disabled:opacity-70"
+        className={buttonVariants({
+          variant: "reward",
+          size: "lg",
+          className: "gap-2.5 px-7 text-[1.125rem] disabled:opacity-70",
+        })}
       >
         {loading !== null && dueCount > 0 ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
         {dueCount > 0 ? "MULAI ULANG" : "PELAJARI KATA BARU"}

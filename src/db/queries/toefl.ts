@@ -135,6 +135,50 @@ export async function claimSimulationPart(id: number, index: number, sessionId: 
   return rows.length > 0;
 }
 
+/**
+ * Gabungkan soal batch ke sesi bagian simulasi secara optimistik: update hanya
+ * lolos kalau kolom `questions` masih persis teks yang baru dibaca. Dua batch
+ * paralel untuk bagian yang sama (mis. dua tab) tidak lagi saling menimpa
+ * daftar soal; yang kalah baca ulang dan merge ulang.
+ * Mengembalikan true kalau merge berhasil ditulis.
+ */
+export async function mergePartQuestions(
+  id: number,
+  expectedQuestions: string,
+  mergedQuestions: string,
+  passage: string | null,
+  progress: string,
+) {
+  const rows = await db
+    .update(toeflSessions)
+    .set({ questions: mergedQuestions, passage, progress })
+    .where(and(eq(toeflSessions.id, id), eq(toeflSessions.questions, expectedQuestions)))
+    .returning({ id: toeflSessions.id });
+  return rows.length > 0;
+}
+
+/**
+ * Simpan satu jawaban secara atomik: json_set hanya menulis slot `index`, dan
+ * hanya kalau slot masih kosong serta sesi belum ditutup. Aman terhadap
+ * pengiriman paralel (antrean offline klien) yang dulu saling menimpa jawaban.
+ * Mengembalikan isi kolom answers terbaru kalau slot berhasil diisi, null kalau tidak.
+ */
+export async function setSessionAnswer(id: number, index: number, choice: number) {
+  const path = `$[${index}]`;
+  const [row] = await db
+    .update(toeflSessions)
+    .set({ answers: sql`json_set(${toeflSessions.answers}, ${path}, ${choice})` })
+    .where(
+      and(
+        eq(toeflSessions.id, id),
+        isNull(toeflSessions.completedAt),
+        sql`json_extract(${toeflSessions.answers}, ${path}) is null`,
+      ),
+    )
+    .returning({ answers: toeflSessions.answers });
+  return row ?? null;
+}
+
 export async function listDueReviews(userId: number, today: string, limit = 15) {
   return db
     .select()
@@ -174,6 +218,25 @@ export async function getReview(userId: number, id: number) {
  * tambahkan kolom `fingerprint` + index dan cari langsung di SQL.
  */
 export async function findActiveReview(userId: number, questionFingerprint: string) {
+  // Jalur cepat: cocokkan kolom fingerprint lewat index (setelah backfill
+  // semua baris baru terisi).
+  const [direct] = await db
+    .select({
+      id: toeflReviews.id,
+      question: toeflReviews.question,
+      box: toeflReviews.box,
+      dueAt: toeflReviews.dueAt,
+    })
+    .from(toeflReviews)
+    .where(
+      and(eq(toeflReviews.userId, userId), eq(toeflReviews.fingerprint, questionFingerprint)),
+    )
+    .orderBy(desc(toeflReviews.id))
+    .limit(1);
+  if (direct) return direct;
+
+  // Baris lama sebelum kolom fingerprint ada: scan hanya baris null yang
+  // makin menyusut setelah skrip db:dedup-reviews mengisi sidik jarinya.
   const rows = await db
     .select({
       id: toeflReviews.id,
@@ -182,7 +245,7 @@ export async function findActiveReview(userId: number, questionFingerprint: stri
       dueAt: toeflReviews.dueAt,
     })
     .from(toeflReviews)
-    .where(eq(toeflReviews.userId, userId))
+    .where(and(eq(toeflReviews.userId, userId), isNull(toeflReviews.fingerprint)))
     .orderBy(desc(toeflReviews.id));
   return (
     rows.find((row) =>
@@ -196,6 +259,7 @@ export async function findActiveReview(userId: number, questionFingerprint: stri
 export async function createReview(values: {
   userId: number;
   question: string;
+  fingerprint?: string;
   box: number;
   dueAt: string;
 }) {

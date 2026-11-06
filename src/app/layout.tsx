@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Baloo_2,
   Figtree,
@@ -37,6 +37,16 @@ const code = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "EnglishApp",
   description: "Belajar bahasa Inggris: EPrT, kosakata, grammar, dan tutor AI.",
+};
+
+// viewport-fit=cover: konten menggambar sampai tepi di ponsel berponi (notch),
+// dan env(safe-area-inset-*) di shell/exam runner jadi aktif. Zoom tidak
+// dinonaktifkan (aksesibilitas).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#23252b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

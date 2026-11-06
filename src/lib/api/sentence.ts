@@ -1,7 +1,9 @@
 import { logAiUsage } from "@/db/queries/ai-usage";
+import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
 import { chatCompletionDetailed, AiError } from "@/lib/ai-client";
 import { EMPTY_USAGE } from "@/lib/ai-pricing";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export type SentenceFeedback = {
   corrected: string;
@@ -34,6 +36,19 @@ export async function checkSentence(
   const config = await getAiConfig();
   if (!aiConfigured(config)) {
     throw new AiError("Tutor AI belum dikonfigurasi. Isi API key di Pengaturan.");
+  }
+
+  const limit = await checkRateLimit(`grammar:user:${userId}`, 60, 10 * 60_000);
+  if (!limit.ok) {
+    throw new AiError("Latihan compose sudah melewati batas sementara. Istirahat dulu sebentar ya.");
+  }
+
+  // Pagar biaya: koreksi compose ikut kuota AI harian global (kill-switch
+  // admin) dan punya batas per-user supaya tidak bisa dipompa dalam loop.
+  // Reservasi atomik mencegah request paralel menembus anggaran.
+  const reservation = await reserveBudget(userId, "grammar", config.model);
+  if (!reservation) {
+    throw new AiError("Kuota AI harian habis. Coba lagi besok, atau hubungi admin.");
   }
 
   const userMessage = [
@@ -70,11 +85,13 @@ export async function checkSentence(
       ok: false,
     });
     throw error;
+  } finally {
+    await releaseReservation(reservation);
   }
 }
 
 function extractJson(raw: string) {
-  const stripped = raw.replace(/ thinking[\s\S]*?<\/think>/gi, "").trim();
+  const stripped = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   const fenced = stripped.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = (fenced?.[1] ?? stripped).trim();
   const start = candidate.search(/[{[]/);

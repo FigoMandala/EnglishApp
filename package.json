@@ -23,6 +23,8 @@
     "db:vocab": "tsx src/db/generate-vocabulary.ts",
     "db:vocab:frequency": "tsx src/db/generate-vocabulary-frequency.ts",
     "db:admin": "tsx src/db/create-admin.ts",
+    "db:clean-junk": "tsx src/db/clean-junk-vocabulary.ts",
+    "db:clean-junk:prod": "node --env-file=.env.production.local --import tsx src/db/clean-junk-vocabulary.ts",
     "db:calibration": "tsx src/db/calibration-report.ts",
     "db:calibration:prod": "node --env-file=.env.production.local --import tsx src/db/calibration-report.ts",
     "db:migrate:prod": "node --env-file=.env.production.local node_modules/drizzle-kit/bin.cjs migrate",
@@ -39,6 +41,9 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.0"
+  },
+  "overrides": {
+    "postcss": "8.5.23"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

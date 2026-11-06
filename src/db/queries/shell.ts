@@ -1,5 +1,5 @@
 import { getEptrTarget } from "@/db/queries/activity";
-import { mistakeGroups } from "@/db/queries/drills";
+import { mistakeSummary } from "@/db/queries/drills";
 import { listGrammarLessons } from "@/db/queries/grammar";
 import { leagueBoard } from "@/db/queries/league";
 import { learningPath, totalXp } from "@/db/queries/learning";
@@ -31,7 +31,7 @@ export async function shellSummary(userId: number): Promise<ShellSummary> {
     safe(totalXp(userId), 0),
     safe(getStreakState(userId, today), null),
     safe(vocabularyStats(userId), null),
-    safe(mistakeGroups(userId), null),
+    safe(mistakeSummary(userId), null),
     safe(learningPath(userId), []),
     safe(listGrammarLessons(userId), []),
     safe(getEptrTarget(userId), null),

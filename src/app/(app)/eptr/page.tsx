@@ -1,4 +1,5 @@
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
+
 import { loadSimulation, simulationHistory } from "@/lib/api/eprt-simulation";
 import { loadSession, toeflOverview } from "@/lib/api/toefl-turn";
 import { daysBetween } from "@/lib/dates";
@@ -10,6 +11,8 @@ import { getVoiceConfig } from "@/lib/voice-config";
 
 import { ToeflRunner } from "../toefl/toefl-runner";
 import { EprtHome } from "./eprt-home";
+
+export const metadata = { title: "EPrT · EnglishApp" };
 
 export const maxDuration = 300;
 

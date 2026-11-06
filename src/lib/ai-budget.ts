@@ -1,9 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { aiUsage, appConfig } from "@/db/schema";
+import type { AiFeature } from "@/db/queries/ai-usage";
 
 import { todayISO } from "./srs";
+import { estimateCostUsd, type TokenUsage } from "./ai-pricing";
 
 /**
  * Kill-switch anggaran AI harian. Kalau biaya hari ini melewati batas,
@@ -59,6 +61,71 @@ export type BudgetState = { allowed: boolean; spent: number; budget: number };
 export async function checkBudget(): Promise<BudgetState> {
   const [spent, budget] = await Promise.all([spentTodayUsd(), dailyBudgetUsd()]);
   return { allowed: spent < budget, spent, budget };
+}
+
+/** Estimasi token per panggilan fitur, untuk menghitung biaya reservasi (konservatif). */
+const RESERVE_TOKENS: Record<AiFeature, TokenUsage> = {
+  tutor: { promptTokens: 2_500, completionTokens: 600, totalTokens: 3_100 },
+  toefl: { promptTokens: 2_500, completionTokens: 1_800, totalTokens: 4_300 },
+  eptr: { promptTokens: 2_500, completionTokens: 1_800, totalTokens: 4_300 },
+  writing: { promptTokens: 2_000, completionTokens: 800, totalTokens: 2_800 },
+  grammar: { promptTokens: 900, completionTokens: 400, totalTokens: 1_300 },
+};
+
+/**
+ * Gerbang budget atomik: sisipkan baris reservasi berbiaya estimasi hanya
+ * kalau total biaya hari ini (termasuk reservasi paralel lain) masih di bawah
+ * batas. Syarat dievaluasi di statement INSERT yang sama (idiom addCappedXp),
+ * jadi N request paralel tidak bisa sama-sama lolos cek lalu menembus
+ * anggaran seperti pada checkBudget yang check-then-act.
+ *
+ * Setelah panggilan provider selesai, pemanggil wajib menghapus reservasi
+ * (releaseReservation) dan mencatat usage asli lewat logAiUsage — total
+ * bersih tetap benar. Mengembalikan id reservasi, atau null kalau anggaran
+ * sudah habis.
+ */
+export async function reserveBudget(
+  userId: number,
+  feature: AiFeature,
+  model: string,
+): Promise<number | null> {
+  const today = todayISO();
+  const budget = await dailyBudgetUsd();
+  const estimate = estimateCostUsd(model, RESERVE_TOKENS[feature]);
+
+  // Bersihkan reservasi yatim (proses mati sebelum sempat release) secara
+  // berkala. Discriminator: reservasi punya latency 0, token 0, biaya > 0 —
+  // baris usage asli tidak mungkin begitu sekaligus.
+  if (Math.random() < 0.02) {
+    await db
+      .delete(aiUsage)
+      .where(
+        and(
+          eq(aiUsage.latencyMs, 0),
+          eq(aiUsage.totalTokens, 0),
+          sql`cast(${aiUsage.costUsd} as real) > 0`,
+          lt(aiUsage.createdAt, sql`datetime('now', '-1 hour')`),
+        ),
+      )
+      .catch(() => undefined);
+  }
+
+  const result = await db.run(sql`
+    insert into ai_usage (user_id, feature, model, prompt_tokens, completion_tokens, total_tokens, cost_usd, latency_ms, ok, date)
+    select ${userId}, ${feature}, ${model}, 0, 0, 0, ${estimate.toFixed(6)}, 0, 1, ${today}
+    where (
+      select coalesce(sum(cast(cost_usd as real)), 0) from ai_usage where date = ${today}
+    ) + ${estimate} <= ${budget}
+    returning id
+  `);
+  const id = Number((result.rows?.[0] as Record<string, unknown> | undefined)?.id ?? 0);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Hapus reservasi biaya setelah usage asli dicatat (atau panggilan gagal). */
+export async function releaseReservation(id: number | null) {
+  if (!id) return;
+  await db.delete(aiUsage).where(eq(aiUsage.id, id)).catch(() => undefined);
 }
 
 /**

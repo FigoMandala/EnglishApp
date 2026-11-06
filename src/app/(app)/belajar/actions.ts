@@ -1,10 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
 
-import { db } from "@/db";
-import { grammarLessonProgress } from "@/db/schema";
 import { setLessonCompleted } from "@/db/queries/grammar";
 import { addXp, completeUnit } from "@/db/queries/learning";
 
@@ -13,18 +10,6 @@ import { todayISO } from "@/lib/srs";
 import { XP_REWARDS } from "@/lib/xp";
 
 export type BelajarState = { status: "idle" | "error"; message?: string };
-
-/** Cek apakah lesson sudah pernah punya baris progres (pernah ditandai selesai). */
-async function hasProgressRow(userId: number, lessonId: number) {
-  const [row] = await db
-    .select({ id: grammarLessonProgress.id })
-    .from(grammarLessonProgress)
-    .where(
-      and(eq(grammarLessonProgress.userId, userId), eq(grammarLessonProgress.lessonId, lessonId)),
-    )
-    .limit(1);
-  return Boolean(row);
-}
 
 /**
  * Tandai satu materi (lesson grammar) selesai dan beri XP sekali.
@@ -36,8 +21,10 @@ export async function markLessonDoneAction(lessonId: number): Promise<BelajarSta
     return { status: "error", message: "Materi tidak valid." };
   }
 
-  const firstTime = !(await hasProgressRow(user.id, lessonId));
-  await setLessonCompleted(user.id, lessonId, true);
+  // Nilai kembalian true hanya untuk pemenang race insert atomik di
+  // setLessonCompleted (onConflictDoNothing), jadi dua submit paralel tidak
+  // bisa sama-sama dapat XP seperti saat pre-check hasProgressRow dulu.
+  const firstTime = await setLessonCompleted(user.id, lessonId, true);
   if (firstTime) {
     await addXp(user.id, XP_REWARDS.grammarLesson, "lesson", todayISO());
     revalidatePath("/belajar");

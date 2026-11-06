@@ -356,6 +356,15 @@ export function ToeflRunner({
       .then((result) => {
         if (result.status === "error")
           setError(result.message ?? "Jawaban gagal disimpan.");
+        else {
+          // Sukses: pesan kegagalan kiriman sebelumnya tidak lagi relevan
+          // (jangan hapus pesan lain seperti "Waktu section habis").
+          setError((prev) => (prev && /Jawaban gagal|Belum tersimpan/.test(prev) ? null : prev));
+          // Antrean gagal sebelumnya dikirim ulang sekarang juga — kegagalan
+          // bisa terjadi walau browser online, tidak harus menunggu event online.
+          const queued = retryRef.current.splice(0);
+          for (const item of queued) sendAnswer(item.index, item.choice);
+        }
       })
       .catch(() => {
         retryRef.current.push({ index: answerIndex, choice });
@@ -489,7 +498,8 @@ export function ToeflRunner({
 
   const lowTime = left !== null && left <= LOW_TIME_MS;
   const timerVisible = !hideTimer || lowTime;
-  const answeredCount = answers.filter((answer) => answer !== null).length;
+  // finish() menandai soal yang tak dijawab dengan -1; angka itu bukan jawaban.
+  const answeredCount = answers.filter((answer) => answer !== null && answer !== -1).length;
 
   useEffect(() => {
     if (lowTime && !announcedRef.current && !finished) {
@@ -513,7 +523,7 @@ export function ToeflRunner({
   }
 
   const header = (trigger?: React.ReactNode) => (
-    <header className="sticky top-0 z-30 bg-charcoal text-charcoal-ink">
+    <header className="sticky top-0 z-30 bg-charcoal pt-[env(safe-area-inset-top)] text-charcoal-ink">
       <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <span className="flex items-center gap-2 text-[0.8125rem] font-extrabold tracking-[0.06em] text-charcoal-muted">
           <GraduationCap className="size-[18px] text-mango" strokeWidth={2.2} aria-hidden />

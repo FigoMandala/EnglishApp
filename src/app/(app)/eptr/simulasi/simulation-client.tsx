@@ -216,6 +216,8 @@ export function OpenPartButton({
     }
     router.push(`/eptr/simulasi?id=${id}&p=${index}`);
     router.refresh();
+    // Kalau navigasi ternyata batal, tombol tidak boleh spin selamanya.
+    window.setTimeout(() => setRunning(false), 4000);
   }
 
   return (

@@ -8,7 +8,7 @@ import { promptOfTheDay } from "@/lib/writing-prompts";
 
 import { ParagraphDrill } from "./paragraph-drill";
 
-export const metadata = { title: "Paragraf kilat · Writing Coach" };
+export const metadata = { title: "Paragraf Kilat · EnglishApp" };
 
 export default async function ParagraphDrillPage() {
   const user = await requireUser();

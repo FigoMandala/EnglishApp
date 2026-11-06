@@ -79,7 +79,7 @@ try {
   await gotoSettled(page, "/kosakata");
   check("belum login -> area app diarahkan ke /login", page.url().includes("/login"));
 
-  await page.getByRole("tab", { name: "Daftar" }).click();
+  await page.getByRole("tab", { name: "Buat akun" }).click();
   await fillAuth(page, "ab", pass);
   await submitAuth(page);
   check("username terlalu pendek ditolak", (await waitForError(page)).includes("minimal"));
@@ -123,7 +123,7 @@ try {
   await logout(page);
   await page.waitForURL("**/login", { timeout: WAIT });
 
-  await page.getByRole("tab", { name: "Daftar" }).click();
+  await page.getByRole("tab", { name: "Buat akun" }).click();
   await fillAuth(page, user.toUpperCase(), pass);
   await submitAuth(page);
   check(

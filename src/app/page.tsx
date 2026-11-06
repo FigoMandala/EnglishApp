@@ -1,4 +1,5 @@
 import {
+
   ArrowRight,
   Check,
   Flame,
@@ -15,6 +16,8 @@ import { Lori3D } from "@/components/lori-3d";
 import { Logo } from "@/components/logo";
 import { Anatomy } from "@/components/ui/anatomy";
 import { getCurrentUser } from "@/lib/session";
+
+export const metadata = { title: "EnglishApp · Persiapan EPrT, TOEFL & ngobrol sehari-hari" };
 
 const STEPS = [
   {
@@ -43,7 +46,7 @@ const FEATURES = [
   },
   {
     Icon: null,
-    tone: "bg-mango-soft text-mango-deep",
+    tone: "bg-mango-soft text-mango-ink",
     title: "Kosakata SRS",
     body: "Kartu dengan audio dan contoh kalimat. 4 tingkat ingatan menentukan kapan kartu kembali.",
   },
@@ -67,7 +70,7 @@ const FEATURES = [
   },
   {
     Icon: Flame,
-    tone: "bg-mango-soft text-mango-deep",
+    tone: "bg-mango-soft text-mango-ink",
     title: "Streak & Liga",
     body: "Pelindung streak untuk hari berat, akhir pekan santai, dan liga mingguan yang adil berdasarkan level.",
   },
@@ -268,9 +271,11 @@ export default async function HomePage() {
               Mulai persiapan EPrT
             </Link>
           </div>
-          <div className="flex flex-[1_1_360px] items-end justify-center">
-            <Kaka mood="coach" size={230} label="Kaka, pelatih EPrT" className="shrink-0" />
-            <div className="-ml-5 mb-36 max-w-[220px] rounded-[20px_20px_20px_6px] bg-canvas px-4 py-3.5 text-[0.9375rem] text-ink">
+          {/* Di 360px baris mascot+bubble tidak muat: biarkan bubble turun baris
+              dan Kaka menyusut (max-w-full) supaya tidak terpotong tepi layar. */}
+          <div className="flex min-w-0 flex-[1_1_360px] flex-wrap items-end justify-center gap-x-1">
+            <Kaka mood="coach" size={230} label="Kaka, pelatih EPrT" className="h-auto max-w-full" />
+            <div className="mb-36 ml-1 min-w-0 max-w-[220px] rounded-[20px_20px_20px_6px] bg-canvas px-4 py-3.5 text-[0.9375rem] text-ink sm:-ml-5">
               <strong className="block text-brick-deep">Kaka</strong>
               Aku agak galak soal waktu. Tapi skor Structure-mu bakal berterima kasih.
             </div>

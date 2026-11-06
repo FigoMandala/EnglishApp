@@ -1,12 +1,12 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { xpEvents } from "@/db/schema";
+import { writingSubmissions } from "@/db/schema";
 import { logActivity } from "@/db/queries/activity";
-import { addXp } from "@/db/queries/learning";
+import { addCappedXp } from "@/db/queries/learning";
 import {
   PARAGRAPH_MAX_WORDS,
   PARAGRAPH_MIN_WORDS,
@@ -18,12 +18,28 @@ import {
 import { analyzeEssay, reviewParagraph } from "@/lib/api/writing";
 import { AiError } from "@/lib/ai-client";
 import { guardUserInput } from "@/lib/moderation";
+import { checkRateLimit, refundRateLimit } from "@/lib/rate-limit";
 import { createWritingSubmission } from "@/db/queries/writing";
 import { todayISO } from "@/lib/srs";
 
 import { requireUser } from "@/lib/session";
 
 export type WritingState = { status: "idle" | "error"; message?: string };
+
+/** Batas penilaian AI per user per hari (esai berat, paragraf ringan). */
+const ESSAY_DAILY_LIMIT = 20;
+const PARAGRAPH_REVIEW_DAILY_LIMIT = 60;
+
+async function enforceAiDailyLimit(key: string, limit: number, label: string) {
+  const limitCheck = await checkRateLimit(key, limit, 24 * 60 * 60 * 1000);
+  if (!limitCheck.ok) {
+    return {
+      status: "error" as const,
+      message: `Kuota ${label} untuk hari ini sudah habis (maks ${limit}). Coba lagi besok ya.`,
+    };
+  }
+  return null;
+}
 
 export async function submitEssayAction(
   _prev: WritingState,
@@ -35,6 +51,10 @@ export async function submitEssayAction(
 
   const invalid = validateEssay(essay);
   if (invalid) return { status: "error", message: invalid };
+
+  const essayLimitKey = `writing:essay:user:${user.id}`;
+  const dailyLimit = await enforceAiDailyLimit(essayLimitKey, ESSAY_DAILY_LIMIT, "penilaian esai");
+  if (dailyLimit) return dailyLimit;
 
   const moderation = await guardUserInput(essay, "writing", user.id);
   if (!moderation.allowed) {
@@ -57,6 +77,9 @@ export async function submitEssayAction(
     revalidatePath("/writing");
     return { status: "idle", message: String(row.id) };
   } catch (error) {
+    // Panggilan AI gagal: kembalikan slot kuota supaya gangguan provider tidak
+    // mengubah "20 esai per hari" menjadi "20 percobaan per hari".
+    await refundRateLimit(essayLimitKey, 24 * 60 * 60 * 1000).catch(() => undefined);
     return {
       status: "error",
       message: error instanceof AiError ? error.message : "Penilaian esai sedang bermasalah.",
@@ -80,6 +103,14 @@ export async function reviewParagraphAction(input: ParagraphInput): Promise<Para
   const invalid = validateParagraph(paragraph);
   if (invalid) return { status: "error", message: invalid };
 
+  const paragraphLimitKey = `writing:paragraph:user:${user.id}`;
+  const dailyLimit = await enforceAiDailyLimit(
+    paragraphLimitKey,
+    PARAGRAPH_REVIEW_DAILY_LIMIT,
+    "koreksi paragraf",
+  );
+  if (dailyLimit) return dailyLimit;
+
   const moderation = await guardUserInput(paragraph, "writing", user.id);
   if (!moderation.allowed) {
     return { status: "error", message: "Paragrafmu tidak bisa dinilai. Tulis ulang dengan bahasa yang santun ya." };
@@ -89,6 +120,8 @@ export async function reviewParagraphAction(input: ParagraphInput): Promise<Para
     const score = await reviewParagraph(user.id, { prompt, outline, paragraph });
     return { status: "done", score };
   } catch (error) {
+    // Panggilan AI gagal: kembalikan slot kuota harian.
+    await refundRateLimit(paragraphLimitKey, 24 * 60 * 60 * 1000).catch(() => undefined);
     return {
       status: "error",
       message: error instanceof AiError ? error.message : "Koreksi paragraf sedang bermasalah.",
@@ -120,20 +153,16 @@ export async function finishParagraphAction(score: number, words: number): Promi
   }
 
   const today = todayISO();
-  const [earned] = await db
-    .select({ n: sql<number>`coalesce(sum(${xpEvents.amount}), 0)` })
-    .from(xpEvents)
-    .where(
-      and(
-        eq(xpEvents.userId, user.id),
-        eq(xpEvents.reason, "paragraph"),
-        eq(xpEvents.date, today),
-      ),
-    );
-  const room = Math.max(0, PARAGRAPH_XP_DAILY_CAP - Number(earned?.n ?? 0));
-  const xp = Math.min(PARAGRAPH_XP_PER_RUN, room, Math.round(score * PARAGRAPH_XP_PER_POINT));
 
-  if (xp > 0) await addXp(user.id, xp, "paragraph", today);
+  // Cap harian dicek di dalam INSERT (atomik): submit paralel tidak bisa
+  // menembus batas 60 XP/hari paragraf.
+  const xp = await addCappedXp(
+    user.id,
+    "paragraph",
+    today,
+    Math.min(PARAGRAPH_XP_PER_RUN, Math.round(score * PARAGRAPH_XP_PER_POINT)),
+    PARAGRAPH_XP_DAILY_CAP,
+  );
   await logActivity(user.id, "writing", `Paragraf kilat: skor ${score}`, today);
   revalidatePath("/belajar");
   revalidatePath("/writing");
@@ -144,10 +173,9 @@ export async function deleteEssayAction(id: number): Promise<WritingState> {
   const user = await requireUser();
   if (!Number.isInteger(id)) return { status: "error", message: "Esai tidak valid." };
 
-  const { db } = await import("@/db");
-  const { writingSubmissions } = await import("@/db/schema");
-  const { and, eq } = await import("drizzle-orm");
-  await db.delete(writingSubmissions).where(and(eq(writingSubmissions.id, id), eq(writingSubmissions.userId, user.id)));
+  await db
+    .delete(writingSubmissions)
+    .where(and(eq(writingSubmissions.id, id), eq(writingSubmissions.userId, user.id)));
   revalidatePath("/writing");
   return { status: "idle" };
 }

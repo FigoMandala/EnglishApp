@@ -16,10 +16,11 @@ import { DrillSummary } from "@/components/drill/summary";
 import { Lori } from "@/components/mascot";
 import { SpeechBubble } from "@/components/ui/bubble";
 import { sfx } from "@/lib/sfx";
-import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
+import { DEFAULT_PREFS, speakLines, stopSpeaking } from "@/lib/voices";
 import { cn } from "@/lib/utils";
 
 import { finishDrillAction } from "../actions";
+import { buttonVariants } from "@/components/ui/button";
 
 export type SpeakingItem = {
   id: number;
@@ -90,6 +91,7 @@ export function SpeakingDrill({
   const [xp, setXp] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [supported, setSupported] = useState(true);
+  const [saveFailed, setSaveFailed] = useState(false);
   const rec = useRef<Recognition | null>(null);
   const saved = useRef(false);
 
@@ -144,6 +146,8 @@ export function SpeakingDrill({
   }
 
   async function next() {
+    // Hentikan audio contoh soal sebelumnya agar tidak menumpuk di soal berikutnya.
+    stopSpeaking();
     const score = result?.score ?? 0;
     const all = [...scores, score];
     setScores(all);
@@ -159,8 +163,14 @@ export function SpeakingDrill({
     if (!saved.current) {
       saved.current = true;
       const avg = Math.round(all.reduce((a, b) => a + b, 0) / all.length);
-      const res = await finishDrillAction("speaking", avg, 100, topicId);
-      if (res.xp) setXp(res.xp);
+      try {
+        const res = await finishDrillAction("speaking", avg, 100, topicId);
+        if (res.xp) setXp(res.xp);
+      } catch {
+        // Izinkan percobaan ulang kalau pengguna menekan "Ulangi" di ringkasan.
+        saved.current = false;
+        setSaveFailed(true);
+      }
     }
   }
 
@@ -188,7 +198,7 @@ export function SpeakingDrill({
     return (
       <DrillSummary
         title="Suaramu makin jelas!"
-        subtitle={`Rata-rata skor pelafalan ${avg}.`}
+        subtitle={`Rata-rata skor pelafalan ${avg}.${saveFailed ? " XP gagal disimpan, coba muat ulang halaman." : ""}`}
         onAgain={onRestart ?? (() => window.location.reload())}
         stats={[
           { label: "SKOR", value: avg, bg: "bg-sky", ink: "text-sky-deep" },
@@ -332,12 +342,8 @@ export function SpeakingDrill({
       </DrillMain>
 
       <DrillFooter>
-        <button
-          type="button"
-          onClick={next}
-          className="h-[54px] cursor-pointer rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display font-extrabold text-ink-muted shadow-[0_4px_0_var(--color-hairline)] transition-transform active:translate-y-1 active:shadow-none"
-        >
-          LEWATI (MIK MATI)
+        <button type="button" onClick={next} className={buttonVariants({ variant: "secondary" })}>
+          {supported ? "Lewati" : "Lewati (mikrofon mati)"}
         </button>
         <div className="flex flex-wrap gap-3">
           {phase === "result" ? (

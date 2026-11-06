@@ -1,22 +1,21 @@
 import "./load-env";
 
 /**
- * Bersihkan review lama yang menumpuk: sebelum adanya dedup di recordResult,
- * menjawab soal yang sama salah berkali-kali membuat baris review baru setiap
- * kali. Skrip ini menggabungkan baris-baris dengan soal (fingerprint) sama ke
- * satu review terbaik, lalu menghapus sisanya.
+ * Rawat baris review EPrT:
+ * 1. Isi kolom `fingerprint` untuk baris lama yang masih null.
+ * 2. Gabungkan baris dengan soal (fingerprint) sama ke satu review terbaik,
+ *    lalu hapus sisanya.
+ * 3. Pasang unique index (user + fingerprint) supaya race dua jawaban salah
+ *    paralel tidak bisa membuat baris dobel lagi. Idempoten; jalankan ulang aman.
  *
  * Aturan gabungan per grup fingerprint:
  * - Simpan review dengan dueAt paling dekat (paling jatuh tempo).
  * - box = maksimum semua box di grup (progres SRS terbaik tidak hilang).
- * - dueAt = minimum (yang paling dekat menang), tapi tidak sebelum hari ini
- *   kalau grup punya box > 0... sebenarnya sederhananya: pakai dueAt terkecil
- *   apa adanya supaya soal yang memang jatuh tempo tetap muncul.
  *
- * Jalankan: npm run db:dedup-reviews (idempoten; jalankan ulang aman).
+ * Jalankan: npm run db:dedup-reviews
  */
 
-import { eq } from "drizzle-orm";
+import { eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "./index";
 import { toeflReviews } from "./schema";
@@ -30,26 +29,34 @@ function rowFingerprint(questionJson: string): string | null {
 }
 
 async function main() {
+  // 1) Backfill sidik jari baris lama.
+  const pending = await db
+    .select({ id: toeflReviews.id, question: toeflReviews.question })
+    .from(toeflReviews)
+    .where(isNull(toeflReviews.fingerprint));
+  let filled = 0;
+  for (const row of pending) {
+    const fp = rowFingerprint(row.question);
+    if (!fp) continue;
+    await db.update(toeflReviews).set({ fingerprint: fp }).where(eq(toeflReviews.id, row.id));
+    filled += 1;
+  }
+  if (filled > 0) console.log(`Sidik jari diisi untuk ${filled} baris lama.`);
+
+  // 2) Dedup per user + fingerprint.
   const rows = await db.select().from(toeflReviews).orderBy(toeflReviews.userId, toeflReviews.id);
   console.log(`Total review: ${rows.length}`);
 
-  // Kelompokkan per user + fingerprint soal.
   const groups = new Map<string, typeof rows>();
   for (const row of rows) {
-    const fp = rowFingerprint(row.question);
-    if (!fp) continue;
-    const key = `${row.userId}:${fp}`;
+    if (!row.fingerprint) continue;
+    const key = `${row.userId}:${row.fingerprint}`;
     const list = groups.get(key);
     if (list) list.push(row);
     else groups.set(key, [row]);
   }
 
   const duplicates = [...groups.values()].filter((group) => group.length > 1);
-  if (!duplicates.length) {
-    console.log("Tidak ada duplikat. Selesai.");
-    return;
-  }
-
   let removed = 0;
   for (const group of duplicates) {
     // Simpan baris dengan dueAt paling dekat (id terkecil sebagai tie-break).
@@ -66,10 +73,17 @@ async function main() {
       removed += 1;
     }
   }
-
   console.log(
-    `Ditemukan ${duplicates.length} grup duplikat. Dihapus ${removed} baris, tersimpan ${duplicates.length} review terbaik per soal.`,
+    duplicates.length
+      ? `Ditemukan ${duplicates.length} grup duplikat. Dihapus ${removed} baris.`
+      : "Tidak ada duplikat.",
   );
+
+  // 3) Unique index (baris fingerprint null tidak saling bentrok di SQLite).
+  await db.run(
+    sql`create unique index if not exists toefl_reviews_user_fp_unique on toefl_reviews (user_id, fingerprint)`,
+  );
+  console.log("Unique index toefl_reviews_user_fp_unique siap.");
 }
 
 main()

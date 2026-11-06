@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   adminCounts,
   deleteBankItem,
+  deleteUser,
   findUserRole,
   getBankItem,
   listAllUnits,
@@ -242,4 +243,30 @@ export async function setRoleAction(formData: FormData) {
   await logAudit({ actorId: admin.id, action: "user.role", detail: `@${target.username}: ${target.role} → ${nextRole}` });
   revalidatePath("/admin/pengguna");
   back("/admin/pengguna", { id: String(targetId), pesan: `Peran @${target.username} sekarang ${nextRole === "admin" ? "Admin" : "Pengguna"}.` });
+}
+
+/** Penuhi permintaan hapus data (UU PDP): hapus akun + seluruh datanya (cascade). */
+export async function deleteUserDataAction(formData: FormData) {
+  const admin = await guard();
+  const targetId = Number(formData.get("userId"));
+  const target = await findUserRole(targetId);
+  if (!target) back("/admin/pengguna", { galat: "Pengguna tidak ditemukan." });
+
+  // Penghapusan permanen butuh centang konfirmasi eksplisit.
+  if (formData.get("confirm") !== "yes") {
+    back("/admin/pengguna", { galat: "Centang konfirmasi dulu untuk menghapus akun & data." });
+  }
+  if (targetId === admin.id) {
+    back("/admin/pengguna", { galat: "Tidak bisa menghapus akun sendiri." });
+  }
+  if (target.role === "admin") {
+    back("/admin/pengguna", { galat: "Turunkan peran admin menjadi pengguna dulu sebelum menghapus." });
+  }
+
+  // Baris data_requests ikut terhapus otomatis (FK cascade); UI halaman
+  // sudah menampilkan "akun sudah dihapus" untuk permintaan tanpa username.
+  await deleteUser(targetId);
+  await logAudit({ actorId: admin.id, action: "user.delete", detail: `@${target.username} beserta seluruh datanya dihapus` });
+  revalidatePath("/admin/pengguna");
+  back("/admin/pengguna", { pesan: `Akun @${target.username} dan seluruh datanya dihapus.` });
 }

@@ -1,4 +1,5 @@
 import type { Vocabulary } from "@/db/schema";
+import { isVowellessWord } from "@/lib/vocabulary-frequency";
 
 export const VOCAB_LEVELS = ["basic", "intermediate", "advanced"] as const;
 export type VocabLevel = (typeof VOCAB_LEVELS)[number];
@@ -76,6 +77,8 @@ export function parseGeneratedWords(
 
     const key = normalizeWord(word);
     if (!/^[a-z][a-z '-]*$/i.test(word)) continue;
+    // Akronim/kata rusak tanpa vokal (sbjct, html) tidak layak jadi bahan belajar.
+    if (isVowellessWord(key)) continue;
     if (existing.has(key) || seen.has(key)) continue;
     seen.add(key);
 

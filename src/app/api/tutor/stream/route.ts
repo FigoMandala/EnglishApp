@@ -1,9 +1,10 @@
 import { createChatMessage, listChatMessages } from "@/db/queries/chat";
 import { logAiUsage } from "@/db/queries/ai-usage";
-import { checkBudget } from "@/lib/ai-budget";
+import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
 import { chatCompletionStream, AiError } from "@/lib/ai-client";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { guardUserInput } from "@/lib/moderation";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/session";
 import { getScenario, scenarioSystemPrompt, type CorrectionMode } from "@/lib/tutor-scenarios";
 
@@ -26,6 +27,16 @@ const QUESTION_RULES =
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+
+  // Satu pesan tutor = satu panggilan model berbiaya; 40 per 10 menit jauh
+  // di atas ritme belajar normal tapi menahan loop pembakar kuota.
+  const limit = await checkRateLimit(`tutor:user:${user.id}`, 40, 10 * 60_000);
+  if (!limit.ok) {
+    return Response.json(
+      { message: "Tutor sudah menerima banyak pesan berturut-turut. Coba lagi beberapa menit lagi." },
+      { status: 429 },
+    );
+  }
 
   const body = (await request.json().catch(() => null)) as {
     message?: unknown;
@@ -57,8 +68,10 @@ export async function POST(request: Request) {
   if (!aiConfigured(config)) {
     return Response.json({ message: "Tutor AI belum dikonfigurasi. Hubungi admin." }, { status: 503 });
   }
-  const budget = await checkBudget();
-  if (!budget.allowed) {
+  // Reservasi anggaran atomik: request paralel tidak bisa sama-sama lolos
+  // cek lalu menembus batas harian. Dilepas setelah stream selesai.
+  const reservation = await reserveBudget(user.id, "tutor", config.model);
+  if (!reservation) {
     return Response.json({ message: "Kuota AI harian habis. Coba lagi besok." }, { status: 429 });
   }
 
@@ -91,15 +104,28 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Klien bisa memutus sambungan kapan saja (tombol Stop, navigasi); setelah
+      // itu enqueue melempar error. Semua penulisan dan penutupan harus di-guard.
+      let closed = false;
       const send = (event: string, data: unknown) => {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          closed = true;
+        }
       };
       let full = "";
       try {
-        const result = await chatCompletionStream(config, messages, (delta) => {
-          full += delta;
-          send("delta", { text: delta });
-        });
+        const result = await chatCompletionStream(
+          config,
+          messages,
+          (delta) => {
+            full += delta;
+            send("delta", { text: delta });
+          },
+          request.signal,
+        );
         if (!scenario) await createChatMessage(user.id, "assistant", result.content || full);
         await logAiUsage({
           userId: user.id,
@@ -111,19 +137,40 @@ export async function POST(request: Request) {
         });
         send("done", {});
       } catch (error) {
-        await logAiUsage({
-          userId: user.id,
-          feature: "tutor",
-          model: config.model,
-          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-          latencyMs: Date.now() - startedAt,
-          ok: false,
-        }).catch(() => undefined);
-        const messageText =
-          error instanceof AiError ? error.message : "Tutor sedang bermasalah. Coba lagi sebentar.";
-        send("error", { message: messageText });
+        if (request.signal.aborted && full) {
+          // Klien berhenti di tengah jawaban: simpan sebagian balasan agar
+          // riwayat chat tidak menggantung, dan catat usage sekali saja.
+          await createChatMessage(user.id, "assistant", full).catch(() => undefined);
+          await logAiUsage({
+            userId: user.id,
+            feature: "tutor",
+            model: config.model,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            latencyMs: Date.now() - startedAt,
+            ok: true,
+          }).catch(() => undefined);
+        } else {
+          await logAiUsage({
+            userId: user.id,
+            feature: "tutor",
+            model: config.model,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            latencyMs: Date.now() - startedAt,
+            ok: false,
+          }).catch(() => undefined);
+          const messageText =
+            error instanceof AiError ? error.message : "Tutor sedang bermasalah. Coba lagi sebentar.";
+          send("error", { message: messageText });
+        }
       } finally {
-        controller.close();
+        await releaseReservation(reservation);
+        if (!closed) {
+          try {
+            controller.close();
+          } catch {
+            // controller sudah tertutup oleh runtime saat klien putus
+          }
+        }
       }
     },
   });

@@ -6,12 +6,15 @@ import { adminCounts, listBankItems, recentAuditLogs } from "@/db/queries/admin"
 import { usageOverview } from "@/db/queries/ai-usage";
 import { dailyBudgetUsd } from "@/lib/ai-budget";
 import { cn } from "@/lib/utils";
+import { requireAdmin } from "@/lib/session";
+import { formatDateTime } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
 const usd = (value: number) => `$${value.toFixed(2)}`;
 
 export default async function AdminHome() {
+  await requireAdmin();
   const [counts, usage, bank, logs, budget] = await Promise.all([
     adminCounts(),
     usageOverview(7),
@@ -140,7 +143,7 @@ export default async function AdminHome() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id} className="border-t-2 border-hairline-soft">
-                  <td className="tnum whitespace-nowrap px-6 py-3 text-ink-subtle">{log.createdAt}</td>
+                  <td className="tnum whitespace-nowrap px-6 py-3 text-ink-subtle">{formatDateTime(log.createdAt)}</td>
                   <td className="p-3 font-bold">{log.actor ? `@${log.actor}` : "sistem"}</td>
                   <td className="p-3">
                     <span className="rounded-md bg-primary-soft px-2 py-0.5 font-mono text-[0.75rem] font-extrabold text-primary-deep">

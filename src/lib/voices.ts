@@ -93,10 +93,14 @@ type Line = { speaker: string; text: string };
 
 let run = 0;
 let current: HTMLAudioElement | null = null;
+/** Settler untuk playback yang sedang berjalan; dipanggil stopSpeaking saat interupsi. */
+const interrupters = new Set<() => void>();
 
 /** Hentikan suara AI maupun suara browser. */
 export function stopSpeaking() {
   run += 1;
+  for (const interrupt of interrupters) interrupt();
+  interrupters.clear();
   current?.pause();
   current = null;
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -118,9 +122,28 @@ function playUrl(url: string, rate: number) {
   audio.playbackRate = rate;
   current = audio;
   return new Promise<void>((resolve, reject) => {
-    audio.onended = () => resolve();
-    audio.onerror = () => reject(new Error("tts"));
-    audio.play().catch(reject);
+    let settled = false;
+    const settle = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      audio.onended = null;
+      audio.onpause = null;
+      audio.onerror = null;
+      interrupters.delete(interrupt);
+      if (error) reject(error);
+      else resolve();
+    };
+    // Interupsi (stopSpeaking / run baru) harus tetap menyelesaikan promise
+    // supaya pemanggil bisa lanjut dan melepas blob URL-nya.
+    const interrupt = () => settle();
+    interrupters.add(interrupt);
+    audio.onended = () => settle();
+    audio.onpause = () => settle();
+    audio.onerror = () => settle(new Error("tts"));
+    audio.play().then(
+      () => undefined,
+      (error: unknown) => settle(error instanceof Error ? error : new Error("tts")),
+    );
   });
 }
 

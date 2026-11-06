@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/session";
 
 import { DrillToolbar } from "./drill-toolbar";
 
-export const metadata = { title: "Latihan Bebas · EnglishApp" };
+export const metadata = { title: "Soal Latihan · EnglishApp" };
 
 const LEVELS: PracticeLevel[] = ["basic", "intermediate", "advanced"];
 const LIMIT = 12;

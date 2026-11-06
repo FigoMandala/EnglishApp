@@ -6,11 +6,11 @@ import { Label } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { listDataRequests } from "@/db/queries/admin";
 import { listStudents } from "@/db/queries/reporting";
-import { relativeDay } from "@/lib/dates";
+import { formatDate, relativeDay } from "@/lib/dates";
 import { requireAdmin } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-import { setRoleAction } from "../actions";
+import { deleteUserDataAction, setRoleAction } from "../actions";
 import { Notice, param, type AdminSearchParams } from "../notice";
 
 export const dynamic = "force-dynamic";
@@ -48,10 +48,30 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: A
               <li key={req.id} className={cn("flex flex-wrap items-center gap-3 rounded-control px-3 py-2 text-[0.875rem]", req.status === "pending" ? "bg-brick-soft" : "bg-surface-muted")}>
                 <strong>{req.kind === "delete" ? "Hapus akun & data" : "Ekspor data"}</strong>
                 <span>{req.username ? `@${req.username}` : "akun sudah dihapus"}</span>
-                <span className="text-ink-subtle">{req.createdAt}</span>
+                <span className="text-ink-subtle">{formatDate(req.createdAt)}</span>
                 <span className={cn("ml-auto rounded-full px-2.5 py-0.5 text-[0.75rem] font-bold", req.status === "pending" ? "bg-brick text-white" : "bg-primary-soft text-primary-deep")}>
                   {req.status === "pending" ? "menunggu" : "selesai"}
                 </span>
+                {req.kind === "delete" && req.status === "pending" && req.username ? (
+                  <details className="w-full">
+                    <summary className="cursor-pointer list-none text-[0.8125rem] font-extrabold text-brick-deep hover:underline [&::-webkit-details-marker]:hidden">
+                      Proses hapus akun @{req.username}
+                    </summary>
+                    <form action={deleteUserDataAction} className="mt-2 flex flex-col gap-2 rounded-control border-2 border-brick/30 bg-surface p-3 shadow-overlay">
+                      <input type="hidden" name="userId" value={req.userId} />
+                      <p className="text-[0.8125rem] text-ink-muted">
+                        Hapus permanen akun @{req.username} beserta semua datanya (progres, esai, XP, sesi tes). Tindakan ini tidak bisa dibatalkan.
+                      </p>
+                      <label className="flex items-start gap-2 text-[0.8125rem] text-ink">
+                        <input type="checkbox" name="confirm" value="yes" required className="mt-0.5 size-5 accent-[var(--color-brick)]" />
+                        Saya paham penghapusan ini permanen dan tidak bisa dibatalkan.
+                      </label>
+                      <button type="submit" className={buttonVariants({ variant: "danger", size: "sm", className: "w-full" })}>
+                        Ya, hapus akun @{req.username}
+                      </button>
+                    </form>
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -91,6 +111,15 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: A
                 </tr>
               ))}
             </tbody>
+            {shown.length === 0 ? (
+              <tfoot>
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-ink-subtle">
+                    Tidak ada pengguna yang cocok dengan pencarian.
+                  </td>
+                </tr>
+              </tfoot>
+            ) : null}
           </table>
         </Card>
 
@@ -99,7 +128,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: A
             <>
               <div>
                 <h2 className="font-display text-xl font-extrabold">@{selected.username}</h2>
-                <p className="text-[0.8125rem] text-ink-subtle">Bergabung {selected.createdAt.slice(0, 10)}</p>
+                <p className="text-[0.8125rem] text-ink-subtle">Bergabung {formatDate(selected.createdAt)}</p>
               </div>
               <form action={setRoleAction} className="flex flex-col gap-3">
                 <input type="hidden" name="userId" value={selected.id} />

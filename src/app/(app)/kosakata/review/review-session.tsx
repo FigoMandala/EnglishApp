@@ -12,6 +12,7 @@ import { DEFAULT_PREFS, speakLines } from "@/lib/voices";
 import { cn } from "@/lib/utils";
 
 import { logVocabSessionAction, reviewCardAction } from "../actions";
+import { todayISO } from "@/lib/srs";
 
 export type ReviewCard = {
   id: number;
@@ -64,6 +65,7 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [lastSchedule, setLastSchedule] = useState<string | null>(null);
   const swapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -97,6 +99,11 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
     setBusy(true);
     try {
       const result = await reviewCardAction(card.id, g.knew, g.grade);
+      if (result.status === "error") {
+        setError(result.message ?? "Jawaban tidak tersimpan. Coba lagi.");
+        return; // kartu tidak maju, nilai bisa diberikan ulang
+      }
+      setError(null);
       if (g.knew) {
         setCorrect((prev) => prev + 1);
         sfx.correct();
@@ -106,13 +113,15 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
       }
       if (result.dueAt) {
         const days = Math.round(
-          (Date.parse(`${result.dueAt}T00:00:00Z`) - Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00Z")) /
+          (Date.parse(`${result.dueAt}T00:00:00Z`) - Date.parse(todayISO() + "T00:00:00Z")) /
             86_400_000,
         );
         setLastSchedule(days > 30 ? "1 bulan+" : days > 1 ? `${days} hari lagi` : "besok lagi");
       }
       if (index + 1 >= total) {
-        await logVocabSessionAction(g.knew ? correct + 1 : correct, total);
+        // Nilai kartu terakhir sudah tersimpan; log sesi hanya pelengkap,
+        // jadi kegagalannya tidak boleh membuat pengguna terjebak di kartu ini.
+        await logVocabSessionAction(g.knew ? correct + 1 : correct, total).catch(() => undefined);
         setFinished(true);
         sfx.levelUp();
         router.refresh();
@@ -126,6 +135,8 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
           setIndex((prev) => prev + 1);
         }, 240);
       }
+    } catch {
+      setError("Koneksi bermasalah. Jawaban belum tersimpan, coba lagi.");
     } finally {
       setBusy(false);
     }
@@ -377,6 +388,11 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
 
       <footer className="sticky bottom-0 border-t-2 border-hairline bg-canvas">
         <div className="mx-auto max-w-[1040px] px-6 py-5">
+          {error ? (
+            <p role="alert" className="mb-3 rounded-[12px] bg-brick-soft px-4 py-2.5 text-center text-[0.875rem] font-bold text-brick-deep">
+              {error}
+            </p>
+          ) : null}
           {revealed ? (
             <div role="group" aria-label="Seberapa ingat?" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {GRADES.map((g, i) => (

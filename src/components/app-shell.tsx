@@ -23,7 +23,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { SoundToggle } from "@/components/fx/sound-toggle";
 import { Logo } from "@/components/logo";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import type { ShellSummary } from "@/db/queries/shell";
+import { buttonVariants } from "@/components/ui/button";
+
 import { cn } from "@/lib/utils";
 
 export type NavLink = { href: string; label: string; icon: typeof GraduationCap; short?: string };
@@ -98,7 +101,10 @@ function NavBadge({ href, summary }: { href: string; summary: ShellSummary }) {
   }
   if (href === "/eptr" && summary.daysToTest !== null) {
     return (
-      <span className="flex h-[22px] items-center rounded-full bg-charcoal px-2 text-[0.75rem] font-extrabold text-mango-line">
+      <span
+        aria-label={`Tes EPrT ${summary.daysToTest} hari lagi`}
+        className="flex h-[22px] items-center rounded-full bg-charcoal px-2 text-[0.75rem] font-extrabold text-mango-line"
+      >
         H-{summary.daysToTest}
       </span>
     );
@@ -177,13 +183,14 @@ export function AppShell({
       if (event.key === "Escape") closeDrawerRef.current();
     };
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
       menuButton?.focus();
     };
   }, [drawerOpen]);
+
+  // iOS Safari mengabaikan overflow:hidden; kunci scroll dengan position:fixed.
+  useBodyScrollLock(drawerOpen);
 
   const initials = (displayName || username).slice(0, 2).toUpperCase();
 
@@ -244,7 +251,7 @@ export function AppShell({
       ) : null}
       <Link
         href={`/belajar/${summary.current.slug}`}
-        className="flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-primary font-display text-[0.875rem] font-extrabold tracking-[0.02em] text-white shadow-[0_4px_0_var(--color-primary-deep)] transition-transform active:translate-y-1 active:shadow-none"
+        className={buttonVariants({ variant: "primary", size: "sm", className: "justify-center gap-1.5" })}
       >
         Lanjut belajar
         <ArrowRight className="size-4" strokeWidth={2.6} aria-hidden />
@@ -319,7 +326,7 @@ export function AppShell({
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-[0.875rem] font-extrabold text-ink">{displayName || `@${username}`}</span>
             <span className="block truncate text-[0.75rem] font-bold text-ink-subtle">
-              @{username} · {isAdmin ? "Admin" : "Murid"}
+              @{username} · {isAdmin ? "Admin" : "Pengguna"}
             </span>
           </span>
         </Link>
@@ -348,7 +355,7 @@ export function AppShell({
       </a>
 
       {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col border-r-2 border-hairline bg-surface-muted lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col border-r-2 border-hairline bg-surface-muted lg:flex">
         <div className="flex h-[68px] shrink-0 items-center border-b-2 border-hairline px-[18px]">
           <Logo href="/belajar" size={36} />
         </div>
@@ -366,14 +373,14 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header mobile */}
-        <header className="sticky top-0 z-30 border-b-2 border-hairline bg-canvas/95 backdrop-blur-md lg:hidden">
+        <header className="sticky top-0 z-30 border-b-2 border-hairline bg-canvas/95 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:hidden">
           <div className="flex h-[60px] items-center gap-2 px-4 sm:px-6">
             <Logo href="/belajar" size={34} showText={false} />
             <span className="flex-1" />
             <Link
               href="/streak"
               aria-label={`Streak ${summary.streak} hari`}
-              className="flex h-9 items-center gap-1 rounded-[10px] bg-mango-soft px-2.5 font-round text-[1rem] font-extrabold text-mango-ink"
+              className="flex h-10 items-center gap-1 rounded-[10px] bg-mango-soft px-2.5 font-round text-[1rem] font-extrabold text-mango-ink"
             >
               <Flame className="size-4 fill-mango text-mango-deep" strokeWidth={2} aria-hidden />
               {summary.streak}
@@ -381,7 +388,7 @@ export function AppShell({
             <Link
               href="/progres"
               aria-label={`${nf.format(summary.xp)} XP`}
-              className="flex h-9 items-center gap-1 rounded-[10px] bg-primary-soft px-2.5 font-round text-[1rem] font-extrabold text-primary-deep"
+              className="flex h-10 items-center gap-1 rounded-[10px] bg-primary-soft px-2.5 font-round text-[1rem] font-extrabold text-primary-deep"
             >
               <Zap className="size-3.5 fill-primary-bright text-primary-deep" strokeWidth={2} aria-hidden />
               {nf.format(summary.xp)}

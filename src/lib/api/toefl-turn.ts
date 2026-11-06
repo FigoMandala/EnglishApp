@@ -10,6 +10,7 @@ import {
   getToeflSession,
   listDueReviews,
   listToeflSessions,
+  setSessionAnswer,
   updateReview,
   updateToeflSession,
   type Track,
@@ -26,6 +27,8 @@ import {
   SETTING_KEYS,
 } from "@/db/queries/activity";
 import { countQuestionCallsToday, logAiUsage, type AiFeature } from "@/db/queries/ai-usage";
+import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
+
 import {
   getQuestionStats,
   levelBand,
@@ -37,7 +40,6 @@ import {
 } from "@/db/queries/question-bank";
 import { judgeQuestion } from "@/lib/calibration";
 import { chatJsonRaw, AiError, type ProviderMessage } from "@/lib/ai-client";
-import { checkBudget } from "@/lib/ai-budget";
 import { EMPTY_USAGE } from "@/lib/ai-pricing";
 import { aiConfigured, getAiConfig, type AiConfig } from "@/lib/ai-config";
 import { isExpired, parseTimers } from "@/lib/eprt-simulation";
@@ -333,9 +335,10 @@ function sanitizeQuestions(value: unknown, type: QuestionType, grouped = false):
 async function ask(config: AiConfig, system: string, prompt: string, ctx: UsageContext, deadline: number) {
   const startedAt = Date.now();
 
-  // Kill-switch anggaran: hentikan generate kalau biaya harian lewat batas.
-  const budget = await checkBudget();
-  if (!budget.allowed) {
+  // Kill-switch anggaran: reservasi atomik menahan generate kalau biaya
+  // harian lewat batas, dan mencegah request paralel menembus anggaran.
+  const reservation = await reserveBudget(ctx.userId, ctx.feature, config.model);
+  if (!reservation) {
     throw new AiError("Kuota AI harian habis. Coba lagi besok, atau hubungi admin.");
   }
 
@@ -394,6 +397,8 @@ async function ask(config: AiConfig, system: string, prompt: string, ctx: UsageC
       });
     }
     throw error;
+  } finally {
+    await releaseReservation(reservation);
   }
 }
 
@@ -929,11 +934,9 @@ export async function answerQuestion(
   if (!row) throw new AiError("Sesi tidak ditemukan.");
 
   const questions = parseQuestions(row.questions);
-  const answers = parseAnswers(row.answers, questions.length);
   const question = questions[index];
   if (!question) throw new AiError("Soal tidak ditemukan.");
   if (choice < 0 || choice >= question.options.length) throw new AiError("Jawaban tidak valid.");
-  if (answers[index] !== null) return isComplete(answers);
   if (row.completedAt) throw new AiError("Bagian ini sudah ditutup.");
   if (row.simulationId && row.section !== "review") {
     const sim = await getSimulation(userId, row.simulationId);
@@ -942,11 +945,20 @@ export async function answerQuestion(
     }
   }
 
-  answers[index] = choice;
+  // Klaim slot jawaban secara atomik (json_set per slot): pengiriman paralel
+  // dari antrean offline tidak lagi saling menimpa jawaban satu sama lain.
+  const updated = await setSessionAnswer(row.id, index, choice);
+  if (!updated) {
+    // Slot tidak terisi: sudah terisi oleh kiriman lain, atau sesi baru saja
+    // ditutup. Baca ulang dan perlakukan jawaban duplikat sebagai benign.
+    const fresh = await getToeflSession(userId, sessionId);
+    if (!fresh) throw new AiError("Sesi tidak ditemukan.");
+    return isComplete(parseAnswers(fresh.answers, questions.length));
+  }
+
   await recordResult(userId, question, choice);
   await recordCalibration(userId, row.track, question, choice);
-  await updateToeflSession(row.id, { answers: JSON.stringify(answers) });
-  return isComplete(answers);
+  return isComplete(parseAnswers(updated.answers, questions.length));
 }
 
 /**
@@ -998,11 +1010,18 @@ async function recordResult(userId: number, question: ToeflQuestion, choice: num
         await updateReview(existing.id, { box: 0, dueAt: today });
       return;
     }
-    await createReview({
-      userId,
-      question: JSON.stringify(question),
-      ...nextReview(0, false, today),
-    });
+    try {
+      await createReview({
+        userId,
+        question: JSON.stringify(question),
+        fingerprint: fingerprint(questionText(question)),
+        ...nextReview(0, false, today),
+      });
+    } catch (error) {
+      // Dua jawaban salah paralel bisa sama-sama lolos findActiveReview;
+      // unique index menolak yang kedua. Perlakukan seperti "sudah ada".
+      if (!(error instanceof Error) || !/UNIQUE/i.test(error.message)) throw error;
+    }
   }
 }
 

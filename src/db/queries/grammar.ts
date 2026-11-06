@@ -92,8 +92,14 @@ export async function setLessonCompleted(userId: number, lessonId: number, compl
     return false;
   }
 
-  await db.insert(grammarLessonProgress).values({ userId, lessonId, completedAt });
-  return completed;
+  // Dua klik paralel bisa sama-sama lolos cek di atas; yang kalah tidak
+  // meledak UNIQUE constraint berkat onConflictDoNothing.
+  const [inserted] = await db
+    .insert(grammarLessonProgress)
+    .values({ userId, lessonId, completedAt })
+    .onConflictDoNothing()
+    .returning({ id: grammarLessonProgress.id });
+  return inserted ? completed : false;
 }
 
 export async function grammarStats(userId: number) {

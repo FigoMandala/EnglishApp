@@ -16,6 +16,9 @@ export async function checkRateLimit(
   limit: number,
   windowMs: number,
 ): Promise<RateLimitResult> {
+  // Sekitar 1% pemanggilan menyempatkan pembersihan entri kedaluwarsa supaya
+  // tabel tidak tumbuh tanpa batas (fungsi purge dulunya tidak pernah dipanggil).
+  if (Math.random() < 0.01) purgeExpiredRateLimits().catch(() => undefined);
   const now = Date.now();
   const nowStr = String(now);
 
@@ -55,10 +58,44 @@ export async function checkRateLimit(
     return { ok: true, remaining: limit - 1, retryAfterMs: 0 };
   }
 
-  // 3) Jendela masih aktif dan kuota habis: tolak.
+  // 3) Kalau langkah 2 gagal karena baris baru dibuat bersamaan oleh request
+  // lain (upsert hanya menimpa window kedaluwarsa), coba naikkan hitungan
+  // sekali lagi sebelum menolak — jangan langsung blok pemanggil pertama.
+  const retried = await db
+    .update(rateLimits)
+    .set({ count: sql`${rateLimits.count} + 1`, updatedAt: sql`(datetime('now'))` })
+    .where(
+      and(
+        eq(rateLimits.key, key),
+        lt(rateLimits.count, limit),
+        gt(rateLimits.windowStart, String(now - windowMs)),
+      ),
+    )
+    .returning({ count: rateLimits.count });
+
+  if (retried.length > 0) {
+    const count = retried[0].count;
+    return { ok: true, remaining: Math.max(0, limit - count), retryAfterMs: 0 };
+  }
+
+  // 4) Jendela masih aktif dan kuota habis: tolak.
   const [row] = await db.select().from(rateLimits).where(eq(rateLimits.key, key)).limit(1);
   const windowStart = Number(row?.windowStart) || now;
   return { ok: false, remaining: 0, retryAfterMs: Math.max(0, windowMs - (now - windowStart)) };
+}
+
+/**
+ * Kembalikan satu hitungan kuota untuk key yang masih dalam window berlaku.
+ * Dipakai saat panggilan mahal (AI) gagal sebelum benar-benar dipakai, supaya
+ * "N per hari" tidak berubah menjadi "N percobaan per hari" saat provider
+ * sedang gangguan. Tidak melakukan apa pun kalau window sudah ganti.
+ */
+export async function refundRateLimit(key: string, windowMs: number) {
+  const now = Date.now();
+  await db
+    .update(rateLimits)
+    .set({ count: sql`max(0, ${rateLimits.count} - 1)`, updatedAt: sql`(datetime('now'))` })
+    .where(and(eq(rateLimits.key, key), gt(rateLimits.windowStart, String(now - windowMs))));
 }
 
 /** Bersihkan entri rate-limit yang sudah kedaluwarsa (dipanggil berkala). */

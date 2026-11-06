@@ -9,7 +9,7 @@ import { SpeechBubble } from "@/components/ui/bubble";
 import { Card } from "@/components/ui/card";
 import { listGrammarLessons } from "@/db/queries/grammar";
 import { completedUnitIds, getUnitBySlug, isUnitCompleted, listUnitsWithItems } from "@/db/queries/learning";
-import { listVocabularyCards } from "@/db/queries/vocabulary";
+import { listUnitWordPool, vocabularyDetails } from "@/db/queries/vocabulary";
 import { todayISO } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
 import { pickUnitWords } from "@/lib/unit-words";
@@ -19,7 +19,7 @@ import { XP_REWARDS } from "@/lib/xp";
 
 import { CompleteUnitButton } from "./complete-button";
 
-export const metadata = { title: "Unit · Jalur Belajar" };
+export const metadata = { title: "Unit Belajar · EnglishApp" };
 
 const LEVEL_LABEL = { basic: "DASAR", intermediate: "MENENGAH", advanced: "LANJUT" } as const;
 
@@ -75,24 +75,20 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
   const doneCount = steps.filter((step) => step.state === "done").length;
   const nextStep = steps.find((step) => step.state === "current");
 
-  // Kata untuk langkah kosakata: dicocokkan dari judul item.
-  const allWords = await listVocabularyCards(user.id);
-  const unitWords = unit.items
+  // Kata untuk langkah kosakata: kandidat dipilih dari kolam ringan (tanpa
+  // arti/contoh), lalu detail lengkap hanya diambil untuk kata yang terpilih.
+  const pool = await listUnitWordPool(user.id);
+  const candidateIds = unit.items
     .filter((item) => item.kind === "vocab")
     .flatMap((item) =>
-      pickUnitWords(
-        allWords.map((word) => ({
-          id: word.id,
-          word: word.word,
-          level: word.level,
-          topic: word.topic,
-          frequencyRank: word.frequencyRank,
-        })),
-        { title: item.title, level: unit.level, unitOrder: order + 1, count: item.vocabCount ?? 10 },
-      ),
-    )
-    .map((candidate) => allWords.find((word) => word.id === candidate.id))
-    .filter((word): word is (typeof allWords)[number] => Boolean(word));
+      pickUnitWords(pool, {
+        title: item.title,
+        level: unit.level,
+        unitOrder: order + 1,
+        count: item.vocabCount ?? 10,
+      }).map((candidate) => candidate.id),
+    );
+  const unitWords = await vocabularyDetails(user.id, candidateIds);
   const today = todayISO();
 
   return (

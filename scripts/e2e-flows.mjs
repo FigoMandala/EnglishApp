@@ -59,7 +59,7 @@ async function registerAndLogin(page) {
   const user = `uji${Date.now()}`;
   const pass = "rahasia12345";
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
-  await page.getByRole("tab", { name: "Daftar" }).click();
+  await page.getByRole("tab", { name: "Buat akun" }).click();
   await page.fill("#username", user);
   await page.fill("#password", pass);
   await Promise.all([
@@ -86,7 +86,7 @@ async function main() {
     check("halaman belajar menampilkan peta unit", (await page.locator("ol > li").count()) > 0);
     check(
       "streak untuk user baru jujur (bukan 'Streak aktif' palsu)",
-      belajarText.includes("hari streak") && !belajarText.includes("Streak aktif"),
+      belajarText.includes("Streak") && belajarText.includes("hari ini belum aman"),
     );
     check("target harian tampil", belajarText.includes("Target harian"));
 
@@ -106,8 +106,9 @@ async function main() {
     await page.waitForURL("**/materi/**", { timeout: WAIT });
     const lessonText = (await page.textContent("body")) ?? "";
     check("halaman materi punya latihan", lessonText.includes("Latihan"));
-    // Materi tampil per langkah; langkah terakhir berisi tombol mulai latihan (layar penuh, satu soal per layar).
-    await page.getByRole("tab", { name: /Latihan/ }).click();
+    // Materi tampil per langkah (tombol stepper, bukan role tab); langkah
+    // terakhir berisi latihan (layar penuh, satu soal per layar).
+    await page.getByRole("button", { name: "Latihan", exact: true }).click();
     await page.getByRole("button", { name: /MULAI LATIHAN|ULANGI LATIHAN/ }).click();
     const checkButton = page.getByRole("button", { name: "PERIKSA" });
     await checkButton.waitFor({ timeout: WAIT });
@@ -131,34 +132,28 @@ async function main() {
     const kosaText = (await page.textContent("body")) ?? "";
     check("halaman kosakata menampilkan statistik", kosaText.includes("Jatuh tempo"));
     check("chip topik dirender", kosaText.includes("Semua topik"));
-    check("prognosa 7 hari tampil", kosaText.includes("Perkiraan ulangan"));
+    check("prognosa 7 hari tampil", kosaText.includes("Prakiraan 7 hari"));
 
     // Mulai review. User baru tidak punya kartu jatuh tempo, tapi tombol harus
     // tetap bisa dibuka untuk memilih jumlah kata baru (bug lama: tombol mati).
-    const startButton = page.locator("button:has-text('kartu jatuh tempo')").first();
-    const startLabel = (await startButton.textContent()) ?? "";
-    if (startLabel.includes("Belum ada")) {
-      check("tidak ada kartu jatuh tempo untuk user baru", true);
-      check("tombol tetap bisa diklik meski belum ada kartu due", await startButton.isEnabled());
-      await startButton.click();
-      await page.waitForTimeout(400);
-      const bodyAfterOpen = (await page.textContent("body")) ?? "";
-      check("pilihan jumlah kata baru muncul", bodyAfterOpen.includes("pelajari kata baru"));
-      // Masuk lewat URL langsung supaya alur review tetap teruji.
-      await page.goto(`${BASE}/kosakata/review?n=5`, { waitUntil: "networkidle" });
-    } else {
-      await startButton.click();
-      await page.waitForURL("**/kosakata/review**", { timeout: WAIT });
-    }
+    const startButton = page.locator("button:has-text('PELAJARI KATA BARU')").first();
+    check("tombol kata baru tersedia untuk user baru", (await startButton.count()) > 0);
+    check("tombol tetap bisa diklik meski belum ada kartu due", await startButton.isEnabled());
+    await startButton.click();
+    await page.waitForTimeout(400);
+    const bodyAfterOpen = (await page.textContent("body")) ?? "";
+    check("pilihan jumlah kata baru muncul", bodyAfterOpen.includes("Kata baru"));
+    // Masuk lewat URL langsung supaya alur review tetap teruji.
+    await page.goto(`${BASE}/kosakata/review?n=5`, { waitUntil: "networkidle" });
     if (page.url().includes("/kosakata/review")) {
       check("mulai review -> halaman review", true, page.url());
 
       // Jawab 3 kartu pertama: buka arti lalu pilih benar/salah bergantian.
       for (let i = 0; i < 3; i += 1) {
-        const reveal = page.locator("button:has-text('TAMPILKAN ARTI')");
+        const reveal = page.getByRole("button", { name: "LIHAT ARTI", exact: true });
         if ((await reveal.count()) === 0) break;
         await reveal.click();
-        const know = page.getByRole("button", { name: /^Bisa/ });
+        const know = page.getByRole("button", { name: /^Familiar/ });
         const dont = page.getByRole("button", { name: /^Lupa/ });
         const pick = i % 2 === 0 ? know : dont;
         await pick.click();
@@ -172,12 +167,12 @@ async function main() {
         );
       }
 
-      // Shortcut keyboard: Spasi buka arti, 3 = "Bisa".
-      const reveal2 = page.locator("button:has-text('TAMPILKAN ARTI')");
+      // Shortcut keyboard: Spasi buka arti, 3 = "Familiar".
+      const reveal2 = page.getByRole("button", { name: "LIHAT ARTI", exact: true });
       if ((await reveal2.count()) > 0) {
         await page.keyboard.press(" ");
         await page.waitForTimeout(300);
-        const meaningVisible = (await page.getByRole("button", { name: /^Bisa/ }).count()) > 0;
+        const meaningVisible = (await page.getByRole("button", { name: /^Familiar/ }).count()) > 0;
         check("shortcut Spasi membuka arti", meaningVisible);
         await page.keyboard.press("3");
         await page.waitForTimeout(1200);
@@ -208,7 +203,7 @@ async function main() {
     let answered = 0;
     for (let i = 0; i < 40; i += 1) {
       const nextBtn = page.locator("button:has-text('Soal berikutnya')");
-      const examineBtn = page.locator("button:has-text('Periksa jawaban')");
+      const examineBtn = page.locator("button:has-text('Periksa')");
       const finishBtn = page.locator("button:has-text('Lihat hasil')");
       if ((await finishBtn.count()) > 0) {
         await finishBtn.click();
@@ -233,10 +228,12 @@ async function main() {
       await page.waitForTimeout(300);
     }
 
+    // Tunggu layar hasil dirender setelah server action finishToefl selesai.
+    await page.getByText("Hasil latihan").waitFor({ timeout: WAIT });
     const resultText = (await page.textContent("body")) ?? "";
     check(
       "hasil latihan muncul setelah semua soal dijawab",
-      resultText.includes("Hasil latihan") && resultText.includes("jawaban benar"),
+      resultText.includes("Hasil latihan") && /benar/.test(resultText),
       `${answered} interaksi`,
     );
 

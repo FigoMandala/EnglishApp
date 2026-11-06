@@ -406,12 +406,21 @@ export const toeflReviews = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     question: text("question").notNull(),
+    // Sidik jari soal (sha1 pendek) supaya dedup bisa dicari di SQL, bukan
+    // parse-JSON semua baris. Baris lama sebelum backfill bernilai null.
+    fingerprint: text("fingerprint"),
     box: integer("box").notNull().default(0),
     dueAt: text("due_at").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("toefl_reviews_user_due_idx").on(table.userId, table.dueAt)],
+  (table) => [
+    index("toefl_reviews_user_due_idx").on(table.userId, table.dueAt),
+    index("toefl_reviews_user_fp_idx").on(table.userId, table.fingerprint),
+    // Satu review aktif per soal per pengguna: dimanfaatkan recordResult untuk
+    // dedup jawaban salah paralel (UNIQUE violation). Dibuat juga di migrasi 0010.
+    uniqueIndex("toefl_reviews_user_fp_unique").on(table.userId, table.fingerprint),
+  ],
 );
 
 export const chatMessages = sqliteTable(
