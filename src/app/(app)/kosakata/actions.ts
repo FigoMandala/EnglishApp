@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { logActivity } from "@/db/queries/activity";
-import { addXp } from "@/db/queries/learning";
+import { addCappedXp } from "@/db/queries/learning";
 import { reviewCard } from "@/db/queries/vocabulary";
 
 import { requireUser } from "@/lib/session";
@@ -12,9 +12,12 @@ import { XP_REWARDS } from "@/lib/xp";
 
 export type ReviewState = { status: "idle" | "error"; message?: string };
 
+/** Batas XP review per hari: sesi terbesar (60 kartu) x XP per kartu benar. */
+const VOCAB_REVIEW_DAILY_XP_CAP = 180;
+
 /**
- * Ulangi satu kartu: update jadwal FSRS dan (untuk kartu baru yang benar)
- * beri XP sekali. Mengembalikan jadwal berikutnya untuk ditampilkan.
+ * Ulangi satu kartu: update jadwal FSRS dan beri XP untuk jawaban benar.
+ * Mengembalikan jadwal berikutnya untuk ditampilkan.
  */
 export async function reviewCardAction(
   vocabularyId: number,
@@ -29,11 +32,13 @@ export async function reviewCardAction(
   const safeGrade: ReviewGrade = grade === "hard" || grade === "easy" ? grade : "good";
   const next = await reviewCard(user.id, vocabularyId, correct, safeGrade);
 
-  // XP hanya untuk kartu yang pertama kali dikuasai (review pertama, jawab
-  // benar). Penanda firstReview dihitung di statement UPDATE yang sama, jadi
-  // dua review paralel tidak bisa sama-sama dapat XP.
-  if (correct && next.firstReview) {
-    await addXp(user.id, XP_REWARDS.vocabCard, "vocab", todayISO());
+  // Setiap kartu benar diberi XP (cap harian dicek di dalam INSERT) — sesuai
+  // janji UI "+3 XP per kartu", dan sekaligus menandai hari ini sebagai hari
+  // belajar untuk streak (studiedDates dibaca dari xp_events). Dulu XP hanya
+  // untuk review pertama sebuah kartu, sehingga sesi kartu due tidak pernah
+  // menggerakkan XP maupun streak padahal UI menampilkannya.
+  if (correct) {
+    await addCappedXp(user.id, "vocab", todayISO(), XP_REWARDS.vocabCard, VOCAB_REVIEW_DAILY_XP_CAP);
     revalidatePath("/kosakata");
     revalidatePath("/belajar");
   }

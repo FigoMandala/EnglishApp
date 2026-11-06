@@ -67,8 +67,15 @@ export function StreakView({
 
   function toggleWeekend(on: boolean) {
     setWeekend(on);
+    setError(null);
     startTransition(async () => {
-      await setWeekendEasyAction(on);
+      try {
+        await setWeekendEasyAction(on);
+      } catch {
+        // Batalkan optimisme supaya saklar sesuai keadaan server.
+        setWeekend(!on);
+        setError("Gagal mengubah mode akhir pekan. Coba lagi.");
+      }
     });
   }
 

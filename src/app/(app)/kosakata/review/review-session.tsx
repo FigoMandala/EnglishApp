@@ -223,7 +223,10 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
           <div className="mx-auto flex max-w-[1040px] flex-wrap items-center justify-between gap-4 px-6 py-5">
             <button
               type="button"
-              onClick={() => router.push("/kosakata/review")}
+              // Navigasi penuh (bukan router.push): komponen yang sama akan
+              // direkonsiliasi React dengan state lama (finished=true) sehingga
+              // layar "Sesi selesai" tidak pernah ter-reset.
+              onClick={() => window.location.assign("/kosakata/review")}
               className={cn(BIG_BTN, "border-2 border-hairline bg-surface text-ink shadow-[0_4px_0_var(--color-hairline)]")}
             >
               <RotateCcw className="size-4" aria-hidden />

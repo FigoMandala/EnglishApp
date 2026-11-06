@@ -2,7 +2,8 @@ import { BookOpen, Flame, Layers, Lock, PenLine, ShieldCheck, SpellCheck, Trophy
 import Link from "next/link";
 
 import { CountUp } from "@/components/fx/count-up";
-import { getEptrTrend } from "@/db/queries/activity";
+import { getEptrTrend, getSetting } from "@/db/queries/activity";
+import { DAILY_GOAL_KEY } from "@/db/queries/onboarding";
 import { grammarStats } from "@/db/queries/grammar";
 import { learningPath, totalXp, xpByDay } from "@/db/queries/learning";
 import { vocabularyStats } from "@/db/queries/vocabulary";
@@ -12,7 +13,7 @@ import { requireUser } from "@/lib/session";
 import { getStreakState } from "@/db/queries/streak";
 import { shiftDate, todayISO } from "@/lib/srs";
 import { cn } from "@/lib/utils";
-import { DAILY_GOAL_XP, levelFromXp, levelTitle } from "@/lib/xp";
+import { DAILY_GOAL_XP as DEFAULT_GOAL_XP, levelFromXp, levelTitle } from "@/lib/xp";
 
 export const metadata = { title: "Profil & Progres · EnglishApp" };
 
@@ -26,7 +27,7 @@ export default async function ProgresPage() {
   const monday = shiftDate(today, -((dow + 6) % 7));
   const rangeStart = shiftDate(monday, -(WEEKS - 1) * 7);
 
-  const [xp, units, lessons, vocab, essays, eprt, xpMap, streakState] = await Promise.all([
+  const [xp, units, lessons, vocab, essays, eprt, xpMap, streakState, dailyGoal] = await Promise.all([
     totalXp(user.id),
     learningPath(user.id),
     grammarStats(user.id),
@@ -35,6 +36,8 @@ export default async function ProgresPage() {
     getEptrTrend(user.id),
     xpByDay(user.id, rangeStart, today),
     getStreakState(user.id, today),
+    // Target harian per pengguna (dipilih saat onboarding), bukan konstanta.
+    getSetting<number>(user.id, DAILY_GOAL_KEY, DEFAULT_GOAL_XP),
   ]);
 
   const level = levelFromXp(xp);
@@ -79,7 +82,7 @@ export default async function ProgresPage() {
       const date = shiftDate(monday, (w - (WEEKS - 1)) * 7 + d);
       if (date > today) return null;
       const amount = xpMap.get(date) ?? 0;
-      const lvl = amount <= 0 ? 0 : amount >= DAILY_GOAL_XP ? 3 : amount >= DAILY_GOAL_XP / 2 ? 2 : 1;
+      const lvl = amount <= 0 ? 0 : amount >= dailyGoal ? 3 : amount >= dailyGoal / 2 ? 2 : 1;
       return { date, amount, lvl };
     }),
   );
@@ -117,7 +120,7 @@ export default async function ProgresPage() {
           </span>
           <span className="flex justify-between gap-3 text-[0.875rem]">
             <span className="text-ink-subtle">Target harian</span>
-            <strong>{DAILY_GOAL_XP} XP</strong>
+            <strong>{dailyGoal} XP</strong>
           </span>
           <span className="flex flex-wrap gap-x-4 gap-y-1 text-[0.875rem] font-extrabold">
             <Link href="/eptr#target" className="text-primary-deep hover:underline">
@@ -159,7 +162,7 @@ export default async function ProgresPage() {
               Aktivitas {WEEKS} minggu
             </h2>
             <span className="text-[0.8125rem] text-ink-subtle">
-              {activeDays} hari aktif · rata-rata {avgXp} XP/hari
+              {activeDays} hari aktif · rata-rata {avgXp} XP/hari aktif
             </span>
           </div>
           <div
