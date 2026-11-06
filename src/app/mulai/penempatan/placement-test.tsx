@@ -8,6 +8,7 @@ import { DrillFooter, DrillHeader, DrillMain, DrillPage, FeedbackBar, PrimaryBut
 import { Lori } from "@/components/mascot";
 import type { PlacementQuestion } from "@/db/queries/onboarding";
 import type { WordLevel } from "@/lib/cefr";
+import { normalizeAnswer } from "@/lib/grammar-exercise";
 import { saveOnboarding } from "@/lib/onboarding";
 import { sfx } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
@@ -23,12 +24,16 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
   const [results, setResults] = useState<boolean[]>([]);
 
   const q = questions[index];
-  const right = checked && !skipped && picked === q.answer;
+  // Kunci jawaban dari bank soal bisa beda huruf besar/kecil dengan opsi
+  // ("Does" vs "does"); nilai seperti latihan materi: normalisasi dulu.
+  const sameAsAnswer = (value: string | null) =>
+    value !== null && normalizeAnswer(value) !== "" && normalizeAnswer(value) === normalizeAnswer(q.answer);
+  const right = checked && !skipped && sameAsAnswer(picked);
 
   function check(skip = false) {
     setSkipped(skip);
     setChecked(true);
-    const ok = !skip && picked === q.answer;
+    const ok = !skip && sameAsAnswer(picked);
     setResults((prev) => [...prev, ok]);
     (ok ? sfx.correct : sfx.wrong)();
   }
@@ -83,7 +88,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
           <div role="radiogroup" aria-label="Pilihan jawaban" className={cn("grid gap-3.5 sm:grid-cols-2", checked && !right && !skipped && "shake")}>
             {q.options.map((option, i) => {
               const sel = picked === option;
-              const isAnswer = checked && option === q.answer;
+              const isAnswer = checked && sameAsAnswer(option);
               return (
                 <button
                   key={option}
