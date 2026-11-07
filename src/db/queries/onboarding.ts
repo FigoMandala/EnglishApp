@@ -15,7 +15,8 @@ export type PlacementQuestion = {
   level: WordLevel;
   prompt: string;
   options: string[];
-  answer: string;
+  /** Semua kunci yang sah — soal bisa punya lebih dari satu jawaban benar. */
+  answers: string[];
 };
 
 /** Komposisi tes penempatan: makin tinggi tingkatnya, makin sedikit soalnya. */
@@ -43,8 +44,10 @@ export async function placementQuestions(): Promise<PlacementQuestion[]> {
       .limit(count);
     for (const row of rows) {
       const options = parseOptions(row.options);
-      const answer = parseAnswers(row.answers)[0];
-      if (options.length >= 2 && answer) out.push({ id: row.id, level, prompt: row.prompt, options, answer });
+      // Semua kunci ikut — penilaian penempatan menerima jawaban mana pun yang
+      // sah, selaras dengan checkAnswer pada latihan materi.
+      const answers = parseAnswers(row.answers).filter((key) => key.trim() !== "");
+      if (options.length >= 2 && answers.length > 0) out.push({ id: row.id, level, prompt: row.prompt, options, answers });
     }
   }
   return out;

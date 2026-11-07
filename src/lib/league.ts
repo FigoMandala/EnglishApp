@@ -26,9 +26,21 @@ export function weekBounds(today: string) {
   return { start, end: shiftDate(start, 6), prevStart: shiftDate(start, -7), prevEnd: shiftDate(start, -1) };
 }
 
-export type LeagueRow = { userId: number; name: string; xp: number; isMe: boolean };
+export type LeagueRow = { userId: number; name: string; xp: number; isMe: boolean; rank: number };
 
-/** Urutkan peringkat: XP minggu ini turun, lalu nama. */
-export function rankRows(rows: LeagueRow[]) {
-  return [...rows].sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name));
+/**
+ * Urutkan peringkat: XP minggu ini turun, nama hanya sebagai pemecah urutan
+ * tampilan. Peringkat bersama gaya kompetisi ("1224"): XP sama = nomor sama,
+ * nomor berikutnya melompat sesuai banyaknya yang seri.
+ */
+export function rankRows(rows: Omit<LeagueRow, "rank">[]): LeagueRow[] {
+  const sorted = [...rows].sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name));
+  let lastXp: number | null = null;
+  let lastRank = 0;
+  return sorted.map((row, i) => {
+    const rank = i > 0 && lastXp === row.xp ? lastRank : i + 1;
+    lastXp = row.xp;
+    lastRank = rank;
+    return { ...row, rank };
+  });
 }

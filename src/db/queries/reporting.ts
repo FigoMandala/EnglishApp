@@ -4,6 +4,7 @@ import { db } from "@/db";
 import {
   activityLog,
   aiUsage,
+  dataRequests,
   grammarAttempts,
   grammarExercises,
   grammarLessons,
@@ -174,4 +175,9 @@ export async function exportUserData(userId: number) {
     xpEvents: xp,
     userSettings: settings,
   };
+}
+
+/** Catat permintaan hak subjek data (ekspor/hapus) agar terlihat di panel admin. */
+export async function recordDataRequest(userId: number, kind: "export" | "delete") {
+  await db.insert(dataRequests).values({ userId, kind, status: "done" });
 }

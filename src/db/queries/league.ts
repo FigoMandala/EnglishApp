@@ -67,11 +67,19 @@ export async function leagueBoard(userId: number, today: string) {
   const myIndex = all.findIndex((row) => row.isMe);
   const rows = all.slice(0, MAX_ROWS);
   if (myIndex >= MAX_ROWS) rows.push(all[myIndex]);
-  const above = myIndex > 0 ? all[myIndex - 1] : null;
+  // Target "salip" = baris terdekat di atas dengan XP lebih besar; baris yang
+  // seri XP dengan saya mendapat peringkat sama, bukan target salip.
+  let above: LeagueRow | null = null;
+  for (let i = myIndex - 1; i >= 0; i -= 1) {
+    if (all[i].xp > all[myIndex].xp) {
+      above = all[i];
+      break;
+    }
+  }
   return {
     ...base,
     rows,
-    rank: myIndex >= 0 ? myIndex + 1 : null,
+    rank: myIndex >= 0 ? all[myIndex].rank : null,
     next: above ? { name: above.name, gap: Math.max(1, above.xp - all[myIndex].xp + 1) } : null,
   };
 }

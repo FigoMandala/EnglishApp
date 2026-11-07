@@ -24,10 +24,12 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
   const [results, setResults] = useState<boolean[]>([]);
 
   const q = questions[index];
-  // Kunci jawaban dari bank soal bisa beda huruf besar/kecil dengan opsi
-  // ("Does" vs "does"); nilai seperti latihan materi: normalisasi dulu.
+  // Kunci jawaban bisa beda huruf besar/kecil/tanda baca dengan opsi, dan satu
+  // soal boleh punya beberapa kunci sah — nilai seperti latihan materi.
   const sameAsAnswer = (value: string | null) =>
-    value !== null && normalizeAnswer(value) !== "" && normalizeAnswer(value) === normalizeAnswer(q.answer);
+    value !== null &&
+    normalizeAnswer(value) !== "" &&
+    q.answers.some((key) => normalizeAnswer(key) === normalizeAnswer(value));
   const right = checked && !skipped && sameAsAnswer(picked);
 
   function check(skip = false) {
@@ -124,7 +126,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
         <FeedbackBar
           tone={right ? "right" : "wrong"}
           title={skipped ? "Oke, dicatat!" : right ? "Tepat!" : "Belum tepat"}
-          body={right ? "Bagus, lanjut ke soal berikutnya." : `Jawaban: ${q.answer}`}
+          body={right ? "Bagus, lanjut ke soal berikutnya." : `Jawaban: ${q.answers.join(" / ")}`}
         >
           <PrimaryButton onClick={next} autoFocus className={cn("gap-2", !right && "bg-ink-subtle [--ledge:var(--color-ink)]")}>
             {index + 1 < questions.length ? "LANJUT" : "LIHAT HASIL"}

@@ -1,7 +1,8 @@
-import { BookOpen, Flame, Layers, Lock, PenLine, ShieldCheck, SpellCheck, Trophy } from "lucide-react";
+import { BookOpen, Download, Flame, Layers, Lock, PenLine, ShieldCheck, SpellCheck, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { CountUp } from "@/components/fx/count-up";
+import { PushToggle } from "@/components/push-toggle";
 import { getEptrTrend, getSetting } from "@/db/queries/activity";
 import { DAILY_GOAL_KEY } from "@/db/queries/onboarding";
 import { grammarStats } from "@/db/queries/grammar";
@@ -126,6 +127,11 @@ export default async function ProgresPage() {
             <Link href="/eptr#target" className="text-primary-deep hover:underline">
               Atur target EPrT
             </Link>
+            {/* Hak subjek data UU PDP: unduh salinan data milik sendiri. */}
+            <a href="/api/ekspor-data" className="inline-flex items-center gap-1 text-ink hover:underline">
+              <Download className="size-4" aria-hidden />
+              Unduh data saya
+            </a>
             {user.role === "admin" ? (
               <Link href="/admin" className="inline-flex items-center gap-1 text-ink hover:underline">
                 <ShieldCheck className="size-4 text-mango-deep" aria-hidden />
@@ -133,6 +139,7 @@ export default async function ProgresPage() {
               </Link>
             ) : null}
           </span>
+          <PushToggle vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? ""} />
         </div>
       </header>
 

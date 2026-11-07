@@ -153,7 +153,7 @@ export function LeagueView({
                       r.isMe ? "bg-primary text-white" : i < 3 ? MEDAL[i] : "text-ink-subtle",
                     )}
                   >
-                    {i + 1}
+                    {r.rank}
                   </span>
                   <span
                     className="grid size-10 shrink-0 place-items-center rounded-full text-[0.875rem] font-black"

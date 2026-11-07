@@ -27,12 +27,24 @@ describe("tierIndexForXp", () => {
 });
 
 describe("rankRows", () => {
-  it("mengurutkan XP turun, nama sebagai pemecah seri", () => {
+  it("mengurutkan XP turun, nama sebagai pemecah urutan tampil", () => {
     const rows = rankRows([
       { userId: 1, name: "Budi", xp: 10, isMe: false },
       { userId: 2, name: "Ani", xp: 10, isMe: true },
       { userId: 3, name: "Cici", xp: 40, isMe: false },
     ]);
     assert.deepEqual(rows.map((r) => r.name), ["Cici", "Ani", "Budi"]);
+    // XP sama = peringkat bersama.
+    assert.deepEqual(rows.map((r) => r.rank), [1, 2, 2]);
+  });
+
+  it("peringkat bersama gaya kompetisi (1224)", () => {
+    const rows = rankRows([
+      { userId: 1, name: "A", xp: 40, isMe: false },
+      { userId: 2, name: "B", xp: 40, isMe: false },
+      { userId: 3, name: "C", xp: 20, isMe: false },
+      { userId: 4, name: "D", xp: 10, isMe: false },
+    ]);
+    assert.deepEqual(rows.map((r) => r.rank), [1, 1, 3, 4]);
   });
 });

@@ -37,3 +37,14 @@ export async function listAllSubscriptionsForUserIds(userIds: number[]) {
     .from(pushSubscriptions)
     .where(inArray(pushSubscriptions.userId, userIds));
 }
+
+/** Id semua pengguna yang punya langganan aktif (target cron pengingat). */
+export async function listSubscriptionUserIds() {
+  const rows = await db.selectDistinct({ userId: pushSubscriptions.userId }).from(pushSubscriptions);
+  return rows.map((row) => row.userId);
+}
+
+/** Hapus langganan berdasarkan endpoint (dipakai saat push menjawab 404/410). */
+export async function deletePushSubscriptionByEndpoint(endpoint: string) {
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+}

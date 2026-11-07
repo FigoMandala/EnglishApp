@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { logClientErrorAction } from "@/app/error-actions";
 import { Lori } from "@/components/mascot";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,8 @@ export function ErrorScreen({
 }) {
   useEffect(() => {
     console.error(`${logTag} halaman gagal dirender:`, error.digest ?? error.message);
+    // Laporkan ke audit_logs supaya muncul di dashboard admin (monitoring).
+    void logClientErrorAction({ message: error.message, digest: error.digest });
   }, [error, logTag]);
 
   return (
