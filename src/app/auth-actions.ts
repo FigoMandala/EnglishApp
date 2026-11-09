@@ -15,6 +15,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/security";
 import { homePath, setSessionCookie } from "@/lib/session";
+import { CLOSED_MESSAGE, SITE_CLOSED } from "@/lib/site-lock";
 import { normalizeUsername, validatePassword, validateUsername } from "@/lib/validation";
 
 const SESSION_MAX_AGE = 30 * 86_400;
@@ -34,6 +35,8 @@ function isUniqueViolation(error: unknown) {
 }
 
 export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  if (SITE_CLOSED) return { error: "Pendaftaran dikunci. Website sedang ditutup sementara." };
+
   const username = normalizeUsername(String(formData.get("username") ?? ""));
   const password = String(formData.get("password") ?? "");
 
@@ -111,6 +114,9 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
     await logAudit({ action: "login_failed", detail: username });
     return { error: "Username atau password salah." };
   }
+
+  // Setelah password benar, supaya keberadaan akun tidak bocor ke orang asing.
+  if (SITE_CLOSED && user.role !== "admin") return { error: CLOSED_MESSAGE };
 
   await purgeExpiredSessions();
   const sessionId = await createSession(user.id);

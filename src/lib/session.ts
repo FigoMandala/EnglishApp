@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { findSessionUser } from "@/db/queries/auth";
 import type { User } from "@/db/schema";
+import { SITE_CLOSED } from "@/lib/site-lock";
 
 const COOKIE_NAME = "english_session";
 
@@ -35,7 +36,9 @@ export async function readSessionId() {
 }
 
 export const getCurrentUser = cache(async (): Promise<User | null> => {
-  return findSessionUser(await readSessionId());
+  const user = await findSessionUser(await readSessionId());
+  // Situs ditutup: sesi non-admin yang masih hidup ikut tidak berlaku.
+  return user && SITE_CLOSED && user.role !== "admin" ? null : user;
 });
 
 export async function requireUser(): Promise<User> {

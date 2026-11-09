@@ -1,15 +1,35 @@
-import { Flame } from "lucide-react";
+import { Flame, Lock } from "lucide-react";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Logo } from "@/components/logo";
 import { Lori } from "@/components/mascot";
 import { getCurrentUser, homePath } from "@/lib/session";
+import { SITE_CLOSED } from "@/lib/site-lock";
 
 import { AuthForm } from "./auth-form";
 
 export const metadata = { title: "Masuk · EnglishApp" };
+
+function ClosedNotice() {
+  return (
+    <div
+      role="status"
+      className="pop flex items-start gap-3.5 rounded-[20px] border-2 border-mango-deep/30 bg-mango-soft px-[18px] py-4 text-ink"
+    >
+      <span className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-surface text-mango-deep">
+        <span className="ping absolute inset-0 rounded-[14px] bg-mango-deep/30" aria-hidden />
+        <Lock className="bob relative size-6" aria-hidden />
+      </span>
+      <span>
+        <strong className="block font-display text-[1.125rem]">Website sedang ditutup</strong>
+        <span className="text-[0.9375rem] text-ink-muted">
+          Pendaftaran dikunci untuk sementara dan hanya admin yang bisa masuk. Sampai jumpa lagi!
+        </span>
+      </span>
+    </div>
+  );
+}
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
@@ -21,18 +41,8 @@ export default async function LoginPage() {
         <Logo href="/" size={40} />
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="page-enter flex w-full max-w-[440px] flex-col gap-6">
+            {SITE_CLOSED ? <ClosedNotice /> : null}
             <AuthForm />
-            <div className="flex items-center gap-3 text-[0.875rem] text-ink-subtle">
-              <span className="h-0.5 flex-1 bg-hairline" />
-              atau
-              <span className="h-0.5 flex-1 bg-hairline" />
-            </div>
-            <Link
-              href="/mulai/tujuan"
-              className="flex min-h-[52px] items-center justify-center rounded-[16px] border-2 border-hairline bg-surface font-display font-extrabold text-ink shadow-card transition-transform active:translate-y-1 active:shadow-none"
-            >
-              Atur tujuan dulu, akun nanti
-            </Link>
           </div>
         </div>
       </div>
@@ -42,9 +52,9 @@ export default async function LoginPage() {
         className="relative m-4 hidden min-w-0 flex-[1_1_480px] flex-col justify-between gap-8 overflow-hidden rounded-[32px] bg-primary p-12 text-white lg:flex"
       >
         <div className="flex flex-col gap-3.5">
-          <p className="eyebrow text-primary-soft">Selamat datang kembali</p>
+          <p className="eyebrow text-primary-soft">{SITE_CLOSED ? "Tutup sementara" : "Selamat datang kembali"}</p>
           <h2 className="max-w-[440px] font-display text-[2.5rem] font-black leading-[1.1] tracking-[-0.03em]">
-            Streak-mu menunggu. Satu sesi 3 menit cukup.
+            {SITE_CLOSED ? "Lori lagi istirahat. Kami segera kembali." : "Streak-mu menunggu. Satu sesi 3 menit cukup."}
           </h2>
         </div>
         <div className="relative z-[1] flex max-w-[380px] flex-col gap-3 pb-40">
@@ -67,7 +77,12 @@ export default async function LoginPage() {
             </span>
           </div>
         </div>
-        <Lori mood="wave" size={280} label="Lori melambai" className="absolute -bottom-2 right-6" />
+        <Lori
+          mood={SITE_CLOSED ? "sad" : "wave"}
+          size={280}
+          label={SITE_CLOSED ? "Lori sedih, website tutup" : "Lori melambai"}
+          className="absolute -bottom-2 right-6"
+        />
       </aside>
     </main>
   );

@@ -4,6 +4,7 @@ import {
   Check,
   Flame,
   Headphones,
+  Lock,
   MessageCircle,
   PenLine,
   Route,
@@ -16,6 +17,7 @@ import { Lori3D } from "@/components/lori-3d";
 import { Logo } from "@/components/logo";
 import { Anatomy } from "@/components/ui/anatomy";
 import { getCurrentUser } from "@/lib/session";
+import { SITE_CLOSED } from "@/lib/site-lock";
 
 export const metadata = { title: "EnglishApp · Persiapan EPrT, TOEFL & ngobrol sehari-hari" };
 
@@ -85,6 +87,15 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-canvas text-ink">
+      {SITE_CLOSED ? (
+        <div
+          role="status"
+          className="rise flex items-center justify-center gap-2.5 bg-mango px-4 py-2.5 text-center text-[0.9375rem] font-extrabold text-mango-on"
+        >
+          <Lock className="bob size-4 shrink-0" aria-hidden />
+          Website sedang ditutup sementara. Pendaftaran dikunci, hanya admin yang bisa masuk.
+        </div>
+      ) : null}
       <header className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-6 px-4 py-6 sm:px-10">
         <Logo href="/" size={44} />
         <nav aria-label="Navigasi landing" className="ml-auto hidden gap-1 md:flex">
@@ -122,18 +133,25 @@ export default async function HomePage() {
             sampai kamu paham.
           </p>
           <div className="rise flex flex-wrap gap-3.5 [--i:3]">
-            <Link
-              href="/mulai/tujuan"
-              className={`flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-primary px-[30px] text-[1.25rem] text-white shadow-[0_5px_0_var(--color-primary-deep)] ${ledge}`}
-            >
-              Mulai belajar, gratis
-              <ArrowRight className="size-5" strokeWidth={2.6} aria-hidden />
-            </Link>
+            {SITE_CLOSED ? (
+              <span className="flex min-h-[60px] cursor-not-allowed items-center gap-2.5 rounded-[18px] bg-surface-sunken px-[30px] font-display text-[1.25rem] font-extrabold text-ink-muted">
+                <Lock className="bob size-5" aria-hidden />
+                Pendaftaran dikunci
+              </span>
+            ) : (
+              <Link
+                href="/mulai/tujuan"
+                className={`flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-primary px-[30px] text-[1.25rem] text-white shadow-[0_5px_0_var(--color-primary-deep)] ${ledge}`}
+              >
+                Mulai belajar, gratis
+                <ArrowRight className="size-5" strokeWidth={2.6} aria-hidden />
+              </Link>
+            )}
             <Link
               href="/login"
               className={`flex min-h-[60px] items-center rounded-[18px] border-2 border-hairline bg-surface px-[26px] text-[1.125rem] shadow-[0_5px_0_var(--color-hairline)] ${ledge}`}
             >
-              Aku sudah punya akun
+              {SITE_CLOSED ? "Masuk admin" : "Aku sudah punya akun"}
             </Link>
           </div>
           <ul className="rise flex flex-wrap gap-5 text-[0.875rem] font-bold text-ink-muted [--i:4]">
@@ -264,12 +282,14 @@ export default async function HomePage() {
                 </div>
               ))}
             </div>
-            <Link
-              href="/mulai/tujuan"
-              className={`flex min-h-14 items-center gap-2.5 self-start rounded-[16px] bg-mango px-[26px] text-[1.125rem] text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] ${ledge}`}
-            >
-              Mulai persiapan EPrT
-            </Link>
+            {SITE_CLOSED ? null : (
+              <Link
+                href="/mulai/tujuan"
+                className={`flex min-h-14 items-center gap-2.5 self-start rounded-[16px] bg-mango px-[26px] text-[1.125rem] text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] ${ledge}`}
+              >
+                Mulai persiapan EPrT
+              </Link>
+            )}
           </div>
           {/* Di 360px baris mascot+bubble tidak muat: biarkan bubble turun baris
               dan Kaka menyusut (max-w-full) supaya tidak terpotong tepi layar. */}
@@ -292,12 +312,14 @@ export default async function HomePage() {
             </h2>
             <p className="text-[1.125rem] text-primary-soft">Pilih tujuan, level, dan target harian. Ada tes penempatan kalau ragu.</p>
           </div>
-          <Link
-            href="/mulai/tujuan"
-            className={`flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-white px-[30px] text-[1.25rem] text-primary-deep shadow-[0_5px_0_var(--color-primary-deep)] ${ledge}`}
-          >
-            Mulai sekarang
-          </Link>
+          {SITE_CLOSED ? null : (
+            <Link
+              href="/mulai/tujuan"
+              className={`flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-white px-[30px] text-[1.25rem] text-primary-deep shadow-[0_5px_0_var(--color-primary-deep)] ${ledge}`}
+            >
+              Mulai sekarang
+            </Link>
+          )}
         </div>
       </section>
 
