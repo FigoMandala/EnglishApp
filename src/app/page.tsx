@@ -93,7 +93,7 @@ export default async function HomePage() {
           className="rise flex items-center justify-center gap-2.5 bg-mango px-4 py-2.5 text-center text-[0.9375rem] font-extrabold text-mango-on"
         >
           <Lock className="bob size-4 shrink-0" aria-hidden />
-          Website sedang ditutup sementara. Pendaftaran dikunci, hanya admin yang bisa masuk.
+          Aplikasi sedang dalam tahap pengembangan. Pendaftaran belum dibuka, hanya admin yang bisa masuk.
         </div>
       ) : null}
       <header className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-6 px-4 py-6 sm:px-10">
@@ -136,7 +136,7 @@ export default async function HomePage() {
             {SITE_CLOSED ? (
               <span className="flex min-h-[60px] cursor-not-allowed items-center gap-2.5 rounded-[18px] bg-surface-sunken px-[30px] font-display text-[1.25rem] font-extrabold text-ink-muted">
                 <Lock className="bob size-5" aria-hidden />
-                Pendaftaran dikunci
+                Segera hadir
               </span>
             ) : (
               <Link

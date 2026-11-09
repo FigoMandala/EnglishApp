@@ -17,7 +17,7 @@ export function AuthForm() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-[2.5rem] font-black leading-[1.1] tracking-[-0.03em]">Masuk admin</h1>
-        <p className="text-[1.0625rem] text-ink-subtle">Untuk sementara, hanya admin yang bisa masuk.</p>
+        <p className="text-[1.0625rem] text-ink-subtle">Aplikasi masih dalam pengembangan, hanya admin yang bisa masuk.</p>
       </div>
 
       <form action={action} className="flex flex-col gap-[18px]" noValidate>

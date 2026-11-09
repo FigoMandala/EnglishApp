@@ -22,9 +22,9 @@ function ClosedNotice() {
         <Lock className="bob relative size-6" aria-hidden />
       </span>
       <span>
-        <strong className="block font-display text-[1.125rem]">Website sedang ditutup</strong>
+        <strong className="block font-display text-[1.125rem]">Sedang dalam tahap pengembangan</strong>
         <span className="text-[0.9375rem] text-ink-muted">
-          Pendaftaran dikunci untuk sementara dan hanya admin yang bisa masuk. Sampai jumpa lagi!
+          Kami sedang menyiapkan aplikasi ini. Pendaftaran belum dibuka dan hanya admin yang bisa masuk. Nantikan ya!
         </span>
       </span>
     </div>
@@ -52,9 +52,9 @@ export default async function LoginPage() {
         className="relative m-4 hidden min-w-0 flex-[1_1_480px] flex-col justify-between gap-8 overflow-hidden rounded-[32px] bg-primary p-12 text-white lg:flex"
       >
         <div className="flex flex-col gap-3.5">
-          <p className="eyebrow text-primary-soft">{SITE_CLOSED ? "Tutup sementara" : "Selamat datang kembali"}</p>
+          <p className="eyebrow text-primary-soft">{SITE_CLOSED ? "Dalam pengembangan" : "Selamat datang kembali"}</p>
           <h2 className="max-w-[440px] font-display text-[2.5rem] font-black leading-[1.1] tracking-[-0.03em]">
-            {SITE_CLOSED ? "Lori lagi istirahat. Kami segera kembali." : "Streak-mu menunggu. Satu sesi 3 menit cukup."}
+            {SITE_CLOSED ? "Lori lagi sibuk menyiapkan pelajaran. Segera hadir!" : "Streak-mu menunggu. Satu sesi 3 menit cukup."}
           </h2>
         </div>
         <div className="relative z-[1] flex max-w-[380px] flex-col gap-3 pb-40">
@@ -80,7 +80,7 @@ export default async function LoginPage() {
         <Lori
           mood={SITE_CLOSED ? "sad" : "wave"}
           size={280}
-          label={SITE_CLOSED ? "Lori sedih, website tutup" : "Lori melambai"}
+          label={SITE_CLOSED ? "Lori menunggu aplikasi selesai dikembangkan" : "Lori melambai"}
           className="absolute -bottom-2 right-6"
         />
       </aside>

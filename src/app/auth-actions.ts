@@ -35,7 +35,7 @@ function isUniqueViolation(error: unknown) {
 }
 
 export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {
-  if (SITE_CLOSED) return { error: "Pendaftaran dikunci. Website sedang ditutup sementara." };
+  if (SITE_CLOSED) return { error: "Pendaftaran belum dibuka. Aplikasi sedang dalam tahap pengembangan." };
 
   const username = normalizeUsername(String(formData.get("username") ?? ""));
   const password = String(formData.get("password") ?? "");
