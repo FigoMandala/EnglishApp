@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
+import { PendingOverlay } from "@/components/pending-overlay";
 import { cn } from "@/lib/utils";
 
 const OPTIONS = [
@@ -32,6 +33,7 @@ export function DrillToolbar({ level, choiceOnly }: { level: string; choiceOnly:
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
+      {pending ? <PendingOverlay hint="Soal diambil dari bank, biasanya hanya beberapa detik." /> : null}
       <nav className="flex gap-1 rounded-control bg-canvas-deep p-1" aria-label="Tingkat kesulitan">
         {OPTIONS.map((option) => {
           const active = option.key === level;

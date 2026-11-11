@@ -4,6 +4,7 @@ import { Loader2, Play, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition, useState } from "react";
 
+import { PendingOverlay } from "@/components/pending-overlay";
 import { Button } from "@/components/ui/button";
 import { partBatches, SIM_PARTS } from "@/lib/eprt-simulation";
 
@@ -26,6 +27,7 @@ export function StartSimulationButton({
 
   return (
     <div className="flex flex-col items-stretch gap-2">
+      {pending ? <PendingOverlay /> : null}
       <Button
         className={className}
         disabled={disabled || pending}
@@ -143,18 +145,9 @@ export function StartFastButton({
         {pending ? "Menyiapkan soal..." : label}
       </Button>
       {progress ? (
-        <div role="status" className="flex w-full flex-col gap-1.5">
-          <div className="h-1.5 overflow-hidden rounded-full bg-current/15">
-            <div
-              className="h-full w-full origin-left rounded-full bg-mint transition-transform duration-300 ease-out"
-              style={{ transform: `scaleX(${progress.total ? progress.done / progress.total : 0})` }}
-            />
-          </div>
-          <p className="tnum text-[0.8125rem] opacity-80">
-            {progress.done} dari {progress.total} paket soal siap (bagian {progress.part} dari {SIM_PARTS.length}).
-            Jangan tutup halaman ini.
-          </p>
-        </div>
+        <PendingOverlay
+          detail={`${progress.done} dari ${progress.total} paket soal siap (bagian ${progress.part} dari ${SIM_PARTS.length})`}
+        />
       ) : null}
       {error ? (
         <p role="alert" className="text-[0.8125rem] font-medium text-negative">
@@ -226,11 +219,7 @@ export function OpenPartButton({
         {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
         {label}
       </Button>
-      {pending ? (
-        <p role="status" className="text-[0.875rem] opacity-80">
-          Menyiapkan soal... ({done}/{batches.length})
-        </p>
-      ) : null}
+      {pending ? <PendingOverlay detail={`${done} dari ${batches.length} paket soal siap`} /> : null}
       {error ? (
         <p role="alert" className="text-[0.875rem] font-semibold text-negative">
           {error}

@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { Kaka } from "@/components/mascot";
+import { PendingOverlay } from "@/components/pending-overlay";
 import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
 import { SkillChip } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -813,6 +814,7 @@ export function ToeflRunner({
           <Link href={basePath} className={buttonVariants({ variant: "secondary", size: "lg" })}>
             Kembali ke EPrT
           </Link>
+          {repeatPending ? <PendingOverlay hint="Soal diambil dari bank, biasanya hanya beberapa detik." /> : null}
           <form action={repeatAction}>
             <input type="hidden" name="kind" value={repeatKind} />
             {repeatSkill ? <input type="hidden" name="skill" value={repeatSkill} /> : null}

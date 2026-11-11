@@ -14,7 +14,9 @@ import type { SkillKey, ToeflSection } from "@/lib/toefl";
 import { cn } from "@/lib/utils";
 
 import { saveToeflTarget, startToeflBlock, type ToeflState } from "../toefl/actions";
-import { PendingOverlay, SectionCountdown } from "./eprt-widgets";
+import { PendingOverlay } from "@/components/pending-overlay";
+
+import { SectionCountdown } from "./eprt-widgets";
 import { StartFastButton, StartSimulationButton } from "./simulasi/simulation-client";
 
 const initialState: ToeflState = { status: "idle" };

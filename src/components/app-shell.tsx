@@ -7,6 +7,7 @@ import {
   Flame,
   GraduationCap,
   Layers,
+  Lock,
   LogOut,
   Menu,
   MessageCircle,
@@ -29,7 +30,10 @@ import { buttonVariants } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
-export type NavLink = { href: string; label: string; icon: typeof GraduationCap; short?: string };
+/** `locked`: menu dimatikan di UI (tampil dengan gembok, tidak bisa diklik). Alamatnya sendiri tidak diblokir. */
+export type NavLink = { href: string; label: string; icon: typeof GraduationCap; short?: string; locked?: boolean };
+
+const LOCKED_HINT = "Belum dibuka";
 
 type NavGroup = { title: string; items: NavLink[] };
 
@@ -37,12 +41,12 @@ const GROUPS: NavGroup[] = [
   {
     title: "Belajar",
     items: [
-      { href: "/belajar", label: "Jalur Belajar", short: "Jalur", icon: Layers },
-      { href: "/kosakata", label: "Kosakata", short: "Kosa", icon: SpellCheck },
-      { href: "/materi", label: "Materi Grammar", short: "Materi", icon: BookOpen },
-      { href: "/latihan", label: "Latihan Bebas", short: "Latihan", icon: Dumbbell },
-      { href: "/writing", label: "Writing Coach", short: "Nulis", icon: PenLine },
-      { href: "/tutor", label: "Tutor AI", short: "Tutor", icon: MessageCircle },
+      { href: "/belajar", label: "Jalur Belajar", short: "Jalur", icon: Layers, locked: true },
+      { href: "/kosakata", label: "Kosakata", short: "Kosa", icon: SpellCheck, locked: true },
+      { href: "/materi", label: "Materi Grammar", short: "Materi", icon: BookOpen, locked: true },
+      { href: "/latihan", label: "Latihan Bebas", short: "Latihan", icon: Dumbbell, locked: true },
+      { href: "/writing", label: "Writing Coach", short: "Nulis", icon: PenLine, locked: true },
+      { href: "/tutor", label: "Tutor AI", short: "Tutor", icon: MessageCircle, locked: true },
     ],
   },
   {
@@ -299,6 +303,19 @@ export function AppShell({
         <div className="flex flex-col gap-0.5">
           {group.items.map((link) => {
             const active = isActive(pathname, link.href);
+            if (link.locked)
+              return (
+                <div
+                  key={link.href}
+                  aria-disabled="true"
+                  title={LOCKED_HINT}
+                  className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-control border-2 border-transparent px-3 text-[0.9375rem] font-bold text-ink-faint"
+                >
+                  <link.icon className="size-5 shrink-0" strokeWidth={2.2} aria-hidden />
+                  <span className="flex-1">{link.label}</span>
+                  <Lock className="size-4 shrink-0" aria-label={LOCKED_HINT} />
+                </div>
+              );
             return (
               <Link
                 key={link.href}
@@ -500,6 +517,20 @@ export function AppShell({
                 <nav aria-label="Navigasi" className="grid grid-cols-2 gap-2.5">
                   {allLinks.map((link) => {
                     const active = isActive(pathname, link.href);
+                    if (link.locked)
+                      return (
+                        <div
+                          key={link.href}
+                          aria-disabled="true"
+                          className="flex min-h-[84px] cursor-not-allowed flex-col justify-between gap-2 rounded-[18px] border-2 border-hairline bg-surface-muted p-3.5 text-ink-faint"
+                        >
+                          <span className="flex items-center justify-between">
+                            <link.icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
+                            <Lock className="size-4" aria-label={LOCKED_HINT} />
+                          </span>
+                          <strong className="text-[0.9375rem] leading-tight">{link.label}</strong>
+                        </div>
+                      );
                     return (
                       <Link
                         key={link.href}
@@ -545,6 +576,20 @@ export function AppShell({
           <div className="mx-auto grid max-w-lg grid-cols-5">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href);
+              if (tab.locked)
+                return (
+                  <div
+                    key={tab.href}
+                    aria-disabled="true"
+                    className="flex min-h-16 cursor-not-allowed flex-col items-center justify-center gap-1 text-[0.75rem] font-bold text-ink-faint"
+                  >
+                    <span className="relative flex h-7 w-12 items-center justify-center">
+                      <tab.icon className="size-5" strokeWidth={2.2} aria-hidden />
+                      <Lock className="absolute right-1 top-0 size-3" aria-label={LOCKED_HINT} />
+                    </span>
+                    {tab.short ?? tab.label}
+                  </div>
+                );
               return (
                 <Link
                   key={tab.href}
