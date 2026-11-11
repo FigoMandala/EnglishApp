@@ -319,19 +319,30 @@ export function ToeflRunner({
     });
   }
 
-  function say(target: ToeflQuestion, questionOnly = false) {
+  /** Putaran audio terbaru; callback putaran lama (dipotong) diabaikan. */
+  const sayRef = useRef(0);
+
+  /** `markKey`: dialog baru dihitung "sudah diputar" kalau selesai didengar, bukan saat mulai
+   *  (soal berbagi dialog yang dilewati cepat tidak boleh kehilangan dialognya). */
+  function say(target: ToeflQuestion, questionOnly = false, markKey?: number) {
+    const id = ++sayRef.current;
     setSpeaking(true);
     setLoadingAudio(true);
     speak(
       target,
       voice,
       questionOnly,
-      () => setSpeaking(false),
+      () => {
+        if (id !== sayRef.current) return;
+        setSpeaking(false);
+        if (markKey !== undefined) markPlayed(markKey);
+      },
       () => setLoadingAudio(false),
     );
   }
 
   function silence() {
+    sayRef.current += 1;
     stopSpeech();
     setSpeaking(false);
     setLoadingAudio(false);
@@ -431,8 +442,7 @@ export function ToeflRunner({
       return;
     const key = audioKeyOf(questions, target);
     const heard = played.has(key);
-    if (!heard) markPlayed(key);
-    say(upcoming, heard);
+    say(upcoming, heard, heard ? undefined : key);
   }
 
   function play() {
@@ -445,8 +455,7 @@ export function ToeflRunner({
       say(question, true);
       return;
     }
-    if (exam) markPlayed(audioKey);
-    say(question);
+    say(question, false, exam ? audioKey : undefined);
   }
 
   async function finish() {
