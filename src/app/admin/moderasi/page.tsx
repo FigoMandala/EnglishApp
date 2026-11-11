@@ -10,7 +10,7 @@ import { usageOverview } from "@/db/queries/ai-usage";
 import { BUDGET_MAX_USD, BUDGET_MIN_USD, dailyBudgetUsd } from "@/lib/ai-budget";
 import { cn } from "@/lib/utils";
 
-import { resolveFlagAction, setBudgetAction } from "../actions";
+import { reopenFlagAction, resolveFlagAction, setBudgetAction } from "../actions";
 import { Notice, param, type AdminSearchParams } from "../notice";
 import { requireAdmin } from "@/lib/session";
 import { formatDateTime } from "@/lib/dates";
@@ -67,6 +67,10 @@ export default async function AdminModerationPage({
             ))}
           </nav>
 
+          {view === "open" && counts.flagsOpen > 50 ? (
+            <p className="text-[0.8125rem] text-ink-subtle">Menampilkan 50 flag terbaru dari {counts.flagsOpen}.</p>
+          ) : null}
+
           {flags.length === 0 ? (
             <Card className="flex items-center gap-4 p-5">
               <Lori mood="cheer" size={80} still />
@@ -93,9 +97,20 @@ export default async function AdminModerationPage({
                   <p className="mt-2 whitespace-pre-wrap break-words font-mono text-[0.8125rem]">{flag.excerpt}</p>
                 </details>
                 {flag.resolution ? (
-                  <p className={cn("text-[0.8125rem] font-bold", flag.resolution === "safe" ? "text-primary-deep" : "text-brick-deep")}>
-                    {flag.resolution === "safe" ? "Ditandai aman" : "Ditindak"} · {flag.reviewedAt ? formatDateTime(flag.reviewedAt) : "-"}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className={cn("text-[0.8125rem] font-bold", flag.resolution === "safe" ? "text-primary-deep" : "text-brick-deep")}>
+                      {flag.resolution === "safe" ? "Ditandai aman" : "Ditindak"} · {flag.reviewedAt ? formatDateTime(flag.reviewedAt) : "-"}
+                    </p>
+                    <form action={reopenFlagAction}>
+                      <input type="hidden" name="id" value={flag.id} />
+                      <button
+                        type="submit"
+                        className="min-h-10 rounded-[10px] border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-subtle"
+                      >
+                        Buka ulang
+                      </button>
+                    </form>
+                  </div>
                 ) : (
                   <form action={resolveFlagAction} className="flex flex-wrap gap-2">
                     <input type="hidden" name="id" value={flag.id} />

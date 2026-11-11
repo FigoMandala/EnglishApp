@@ -13,6 +13,7 @@ export function DrillPage({ children }: { children: ReactNode }) {
 
 export function DrillHeader({
   exitHref,
+  exitLabel,
   value,
   max,
   barClass = "bg-primary shadow-[inset_0_-4px_0_rgba(0,0,0,0.12)]",
@@ -22,6 +23,8 @@ export function DrillHeader({
   xpNonce,
 }: {
   exitHref: string;
+  /** Label aksesibilitas tombol keluar; bawaan "Keluar dari latihan". */
+  exitLabel?: string;
   value: number;
   max: number;
   barClass?: string;
@@ -38,7 +41,7 @@ export function DrillHeader({
       <div className="mx-auto flex w-full max-w-[1040px] items-center gap-[18px] px-6 py-4">
         <Link
           href={exitHref}
-          aria-label="Keluar dari latihan"
+          aria-label={exitLabel ?? "Keluar dari latihan"}
           className="grid size-11 shrink-0 place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"
         >
           <X className="size-6" strokeWidth={2.6} aria-hidden />
@@ -128,7 +131,7 @@ export function FeedbackBar({
 }
 
 const BTN =
-  "flex h-[54px] cursor-pointer items-center justify-center gap-2 rounded-[16px] px-8 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] transition-[transform,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default disabled:bg-hairline disabled:text-ink-faint disabled:shadow-[0_5px_0_var(--color-hairline-strong)]";
+  "flex h-[54px] cursor-pointer items-center justify-center gap-2 rounded-[16px] px-8 font-display text-[1.0625rem] font-extrabold tracking-[0.03em] transition-[transform,translate,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default disabled:bg-hairline disabled:text-ink-faint disabled:shadow-[0_5px_0_var(--color-hairline-strong)]";
 
 /** Tombol aksi utama bergaya "ledge". */
 export function PrimaryButton({ className, ...props }: React.ComponentProps<"button"> & { className?: string }) {

@@ -109,6 +109,7 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entrance/exit UI */
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* pop dengan overshoot tipis */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* drawer/panel geser */
+  --ease-confetti: cubic-bezier(0.1, 0.7, 0.3, 1); /* hamburan confetti */
 }
 
 :root {
@@ -200,49 +201,6 @@ h3 {
   pointer-events: none;
 }
 
-/* Bar chart */
-.bar-chart {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 0.625rem;
-  height: 10rem;
-  padding: 1.375rem 0.25rem 0;
-}
-
-.bar-col {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.4375rem;
-  height: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-.bar-col .bar {
-  width: 100%;
-  max-width: 40px;
-  min-height: 7px;
-  border-radius: 10px 10px 5px 5px;
-  background: var(--color-primary-bright);
-  transition: transform 200ms var(--ease-spring);
-}
-
-.bar-col .bar.below {
-  background: var(--color-canvas-deep);
-  border: 1px solid var(--color-hairline);
-}
-
-@media (hover: hover) {
-  .bar-col:hover .bar {
-    transform: scaleY(1.04) translateY(-2px);
-  }
-}
-
 /* Page enter */
 @keyframes register-in {
   from {
@@ -273,37 +231,6 @@ h3 {
 .pop-in {
   animation: pop-in 220ms var(--ease-spring) both;
   animation-delay: var(--delay, 0ms);
-}
-
-/* Tumpukan lembar ujian 3D (CSS transform) */
-@keyframes stack-float {
-  0%,
-  100% {
-    transform: rotateX(56deg) rotateZ(-38deg) translateZ(0);
-  }
-  50% {
-    transform: rotateX(56deg) rotateZ(-38deg) translateZ(12px);
-  }
-}
-
-.stack-3d {
-  transform-style: preserve-3d;
-  transform: rotateX(56deg) rotateZ(-38deg);
-  animation: stack-float 6s ease-in-out infinite;
-}
-
-@keyframes bar-rise {
-  from {
-    transform: scaleY(0.15);
-  }
-  to {
-    transform: scaleY(1);
-  }
-}
-
-.bar-rise {
-  transform-origin: bottom;
-  animation: bar-rise 900ms var(--ease-out) both;
 }
 
 @keyframes wave {
@@ -446,6 +373,8 @@ h3 {
 .rise { animation: fx-rise 280ms var(--ease-out) both; animation-delay: var(--delay, calc(var(--i, 0) * 60ms)); }
 .pop { animation: fx-pop 300ms var(--ease-spring) both; animation-delay: var(--delay, calc(var(--i, 0) * 60ms)); }
 .shake { animation: fx-shake 420ms ease-in-out both; }
+/* Kembar byte-identik fx-shake (:403) — dipertahankan agar pairs-drill bisa
+   berganti nama animasi untuk restart saat salah beruntun. Ubah KEDUANYA bersama. */
 @keyframes fx-shake-b {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-8px); }
@@ -471,19 +400,17 @@ h3 {
   height: 14px;
   border-radius: 2px;
   opacity: 0;
-  animation: fx-confetti 1300ms cubic-bezier(0.1, 0.7, 0.3, 1) both;
+  animation: fx-confetti 1300ms var(--ease-confetti) both;
   animation-delay: calc(var(--i, 0) * 12ms);
 }
 
-/* ═══ Drawer "Lainnya" (app-shell) ═══ */
-@keyframes drawer-panel-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes drawer-panel-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes drawer-fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes drawer-fade-out { from { opacity: 1; } to { opacity: 0; } }
-.drawer-panel-in { animation: drawer-panel-in 300ms var(--ease-drawer) both; }
-.drawer-panel-out { animation: drawer-panel-out 240ms var(--ease-drawer) both; }
-.drawer-fade-in { animation: drawer-fade-in 200ms var(--ease-out) both; }
-.drawer-fade-out { animation: drawer-fade-out 200ms var(--ease-out) both; }
+/* ═══ Drawer "Lainnya" (app-shell) — transition retargetable ═══
+   Keyframe dihindari: menutup di tengah buka harus meluncur dari posisi
+   saat ini, bukan melompat ke ujung keyframe. */
+@starting-style {
+  .drawer-panel { transform: translateX(100%); opacity: 0; }
+  .drawer-backdrop { opacity: 0; }
+}
 
 @keyframes prm-pulse {
   0%, 100% { opacity: 1; }

@@ -47,7 +47,7 @@ export function BankItemForm({
   const sent = (name: string, fallback: string) => state.values?.[name] ?? fallback;
 
   return (
-    <form key={state.nonce ?? "awal"} action={action} className="flex flex-col gap-5">
+    <form key={state.nonce ?? "awal"} action={action} className="flex flex-col gap-5" aria-describedby={state.error ? "field-error" : undefined}>
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="count" value={questions.length} />
 
@@ -124,7 +124,7 @@ export function BankItemForm({
       <div className="sticky bottom-4 flex flex-wrap items-center gap-4 rounded-plate border-2 border-hairline bg-surface p-4 shadow-overlay">
         <Kaka mood={state.error ? "warn" : "coach"} size={56} still />
         <div className="min-w-0 flex-1">
-          <FieldError>{state.error}</FieldError>
+          <FieldError id="field-error">{state.error}</FieldError>
           {!state.error ? <p className="text-[0.875rem] text-ink-subtle">Perubahan tercatat di log audit.</p> : null}
         </div>
         <button type="submit" disabled={pending} className={buttonVariants()}>

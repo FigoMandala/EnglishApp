@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -17,10 +18,15 @@ export function CompleteUnitButton({ unitId }: { unitId: number }) {
 
   if (done) {
     return (
-      <span className="pop relative flex items-center gap-2 rounded-full bg-primary-soft px-4 py-2 text-[0.875rem] font-extrabold text-primary-deep">
-        <Confetti />
-        <CheckCircle2 className="size-4" aria-hidden />
-        Unit selesai
+      <span className="pop flex flex-wrap items-center gap-3">
+        <span className="relative flex items-center gap-2 rounded-full bg-primary-soft px-4 py-2 text-[0.875rem] font-extrabold text-primary-deep">
+          <Confetti />
+          <CheckCircle2 className="size-4" aria-hidden />
+          Unit selesai
+        </span>
+        <Link href="/belajar" className={buttonVariants({ variant: "primary", size: "sm" })}>
+          Lanjut ke unit berikutnya
+        </Link>
       </span>
     );
   }

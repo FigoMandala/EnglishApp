@@ -78,12 +78,27 @@ function isActive(pathname: string, href: string) {
 
 const nf = new Intl.NumberFormat("id-ID");
 
-function NavBadge({ href, summary }: { href: string; summary: ShellSummary }) {
+function NavBadge({
+  href,
+  summary,
+  variant = "panel",
+}: {
+  href: string;
+  summary: ShellSummary;
+  /** "panel" untuk sidebar & drawer; "tab" untuk badge kecil absolut di tab bar bawah. */
+  variant?: "panel" | "tab";
+}) {
+  const tab = variant === "tab";
   if (href === "/kosakata" && summary.dueCards > 0) {
     return (
       <span
         aria-label={`${summary.dueCards} kartu jatuh tempo`}
-        className="flex h-[22px] min-w-[26px] items-center justify-center rounded-full bg-mango px-[7px] text-[0.75rem] font-extrabold text-mango-on"
+        className={cn(
+          "flex items-center justify-center rounded-full bg-mango font-extrabold text-mango-on",
+          tab
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] px-1 text-[0.6875rem]"
+            : "h-[22px] min-w-[26px] px-[7px] text-[0.75rem]",
+        )}
       >
         {summary.dueCards}
       </span>
@@ -93,7 +108,12 @@ function NavBadge({ href, summary }: { href: string; summary: ShellSummary }) {
     return (
       <span
         aria-label={`${summary.openMistakes} kesalahan belum ditebus`}
-        className="flex h-[22px] min-w-[26px] items-center justify-center rounded-full border-2 border-brick-line bg-brick-soft px-1.5 text-[0.75rem] font-extrabold text-brick-deep"
+        className={cn(
+          "flex items-center justify-center rounded-full bg-brick-soft font-extrabold text-brick-deep",
+          tab
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] border border-brick-line px-1 text-[0.6875rem]"
+            : "h-[22px] min-w-[26px] border-2 border-brick-line px-1.5 text-[0.75rem]",
+        )}
       >
         {summary.openMistakes}
       </span>
@@ -103,7 +123,12 @@ function NavBadge({ href, summary }: { href: string; summary: ShellSummary }) {
     return (
       <span
         aria-label={`Tes EPrT ${summary.daysToTest} hari lagi`}
-        className="flex h-[22px] items-center rounded-full bg-charcoal px-2 text-[0.75rem] font-extrabold text-mango-line"
+        className={cn(
+          "flex items-center rounded-full bg-charcoal font-extrabold text-mango-line",
+          tab
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] px-1 text-[0.6875rem]"
+            : "h-[22px] px-2 text-[0.75rem]",
+        )}
       >
         H-{summary.daysToTest}
       </span>
@@ -135,18 +160,26 @@ export function AppShell({
   const focus = isFocusMode(pathname, new URLSearchParams(searchParams.toString()));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerClosing, setDrawerClosing] = useState(false);
+  // Pemicu drawer yang terakhir (tombol menu di header atau tab "Lainnya" di
+  // tab bar): fokus dikembalikan ke sini saat drawer ditutup, bukan selalu ke
+  // tombol menu header.
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   function openDrawer() {
     // Kalau drawer sedang dalam animasi keluar, batalkan supaya panel tidak
-    // langsung ter-unmount oleh onAnimationEnd saat kembali dibuka.
+    // langsung ter-unmount oleh onTransitionEnd saat kembali dibuka.
     setDrawerClosing(false);
+    if (!drawerOpen) {
+      lastFocusedRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
     setDrawerOpen(true);
   }
 
   const closeDrawer = useCallback(() => {
     if (!drawerOpen || drawerClosing) return;
-    // Di bawah "kurangi gerakan" animasi exit dimatikan global, jadi
-    // onAnimationEnd tidak akan menyala — tutup langsung tanpa state closing.
+    // Di bawah "kurangi gerakan" transisi exit dimatikan global, jadi
+    // onTransitionEnd tidak akan menyala — tutup langsung tanpa state closing.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDrawerOpen(false);
       return;
@@ -154,7 +187,6 @@ export function AppShell({
     setDrawerClosing(true);
   }, [drawerOpen, drawerClosing]);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLButtonElement>(null);
   // Effect yang memanggil closeDrawer sengaja hanya bergantung pada
   // [pathname]/[drawerOpen] — kalau closeDrawer ikut sebagai dependency,
   // perubahan state drawer memicu ulang effect "tutup saat pindah rute"
@@ -178,14 +210,15 @@ export function AppShell({
   useEffect(() => {
     if (!drawerOpen) return;
     closeRef.current?.focus();
-    const menuButton = menuRef.current;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeDrawerRef.current();
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      menuButton?.focus();
+      // Kembalikan fokus ke elemen yang membuka drawer (bisa tombol menu di
+      // header atau tab "Lainnya" di tab bar), bukan selalu tombol menu.
+      lastFocusedRef.current?.focus();
     };
   }, [drawerOpen]);
 
@@ -336,7 +369,7 @@ export function AppShell({
             type="submit"
             aria-label="Keluar"
             title="Keluar"
-            className="flex size-10 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle transition-colors hover:border-brick-line hover:text-brick-deep"
+            className="flex size-11 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:border-brick-line hover:text-brick-deep active:scale-95"
           >
             <LogOut className="size-[18px]" aria-hidden />
           </button>
@@ -377,24 +410,27 @@ export function AppShell({
           <div className="flex h-[60px] items-center gap-2 px-4 sm:px-6">
             <Logo href="/belajar" size={34} showText={false} />
             <span className="flex-1" />
-            <Link
-              href="/streak"
-              aria-label={`Streak ${summary.streak} hari`}
-              className="flex h-10 items-center gap-1 rounded-[10px] bg-mango-soft px-2.5 font-round text-[1rem] font-extrabold text-mango-ink"
-            >
-              <Flame className="size-4 fill-mango text-mango-deep" strokeWidth={2} aria-hidden />
-              {summary.streak}
-            </Link>
-            <Link
-              href="/progres"
-              aria-label={`${nf.format(summary.xp)} XP`}
-              className="flex h-10 items-center gap-1 rounded-[10px] bg-primary-soft px-2.5 font-round text-[1rem] font-extrabold text-primary-deep"
-            >
-              <Zap className="size-3.5 fill-primary-bright text-primary-deep" strokeWidth={2} aria-hidden />
-              {nf.format(summary.xp)}
-            </Link>
+            {!focus && (
+              <>
+                <Link
+                  href="/streak"
+                  aria-label={`Streak ${summary.streak} hari`}
+                  className="flex h-11 items-center gap-1 rounded-[10px] bg-mango-soft px-2.5 font-round text-[1rem] font-extrabold text-mango-ink"
+                >
+                  <Flame className="size-4 fill-mango text-mango-deep" strokeWidth={2} aria-hidden />
+                  {summary.streak}
+                </Link>
+                <Link
+                  href="/progres"
+                  aria-label={`${nf.format(summary.xp)} XP`}
+                  className="flex h-11 items-center gap-1 rounded-[10px] bg-primary-soft px-2.5 font-round text-[1rem] font-extrabold text-primary-deep"
+                >
+                  <Zap className="size-3.5 fill-primary-bright text-primary-deep" strokeWidth={2} aria-hidden />
+                  {nf.format(summary.xp)}
+                </Link>
+              </>
+            )}
             <button
-              ref={menuRef}
               type="button"
               onClick={openDrawer}
               aria-expanded={drawerOpen}
@@ -410,7 +446,8 @@ export function AppShell({
         {drawerOpen ? (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div
-              className={cn("absolute inset-0 bg-ink/45", drawerClosing ? "drawer-fade-out" : "drawer-fade-in")}
+              className="drawer-backdrop absolute inset-0 bg-ink/45 transition-opacity duration-200 ease-[var(--ease-out)]"
+              style={{ opacity: drawerClosing ? 0 : 1 }}
               onClick={closeDrawer}
               aria-hidden
             />
@@ -419,16 +456,19 @@ export function AppShell({
               role="dialog"
               aria-modal="true"
               aria-label="Menu lainnya"
-              onAnimationEnd={(e) => {
-                if (e.target === e.currentTarget && e.animationName === "drawer-panel-out") {
+              onTransitionEnd={(e) => {
+                if (e.target === e.currentTarget && e.propertyName === "transform" && drawerClosing) {
                   setDrawerOpen(false);
                   setDrawerClosing(false);
                 }
               }}
-              className={cn(
-                "absolute inset-y-0 right-0 flex w-[min(22rem,90vw)] flex-col border-l-2 border-hairline bg-canvas shadow-overlay",
-                drawerClosing ? "drawer-panel-out" : "drawer-panel-in",
-              )}
+              style={{
+                transform: drawerClosing ? "translateX(100%)" : "translateX(0)",
+                transitionProperty: "transform",
+                transitionTimingFunction: "var(--ease-drawer)",
+                transitionDuration: drawerClosing ? "240ms" : "300ms",
+              }}
+              className="drawer-panel absolute inset-y-0 right-0 flex w-[min(22rem,90vw)] flex-col border-l-2 border-hairline bg-canvas shadow-overlay"
             >
               <div className="flex h-[60px] items-center justify-between border-b-2 border-hairline px-4">
                 <span className="font-display text-[1.375rem] font-black text-ink">Lainnya</span>
@@ -437,7 +477,7 @@ export function AppShell({
                   type="button"
                   onClick={closeDrawer}
                   aria-label="Tutup menu"
-                  className="flex size-11 cursor-pointer items-center justify-center rounded-control text-ink-subtle hover:bg-surface hover:text-ink"
+                  className="flex size-11 cursor-pointer items-center justify-center rounded-control text-ink-subtle transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface hover:text-ink active:scale-95"
                 >
                   <X className="size-5" aria-hidden />
                 </button>
@@ -487,6 +527,7 @@ export function AppShell({
 
         <main
           id="konten"
+          inert={drawerOpen}
           className={cn("flex-1 px-4 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-10", focus ? "pb-10" : "pb-28")}
         >
           <div className="mx-auto max-w-[1120px]">
@@ -497,13 +538,13 @@ export function AppShell({
         {/* Tab bar mobile (disembunyikan di mode fokus) */}
         <nav
           hidden={focus}
+          inert={drawerOpen}
           aria-label="Navigasi cepat"
           className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-hairline bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
         >
           <div className="mx-auto grid max-w-lg grid-cols-5">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href);
-              const badge = tab.href === "/kosakata" && summary.dueCards > 0 ? summary.dueCards : null;
               return (
                 <Link
                   key={tab.href}
@@ -516,21 +557,14 @@ export function AppShell({
                 >
                   <span
                     className={cn(
-                      "flex h-7 w-12 items-center justify-center rounded-full transition-transform duration-150 group-active:scale-90",
+                      "flex h-7 w-12 items-center justify-center rounded-full transition-[background-color,transform] duration-150 ease-[var(--ease-out)] group-active:scale-95",
                       active && "bg-primary-soft",
                     )}
                   >
                     <tab.icon className={cn("size-5", active && "text-primary")} strokeWidth={2.2} aria-hidden />
                   </span>
                   {tab.short ?? tab.label}
-                  {badge ? (
-                    <span
-                      aria-label={`${badge} jatuh tempo`}
-                      className="absolute right-[calc(50%-26px)] top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-mango px-1 text-[0.6875rem] font-extrabold text-mango-on"
-                    >
-                      {badge}
-                    </span>
-                  ) : null}
+                  <NavBadge href={tab.href} summary={summary} variant="tab" />
                 </Link>
               );
             })}

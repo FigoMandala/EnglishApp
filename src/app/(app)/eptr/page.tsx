@@ -1,4 +1,3 @@
-import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 
 import { loadSimulation, simulationHistory } from "@/lib/api/eprt-simulation";
 import { loadSession, toeflOverview } from "@/lib/api/toefl-turn";
@@ -31,8 +30,7 @@ export default async function EptrPage({
   const sessionId = Number(params.s);
   const hasSession = Number.isInteger(sessionId) && sessionId > 0;
 
-  const [config, overview, session, simulations] = await Promise.all([
-    getAiConfig(),
+  const [overview, session, simulations] = await Promise.all([
     toeflOverview(user.id, today, "eptr"),
     hasSession ? loadSession(user.id, sessionId) : Promise.resolve(null),
     simulationHistory(user.id),
@@ -51,7 +49,7 @@ export default async function EptrPage({
   return (
     <EprtHome
       username={user.displayName ?? user.username}
-      configured={aiConfigured(config)}
+      configured
       daysToTest={overview.target?.testDate ? daysBetween(today, overview.target.testDate) : null}
       target={overview.target}
       estimate={overview.estimate?.total ?? null}

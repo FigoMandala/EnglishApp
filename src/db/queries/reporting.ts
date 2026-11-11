@@ -21,6 +21,7 @@ import {
 export type StudentRow = {
   id: number;
   username: string;
+  displayName: string | null;
   role: string;
   createdAt: string;
   xpTotal: number;
@@ -31,7 +32,7 @@ export type StudentRow = {
 
 export async function listStudents(): Promise<StudentRow[]> {
   const rows = await db
-    .select({ id: users.id, username: users.username, role: users.role, createdAt: users.createdAt })
+    .select({ id: users.id, username: users.username, displayName: users.displayName, role: users.role, createdAt: users.createdAt })
     .from(users)
     .orderBy(desc(users.createdAt));
 
@@ -69,6 +70,7 @@ export async function listStudents(): Promise<StudentRow[]> {
   return rows.map((row) => ({
     id: row.id,
     username: row.username,
+    displayName: row.displayName,
     role: row.role,
     createdAt: row.createdAt,
     xpTotal: xpMap.get(row.id) ?? 0,

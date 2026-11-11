@@ -4,7 +4,7 @@ export type ButtonVariant = "primary" | "secondary" | "reward" | "exam" | "ghost
 export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-[14px] text-center font-display font-extrabold tracking-[0.02em] transition-[color,background-color,border-color,transform,box-shadow,filter] duration-150 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-[14px] text-center font-display font-extrabold tracking-[0.02em] transition-[color,background-color,border-color,transform,translate,box-shadow,filter] duration-150 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none";
 
 // Tombol "ledge": tepi bawah tebal yang turun 5px saat ditekan.
 const press = "active:translate-y-[5px] active:shadow-none";

@@ -19,7 +19,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: A
   const params = await searchParams;
   const [admin, students, requests] = await Promise.all([requireAdmin(), listStudents(), listDataRequests(20)]);
   const q = param(params, "q")?.trim().toLowerCase() ?? "";
-  const shown = q ? students.filter((s) => s.username.toLowerCase().includes(q)) : students;
+  const shown = q
+    ? students.filter((s) => s.username.toLowerCase().includes(q) || (s.displayName ?? "").toLowerCase().includes(q))
+    : students;
   const selected = students.find((s) => s.id === Number(param(params, "id"))) ?? null;
 
   return (

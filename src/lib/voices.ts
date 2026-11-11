@@ -106,7 +106,7 @@ export function stopSpeaking() {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 }
 
-/** Suara kenari per pembicara: pria Charon, lainnya Kore. */
+/** Suara per pembicara: pria Charon, lainnya Kore. */
 export const ttsVoice = (speaker: string) => (speaker === "man" ? "Charon" : "Kore");
 
 /** Ambil audio satu baris dari /api/tts sebagai blob URL. */

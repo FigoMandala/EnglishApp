@@ -360,6 +360,9 @@ export function ToeflRunner({
           // Sukses: pesan kegagalan kiriman sebelumnya tidak lagi relevan
           // (jangan hapus pesan lain seperti "Waktu section habis").
           setError((prev) => (prev && /Jawaban gagal|Belum tersimpan/.test(prev) ? null : prev));
+          // Retry lama untuk slot yang baru berhasil tidak boleh dikirim ulang:
+          // jawaban boleh dikoreksi di mode ujian, retry basi bisa menimpanya.
+          retryRef.current = retryRef.current.filter((item) => item.index !== answerIndex);
           // Antrean gagal sebelumnya dikirim ulang sekarang juga — kegagalan
           // bisa terjadi walau browser online, tidak harus menunggu event online.
           const queued = retryRef.current.splice(0);
@@ -379,15 +382,17 @@ export function ToeflRunner({
   }
 
   function choose(option: number) {
-    if (index === null || answers[index] !== null) return;
+    if (index === null) return;
+    // Mode ujian non-audio: soal terjawab boleh dipilih ulang (koreksi jawaban).
+    if (answers[index] !== null && !canRevisit) return;
     setPending(option);
     setError(null);
   }
 
   /** Kunci pilihan yang sedang dipilih dan kirim ke server. */
   function commit() {
-    if (index === null || pending === null || answers[index] !== null)
-      return answers;
+    if (index === null || pending === null) return answers;
+    if (answers[index] !== null && !canRevisit) return answers;
     const updated = answers.map((answer, i) =>
       i === index ? pending : answer,
     );
@@ -512,13 +517,18 @@ export function ToeflRunner({
   // Tampilan
 
   const audioSession = questions.some((item) => Boolean(item.audio));
+  // Mode ujian tanpa audio: soal terjawab boleh dikunjungi ulang untuk dikoreksi.
+  // Sesuai audio tetap terkunci (urutan putar harus terjaga) dan mode latihan
+  // tetap seperti semula (jawaban langsung diperiksa saat diperiksa).
+  const canRevisit = exam && !audioSession;
 
-  /** Lompat ke soal lain yang belum dijawab (bukan untuk sesi audio: urutan putar harus terjaga). */
+  /** Lompat ke soal lain (bukan untuk sesi audio: urutan putar harus terjaga).
+   *  Mode ujian non-audio: soal terjawab juga bisa dipilih untuk dikoreksi. */
   function jump(target: number) {
-    if (audioSession || target === index || answers[target] !== null) return;
+    if (audioSession || target === index) return;
+    if (!canRevisit && answers[target] !== null) return;
     silence();
-    const current = commit();
-    if (current[target] !== null) return;
+    commit();
     setIndex(target);
   }
 
@@ -568,6 +578,17 @@ export function ToeflRunner({
           href={basePath}
           aria-label="Simpan dan keluar"
           title="Simpan & keluar"
+          onClick={(event) => {
+            // Timer section jalan di server walau browser ditutup; pastikan keluar
+            // memang disengaja selagi waktu masih berjalan.
+            if (
+              deadline !== null &&
+              !finished &&
+              !window.confirm("Timer section tetap berjalan walau keluar. Keluar sekarang?")
+            ) {
+              event.preventDefault();
+            }
+          }}
           className="flex h-10 items-center gap-1.5 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
         >
           <Pause className="size-4" aria-hidden />
@@ -583,8 +604,8 @@ export function ToeflRunner({
         className="h-1 bg-charcoal-raised"
       >
         <div
-          className="h-full bg-mango transition-[width] duration-300"
-          style={{ width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }}
+          className="h-full w-full origin-left bg-mango transition-transform duration-300 ease-[var(--ease-out)]"
+          style={{ transform: `scaleX(${answeredCount / Math.max(1, questions.length)})` }}
         />
       </div>
       <p aria-live="polite" className="sr-only">
@@ -798,7 +819,9 @@ export function ToeflRunner({
   }
 
   const right = chosen === question.answer;
-  const selected = chosen ?? pending;
+  // Pilihan baru menang atas jawaban lama: di soal yang dikunjungi ulang (mode
+  // ujian non-audio) highlight harus mengikuti koreksi yang sedang dibuat.
+  const selected = pending ?? chosen;
   const lastOpen = chosen === null && answers.filter((answer) => answer === null).length === 1;
   const last = answers.every((answer, i) => answer !== null || i === index);
   const isListening = Boolean(question.audio);
@@ -818,10 +841,10 @@ export function ToeflRunner({
             type="button"
             role="radio"
             aria-checked={isSelected}
-            disabled={chosen !== null}
+            disabled={chosen !== null && !canRevisit}
             onClick={() => choose(i)}
             className={cn(
-              "flex min-h-[58px] items-center gap-3.5 rounded-[16px] border-2 px-4 py-2.5 text-left text-[1.0625rem] font-semibold transition-[transform,box-shadow,border-color] active:translate-y-0.5",
+              "flex min-h-[58px] items-center gap-3.5 rounded-[16px] border-2 px-4 py-2.5 text-left text-[1.0625rem] font-semibold transition-[transform,translate,box-shadow,border-color] active:translate-y-0.5",
               !revealed && !isSelected && "cursor-pointer border-hairline bg-surface shadow-[0_3px_0_var(--color-hairline)] hover:border-sky-line",
               !revealed && isSelected && "border-sky bg-sky-soft font-bold text-sky-deep shadow-[0_3px_0_var(--color-sky-line)]",
               revealed && isAnswer && "border-primary bg-primary-soft font-bold text-primary-deep shadow-[0_3px_0_var(--color-primary-line)]",
@@ -861,6 +884,13 @@ export function ToeflRunner({
       : complete
         ? "Semua soal sudah dijawab."
         : "Pilih salah satu jawaban.";
+  // Versi ringkas hint untuk footer di layar sempit (md ke bawah).
+  const shortHint =
+    pending !== null
+      ? exam
+        ? "bisa diganti sebelum lanjut."
+        : "bisa diganti sebelum diperiksa."
+      : hint;
 
   const primaryAction =
     pending !== null ? (
@@ -879,7 +909,7 @@ export function ToeflRunner({
           disabled={busy}
         >
           {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-          Selesai
+          Kunci &amp; selesai
         </Button>
       ) : (
         <Button variant="exam" size="lg" onClick={next}>
@@ -900,7 +930,8 @@ export function ToeflRunner({
         {questions.map((_, n) => {
           const current = n === index;
           const done = answers[n] !== null;
-          const canJump = !audioSession && !done && !current;
+          // Mode ujian non-audio: nomor soal terjawab tetap bisa diklik untuk koreksi.
+          const canJump = !audioSession && !current && (!done || canRevisit);
           const cls = cn(
             "flex h-[26px] items-center justify-center rounded-[6px] border-2 text-[0.6875rem] font-extrabold",
             current && "border-sky bg-sky text-white",
@@ -929,6 +960,7 @@ export function ToeflRunner({
       <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
         {numberNav}
         <span className="hidden text-[0.8125rem] font-bold text-ink-subtle md:inline">{hint}</span>
+        <span className="text-[0.8125rem] font-bold text-ink-subtle md:hidden">{shortHint}</span>
         {primaryAction}
       </div>
       {exam ? (
@@ -1015,6 +1047,166 @@ export function ToeflRunner({
     </h1>
   );
 
+  const body = (askOpen: boolean, trigger?: React.ReactNode) =>
+    shell(
+      <>
+        <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 sm:px-6">
+          <div
+            className={cn(
+              "grid gap-6",
+              // Panel AI terbuka = ruang sempit: tumpuk teks/audio di atas soal.
+              (isListening || session.passage) && !askOpen && "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]",
+            )}
+          >
+            {isListening ? (
+              <section
+                aria-label="Audio"
+                className="flex flex-col justify-between gap-5 rounded-[28px] bg-charcoal p-5 text-charcoal-ink sm:p-8 lg:min-h-[440px]"
+              >
+                <div className="flex flex-col gap-2">
+                  <span className="eyebrow text-mango-line">{TYPE_LABEL.listening}</span>
+                  <p className="text-charcoal-muted">
+                    {exam ? "Dengarkan percakapan, lalu narator membacakan pertanyaan." : "Putar audio, dengarkan, lalu pilih jawaban."}
+                  </p>
+                </div>
+                <div aria-hidden className={cn("h-24 items-center justify-center gap-1.5", speaking ? "flex" : "hidden sm:flex")}>
+                  {[60, 100, 130, 80, 110, 70, 120, 50, 90, 75, 105].map((height, i) => (
+                    <span
+                      key={i}
+                      className={cn("w-2 rounded bg-sky-bright", speaking && !loadingAudio ? "wave-bar" : "opacity-35")}
+                      style={{ height: speaking && !loadingAudio ? height * 0.75 : 16, animationDelay: `${i * 0.08}s` }}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-col gap-3">
+                  {speaking ? (
+                    <p role="status" className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-charcoal-raised text-[1.0625rem] font-bold">
+                      {loadingAudio ? (
+                        <Loader2 className="size-5 animate-spin text-sky-bright" aria-hidden />
+                      ) : (
+                        <Volume2 className="size-5 text-sky-bright" aria-hidden />
+                      )}
+                      {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={play}
+                      className="flex h-14 cursor-pointer items-center justify-center gap-2.5 rounded-[16px] bg-sky text-[1.0625rem] font-extrabold text-white shadow-[0_5px_0_var(--color-sky-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
+                    >
+                      <Volume2 className="size-5" aria-hidden />
+                      {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
+                    </button>
+                  )}
+                  <p className="text-center text-[0.875rem] text-charcoal-muted">
+                    {silent
+                      ? "Browser tanpa suara. Transkrip ditampilkan."
+                      : exam
+                        ? audioUsed
+                          ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
+                          : "Audio hanya diputar sekali, seperti tes asli."
+                        : "Transkrip muncul setelah jawaban diperiksa."}
+                  </p>
+                </div>
+                {silent ? (
+                  <div className="flex flex-col gap-1 rounded-[14px] bg-charcoal-raised p-4 leading-relaxed">
+                    {question.audio?.map((line, i) => (
+                      <p key={i}>
+                        <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : session.passage ? (
+              <article
+                aria-label="Teks bacaan"
+                className="flex flex-col gap-3.5 self-start rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-24"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="eyebrow text-ink-subtle">Teks bacaan</span>
+                  <div role="group" aria-label="Ukuran teks" className="flex gap-1.5">
+                    <button
+                      type="button"
+                      aria-label="Perkecil teks bacaan"
+                      disabled={textSize === 0}
+                      onClick={() => changeTextSize(-1)}
+                      className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[0.875rem] font-extrabold disabled:opacity-40"
+                    >
+                      A−
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Perbesar teks bacaan"
+                      disabled={textSize === TEXT_SIZES.length - 1}
+                      onClick={() => changeTextSize(1)}
+                      className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[1rem] font-extrabold disabled:opacity-40"
+                    >
+                      A+
+                    </button>
+                  </div>
+                </div>
+                <div className={cn("flex max-h-[62dvh] max-w-[68ch] flex-col gap-4 overflow-y-auto leading-[1.75]", TEXT_SIZES[textSize])}>
+                  {session.passage
+                    .split(/\n\s*\n/)
+                    .filter((paragraph) => paragraph.trim())
+                    .map((paragraph, i) => (
+                      <p key={i}>
+                        <span className="mr-2 font-round text-[0.9375rem] font-extrabold text-ink-subtle">{i + 1}</span>
+                        {parseInline(paragraph.trim()).map((span, j) =>
+                          span.tone === "bold" ? (
+                            <strong key={j} className="rounded bg-sky-soft px-1 font-bold text-sky-deep">
+                              {span.text}
+                            </strong>
+                          ) : (
+                            span.text
+                          ),
+                        )}
+                      </p>
+                    ))}
+                </div>
+              </article>
+            ) : null}
+
+            <section
+              key={index}
+              className={cn(
+                "flex flex-col gap-5",
+                !isListening && !session.passage && "mx-auto w-full max-w-[860px]",
+              )}
+            >
+              <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-round text-[1.375rem] font-extrabold text-sky-deep">{index + 1}</span>
+                  <span className="eyebrow text-ink-subtle">
+                    {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
+                  </span>
+                </div>
+                {questionHeading}
+                {options}
+              </div>
+              {feedback}
+              {!revealed && error ? (
+                <p role="alert" className="text-[0.9375rem] font-bold text-brick-deep">
+                  {error}
+                </p>
+              ) : null}
+            </section>
+          </div>
+        </main>
+        <div
+          aria-hidden={revealed}
+          className={cn("sticky bottom-0", revealed && "invisible pointer-events-none")}
+        >
+          {actionBar}
+        </div>
+      </>,
+      trigger,
+    );
+
+  // Mode ujian: render tanpa pembungkus AskAi — trigger "Tanya AI" tidak boleh muncul.
+  if (exam) return body(false);
+
   return (
     <AskAi
       section={session.section}
@@ -1032,163 +1224,7 @@ export function ToeflRunner({
         .filter(Boolean)
         .join("\n")}
     >
-      {(askOpen, trigger) =>
-        shell(
-          <>
-            <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 sm:px-6">
-              <div
-                className={cn(
-                  "grid gap-6",
-                  // Panel AI terbuka = ruang sempit: tumpuk teks/audio di atas soal.
-                  (isListening || session.passage) && !askOpen && "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]",
-                )}
-              >
-                {isListening ? (
-                  <section
-                    aria-label="Audio"
-                    className="flex flex-col justify-between gap-5 rounded-[28px] bg-charcoal p-5 text-charcoal-ink sm:p-8 lg:min-h-[440px]"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <span className="eyebrow text-mango-line">{TYPE_LABEL.listening}</span>
-                      <p className="text-charcoal-muted">
-                        {exam ? "Dengarkan percakapan, lalu narator membacakan pertanyaan." : "Putar audio, dengarkan, lalu pilih jawaban."}
-                      </p>
-                    </div>
-                    <div aria-hidden className={cn("h-24 items-center justify-center gap-1.5", speaking ? "flex" : "hidden sm:flex")}>
-                      {[60, 100, 130, 80, 110, 70, 120, 50, 90, 75, 105].map((height, i) => (
-                        <span
-                          key={i}
-                          className={cn("w-2 rounded bg-sky-bright", speaking && !loadingAudio ? "wave-bar" : "opacity-35")}
-                          style={{ height: speaking && !loadingAudio ? height * 0.75 : 16, animationDelay: `${i * 0.08}s` }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {speaking ? (
-                        <p role="status" className="flex h-14 items-center justify-center gap-2.5 rounded-[16px] bg-charcoal-raised text-[1.0625rem] font-bold">
-                          {loadingAudio ? (
-                            <Loader2 className="size-5 animate-spin text-sky-bright" aria-hidden />
-                          ) : (
-                            <Volume2 className="size-5 text-sky-bright" aria-hidden />
-                          )}
-                          {loadingAudio ? "Memuat audio…" : "Sedang diputar"}
-                        </p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={play}
-                          className="flex h-14 cursor-pointer items-center justify-center gap-2.5 rounded-[16px] bg-sky text-[1.0625rem] font-extrabold text-white shadow-[0_5px_0_var(--color-sky-deep)] transition-transform active:translate-y-[5px] active:shadow-none"
-                        >
-                          <Volume2 className="size-5" aria-hidden />
-                          {audioUsed ? "Dengar pertanyaan lagi" : "Putar audio"}
-                        </button>
-                      )}
-                      <p className="text-center text-[0.875rem] text-charcoal-muted">
-                        {silent
-                          ? "Browser tanpa suara. Transkrip ditampilkan."
-                          : exam
-                            ? audioUsed
-                              ? "Dialog sudah diputar. Pertanyaan bisa didengar ulang."
-                              : "Audio hanya diputar sekali, seperti tes asli."
-                            : "Transkrip muncul setelah jawaban diperiksa."}
-                      </p>
-                    </div>
-                    {silent ? (
-                      <div className="flex flex-col gap-1 rounded-[14px] bg-charcoal-raised p-4 leading-relaxed">
-                        {question.audio?.map((line, i) => (
-                          <p key={i}>
-                            <span className="font-bold">{SPEAKER[line.speaker]}:</span> {line.text}
-                          </p>
-                        ))}
-                      </div>
-                    ) : null}
-                  </section>
-                ) : session.passage ? (
-                  <article
-                    aria-label="Teks bacaan"
-                    className="flex flex-col gap-3.5 self-start rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-8 lg:sticky lg:top-24"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="eyebrow text-ink-subtle">Teks bacaan</span>
-                      <div role="group" aria-label="Ukuran teks" className="flex gap-1.5">
-                        <button
-                          type="button"
-                          aria-label="Perkecil teks bacaan"
-                          disabled={textSize === 0}
-                          onClick={() => changeTextSize(-1)}
-                          className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[0.875rem] font-extrabold disabled:opacity-40"
-                        >
-                          A−
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Perbesar teks bacaan"
-                          disabled={textSize === TEXT_SIZES.length - 1}
-                          onClick={() => changeTextSize(1)}
-                          className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[1rem] font-extrabold disabled:opacity-40"
-                        >
-                          A+
-                        </button>
-                      </div>
-                    </div>
-                    <div className={cn("flex max-h-[62dvh] max-w-[68ch] flex-col gap-4 overflow-y-auto leading-[1.75]", TEXT_SIZES[textSize])}>
-                      {session.passage
-                        .split(/\n\s*\n/)
-                        .filter((paragraph) => paragraph.trim())
-                        .map((paragraph, i) => (
-                          <p key={i}>
-                            <span className="mr-2 font-round text-[0.9375rem] font-extrabold text-ink-subtle">{i + 1}</span>
-                            {parseInline(paragraph.trim()).map((span, j) =>
-                              span.tone === "bold" ? (
-                                <strong key={j} className="rounded bg-sky-soft px-1 font-bold text-sky-deep">
-                                  {span.text}
-                                </strong>
-                              ) : (
-                                span.text
-                              ),
-                            )}
-                          </p>
-                        ))}
-                    </div>
-                  </article>
-                ) : null}
-
-                <section
-                  key={index}
-                  className={cn(
-                    "pop-in flex flex-col gap-5",
-                    !isListening && !session.passage && "mx-auto w-full max-w-[860px]",
-                  )}
-                >
-                  <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-round text-[1.375rem] font-extrabold text-sky-deep">{index + 1}</span>
-                      <span className="eyebrow text-ink-subtle">
-                        {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
-                      </span>
-                    </div>
-                    {questionHeading}
-                    {options}
-                  </div>
-                  {feedback}
-                  {!revealed && error ? (
-                    <p role="alert" className="text-[0.9375rem] font-bold text-brick-deep">
-                      {error}
-                    </p>
-                  ) : null}
-                </section>
-              </div>
-            </main>
-            <div
-              aria-hidden={revealed}
-              className={cn("sticky bottom-0", revealed && "invisible pointer-events-none")}
-            >
-              {actionBar}
-            </div>
-          </>,
-          trigger,
-        )
-      }
+      {(askOpen, trigger) => body(askOpen, trigger)}
     </AskAi>
   );
 }

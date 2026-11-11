@@ -4,6 +4,7 @@ import { Clock, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { CountUp } from "@/components/fx/count-up";
 import { Lori } from "@/components/mascot";
 import { Switch } from "@/components/ui/switch";
 import { LEAGUE_TIERS, type LeagueRow } from "@/lib/league";
@@ -145,7 +146,7 @@ export function LeagueView({
                     "rise flex items-center gap-3.5 px-5 py-3.5",
                     r.isMe ? "border-y-2 border-primary-line bg-primary-soft" : i > 0 && "border-t-2 border-hairline-soft",
                   )}
-                  style={{ "--i": i } as React.CSSProperties}
+                  style={{ "--i": Math.min(i, 8) } as React.CSSProperties}
                 >
                   <span
                     className={cn(
@@ -167,7 +168,7 @@ export function LeagueView({
                   <span className={cn("hidden h-2 w-40 shrink-0 overflow-hidden rounded-full sm:block", r.isMe ? "bg-surface" : "bg-surface-sunken")}>
                     <span
                       className={cn("grow-x block h-full rounded-full", r.isMe ? "bg-primary" : "bg-ink-muted")}
-                      style={{ width: `${Math.round((r.xp / top) * 100)}%` }}
+                      style={{ width: `${Math.round((r.xp / top) * 100)}%`, animationDelay: "calc(var(--i, 0) * 60ms)" }}
                     />
                   </span>
                   <span className={cn("w-[76px] shrink-0 text-right font-round text-[1.125rem] font-extrabold", r.isMe && "text-primary-deep")}>
@@ -216,11 +217,21 @@ export function LeagueView({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <span className="block text-[0.75rem] font-extrabold tracking-[0.08em] text-primary-soft">POSISIMU</span>
-                <span className="font-round text-[2.5rem] font-extrabold leading-none">{on && rank ? `#${rank}` : "–"}</span>
+                <span className="font-round text-[2.5rem] font-extrabold leading-none">
+                  {on && rank ? (
+                    <>
+                      #<CountUp to={rank} className="" />
+                    </>
+                  ) : (
+                    "–"
+                  )}
+                </span>
               </div>
               <div>
                 <span className="block text-[0.75rem] font-extrabold tracking-[0.08em] text-primary-soft">XP MINGGU INI</span>
-                <span className="font-round text-[2.5rem] font-extrabold leading-none">{weekXp}</span>
+                <span className="font-round text-[2.5rem] font-extrabold leading-none">
+                  <CountUp to={weekXp} className="tnum" />
+                </span>
               </div>
             </div>
             {on ? (

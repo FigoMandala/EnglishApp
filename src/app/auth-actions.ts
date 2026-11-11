@@ -84,7 +84,7 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   const username = normalizeUsername(String(formData.get("username") ?? ""));
   const password = String(formData.get("password") ?? "");
 
-  if (!username || !password) return { error: "Username dan password wajib diisi." };
+  if (!username || !password) return { error: "Username dan kata sandi wajib diisi." };
 
   const ip = clientIp(await headers());
   // Limit per-IP dihitung untuk semua percobaan (menahan credential stuffing
@@ -112,7 +112,7 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
       return { error: `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.` };
     }
     await logAudit({ action: "login_failed", detail: username });
-    return { error: "Username atau password salah." };
+    return { error: "Username atau kata sandi salah." };
   }
 
   // Setelah password benar, supaya keberadaan akun tidak bocor ke orang asing.

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { CircleCheck } from "lucide-react";
 
 import { ActivityBars } from "@/components/charts";
 import { Kaka } from "@/components/mascot";
-import { adminCounts, listBankItems, recentAuditLogs } from "@/db/queries/admin";
+import { adminCounts, bankHealth, recentAuditLogs } from "@/db/queries/admin";
 import { usageOverview } from "@/db/queries/ai-usage";
 import { dailyBudgetUsd } from "@/lib/ai-budget";
 import { cn } from "@/lib/utils";
@@ -18,14 +19,12 @@ export default async function AdminHome() {
   const [counts, usage, bank, logs, budget] = await Promise.all([
     adminCounts(),
     usageOverview(7),
-    listBankItems("eptr"),
+    bankHealth("eptr"),
     recentAuditLogs(8),
     dailyBudgetUsd(),
   ]);
   const spent = usage.todayTotals.costUsd;
-  const faulty = bank.filter((item) => item.status === "faulty").length;
-  const tooEasy = bank.filter((item) => item.status === "too-easy").length;
-  const unknown = bank.filter((item) => item.status === "unknown").length;
+  const { faulty, tooEasy, unknown } = bank;
 
   const days = usage.byDay.slice(-7).map((day) => ({
     label: day.date.slice(5).replace("-", "/"),
@@ -33,11 +32,12 @@ export default async function AdminHome() {
   }));
 
   const alerts = [
-    { n: faulty, text: "item EPrT kemungkinan kuncinya salah (otomatis dilewati picker)", href: "/admin/soal?status=faulty", tone: "bg-brick-soft text-brick-deep" },
-    { n: tooEasy, text: "item EPrT terlalu mudah untuk levelnya", href: "/admin/soal?status=too-easy", tone: "bg-mango-soft text-mango-ink" },
-    { n: unknown, text: "item belum cukup dijawab untuk dinilai", href: "/admin/soal?status=unknown", tone: "bg-surface-muted text-ink-subtle" },
+    { n: faulty, text: "soal EPrT kemungkinan kuncinya salah (otomatis dilewati picker)", href: "/admin/soal?status=faulty", tone: "bg-brick-soft text-brick-deep" },
+    { n: tooEasy, text: "soal EPrT terlalu mudah untuk levelnya", href: "/admin/soal?status=too-easy", tone: "bg-mango-soft text-mango-ink" },
+    { n: unknown, text: "soal belum cukup dijawab untuk dinilai", href: "/admin/soal?status=unknown", tone: "bg-surface-muted text-ink-subtle" },
     { n: counts.flagsOpen, text: "flag moderasi belum ditinjau", href: "/admin/moderasi", tone: "bg-sky-soft text-sky-deep" },
   ];
+  const visibleAlerts = alerts.filter((alert) => alert.n > 0);
 
   const kpis = [
     { label: "Pengguna", value: String(counts.users), hint: `${counts.activeToday} aktif hari ini` },
@@ -114,15 +114,22 @@ export default async function AdminHome() {
               Perlu perhatian
             </h2>
           </div>
-          {alerts.map((alert) => (
-            <Link key={alert.href} href={alert.href} className={cn("flex gap-3 rounded-[14px] p-3 text-[0.875rem] text-ink", alert.tone.split(" ")[0])}>
-              <span className={cn("mt-[7px] size-2.5 shrink-0 rounded-full", DOT[alert.tone])} aria-hidden />
-              <span>
-                <strong className="block font-round text-[1.125rem]">{alert.n}</strong>
-                {alert.text}
-              </span>
-            </Link>
-          ))}
+          {visibleAlerts.length === 0 ? (
+            <p className="flex items-center gap-2 p-3 text-[0.875rem] text-ink-subtle">
+              <CircleCheck className="size-4 shrink-0 text-primary" aria-hidden />
+              Semua beres — tidak ada item bermasalah hari ini.
+            </p>
+          ) : (
+            visibleAlerts.map((alert) => (
+              <Link key={alert.href} href={alert.href} className={cn("flex gap-3 rounded-[14px] p-3 text-[0.875rem] text-ink", alert.tone.split(" ")[0])}>
+                <span className={cn("mt-[7px] size-2.5 shrink-0 rounded-full", DOT[alert.tone])} aria-hidden />
+                <span>
+                  <strong className="block font-round text-[1.125rem]">{alert.n}</strong>
+                  {alert.text}
+                </span>
+              </Link>
+            ))
+          )}
         </section>
       </div>
 

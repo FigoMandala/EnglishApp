@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Lori } from "@/components/mascot";
 import { SpeakButton } from "@/components/speak-button";
@@ -34,6 +34,15 @@ export function WordForm({
     return stored === null || stored === undefined ? "" : String(stored);
   };
 
+  // Isian utama dikontrol supaya pratinjau kartu mengikuti ketikan, bukan data database.
+  const [typed, setTyped] = useState(() => ({
+    word: value("word"),
+    meaning: value("meaning"),
+    mnemonic: value("mnemonic"),
+  }));
+  const setField = (name: "word" | "meaning" | "mnemonic", next: string) =>
+    setTyped((prev) => ({ ...prev, [name]: next }));
+
   return (
     <Card className="flex flex-col gap-4 p-5 xl:sticky xl:top-6">
       <div className="flex items-center justify-between gap-3">
@@ -53,10 +62,22 @@ export function WordForm({
       <form key={state.nonce ?? "awal"} action={action} className="grid grid-cols-2 gap-3" aria-describedby={state.error ? "field-error" : undefined}>
         <input type="hidden" name="id" value={word?.id ?? ""} />
         <input type="hidden" name="tab" value={tab} />
-        <Field label="Kata" name="word" defaultValue={value("word")} required />
+        <Field
+          label="Kata"
+          name="word"
+          value={typed.word}
+          onChange={(event) => setField("word", event.target.value)}
+          required
+        />
         <Field label="Fonetik" name="phonetic" defaultValue={value("phonetic")} placeholder="/…/" />
         <Field label="Kelas kata" name="partOfSpeech" defaultValue={value("partOfSpeech")} placeholder="verb, noun…" />
-        <Field label="Arti" name="meaning" defaultValue={value("meaning")} required />
+        <Field
+          label="Arti"
+          name="meaning"
+          value={typed.meaning}
+          onChange={(event) => setField("meaning", event.target.value)}
+          required
+        />
         <Field label="Contoh (EN)" name="exampleEn" defaultValue={value("exampleEn")} wide />
         <Field label="Terjemahan contoh (ID)" name="exampleId" defaultValue={value("exampleId")} wide />
         <div className="flex flex-col gap-1.5">
@@ -81,7 +102,8 @@ export function WordForm({
         <Field
           label="Jembatan keledai Lori"
           name="mnemonic"
-          defaultValue={value("mnemonic")}
+          value={typed.mnemonic}
+          onChange={(event) => setField("mnemonic", event.target.value)}
           placeholder="Trik singkat biar gampang diingat"
           hint="Tampil di balik kartu saat pelajar mengulang."
           wide
@@ -89,16 +111,16 @@ export function WordForm({
 
         <div className="col-span-2 grid grid-cols-2 gap-2 border-t-2 border-dashed border-hairline pt-3" aria-label="Pratinjau kartu">
           <div className="flex min-h-24 items-center justify-center rounded-control border-2 border-hairline bg-surface font-display text-xl font-extrabold">
-            {word?.word ?? "kata"}
+            {typed.word || "kata"}
           </div>
           <div className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-control border-2 border-primary/30 bg-primary-soft p-2 text-center">
-            <strong className="text-primary-deep">{word?.meaning ?? "arti"}</strong>
-            {word?.mnemonic ? <span className="text-[0.75rem] text-mango-ink">{word.mnemonic}</span> : null}
+            <strong className="text-primary-deep">{typed.meaning || "arti"}</strong>
+            {typed.mnemonic ? <span className="text-[0.75rem] text-mango-ink">{typed.mnemonic}</span> : null}
           </div>
         </div>
 
         <div className="col-span-2">
-          <FieldError>{state.error}</FieldError>
+          <FieldError id="field-error">{state.error}</FieldError>
         </div>
         <button type="submit" disabled={pending} className={buttonVariants({ className: "col-span-2" })}>
           {pending ? "Menyimpan…" : word ? "Simpan perubahan" : "Tambah kata"}

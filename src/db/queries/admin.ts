@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, isNotNull, notInArray, sql, sum, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -16,7 +16,7 @@ import {
   type UserRole,
 } from "@/db/schema";
 import { bankItemPreview, LEECH_LAPSES, type WordStat } from "@/lib/admin";
-import { judgeQuestion, type Verdict } from "@/lib/calibration";
+import { judgeQuestion, MIN_ATTEMPTS, type Verdict } from "@/lib/calibration";
 import { fingerprint, questionText } from "@/lib/question-variety";
 import { todayISO } from "@/lib/srs";
 import { parseQuestions } from "@/lib/toefl";
@@ -81,8 +81,6 @@ export async function recentAuditLogs(limit = 10) {
 
 export type BankStatus = "faulty" | "too-easy" | "ok" | "unknown";
 
-const STATUS_RANK: Record<BankStatus, number> = { faulty: 0, "too-easy": 1, ok: 2, unknown: 3 };
-
 /** Status item = status soal terburuk di dalamnya (sama seperti aturan picker soal). */
 function worst(verdicts: Verdict[]): BankStatus {
   if (verdicts.includes("faulty")) return "faulty";
@@ -104,8 +102,98 @@ export type BankItemRow = {
   createdAt: string;
 };
 
-export async function listBankItems(track: "toefl" | "eptr"): Promise<BankItemRow[]> {
-  const rows = await db.select().from(questionBank).where(eq(questionBank.track, track));
+/** Jenis yang satu itemnya berisi banyak soal; fingerprint item bukan fingerprint soal. */
+const MULTI_KINDS = ["reading", "listen-long", "listen-lecture"];
+/** Item multi-soal yang diperiksa saat menyaring status (terbaru dulu). */
+const SCAN_MULTI = 3_000;
+
+/** Vonis per soal dari statistik jawaban; hanya soal yang sudah cukup dijawab. */
+async function judgedVerdicts(track: "toefl" | "eptr") {
+  const rows = await db
+    .select({ fingerprint: questionStats.fingerprint, levelBand: questionStats.levelBand, attempts: questionStats.attempts, correct: questionStats.correct })
+    .from(questionStats)
+    .where(and(eq(questionStats.track, track), gte(questionStats.attempts, MIN_ATTEMPTS)));
+  return new Map<string, Verdict>(rows.map((row) => [row.fingerprint, judgeQuestion(row, row.levelBand as LevelBand)]));
+}
+
+/** Ringkasan kesehatan bank untuk dasbor: dihitung di SQL, tidak memuat isi item. Satuan: soal. */
+export async function bankHealth(track: "toefl" | "eptr") {
+  const [[totals], verdicts] = await Promise.all([
+    db
+      .select({ items: count(), soal: sum(questionBank.questionCount) })
+      .from(questionBank)
+      .where(eq(questionBank.track, track)),
+    judgedVerdicts(track),
+  ]);
+  let faulty = 0;
+  let tooEasy = 0;
+  let ok = 0;
+  for (const verdict of verdicts.values()) {
+    if (verdict === "faulty") faulty += 1;
+    else if (verdict === "too-easy") tooEasy += 1;
+    else if (verdict === "ok") ok += 1;
+  }
+  const soal = Number(totals?.soal ?? 0);
+  return { items: Number(totals?.items ?? 0), soal, faulty, tooEasy, ok, unknown: Math.max(0, soal - faulty - tooEasy - ok) };
+}
+
+export type BankFilter = { kind?: string; band?: LevelBand; status: BankStatus | "all"; page: number; pageSize: number };
+
+/**
+ * Satu halaman item bank (paginasi di SQL; tidak pernah memuat seluruh bank).
+ * Status "unknown" dan "all" difilter di SQL. Status faulty/too-easy/ok dicocokkan lewat fingerprint soal:
+ * persis untuk jenis satu-soal; untuk jenis multi-soal (reading/listening panjang) hanya {@link SCAN_MULTI} item terbaru.
+ * shortcut: item multi-soal lama yang bermasalah tidak muncul di filter itu; pickernya tetap melewatinya (kalibrasi per soal).
+ */
+export async function listBankPage(track: "toefl" | "eptr", filter: BankFilter): Promise<{ rows: BankItemRow[]; total: number }> {
+  const base = and(
+    eq(questionBank.track, track),
+    filter.kind ? eq(questionBank.kind, filter.kind) : undefined,
+    filter.band ? eq(questionBank.levelBand, filter.band) : undefined,
+  );
+  const offset = (filter.page - 1) * filter.pageSize;
+  let ids: number[] | null = null;
+  let where: SQL | undefined = base;
+
+  if (filter.status === "unknown") {
+    const judged = db
+      .select({ fingerprint: questionStats.fingerprint })
+      .from(questionStats)
+      .where(and(eq(questionStats.track, track), gte(questionStats.attempts, MIN_ATTEMPTS)));
+    where = and(base, notInArray(questionBank.fingerprint, judged));
+  } else if (filter.status !== "all") {
+    const verdicts = await judgedVerdicts(track);
+    const found = new Set<number>();
+    const wanted = [...verdicts].filter(([, verdict]) => verdict === filter.status).map(([print]) => print);
+    for (let i = 0; i < wanted.length; i += 400) {
+      const rows = await db.select({ id: questionBank.id }).from(questionBank).where(and(base, inArray(questionBank.fingerprint, wanted.slice(i, i + 400))));
+      for (const row of rows) found.add(row.id);
+    }
+    const multi = await db
+      .select({ id: questionBank.id, item: questionBank.item })
+      .from(questionBank)
+      .where(and(base, inArray(questionBank.kind, MULTI_KINDS)))
+      .orderBy(desc(questionBank.id))
+      .limit(SCAN_MULTI);
+    for (const row of multi) {
+      try {
+        const stored = JSON.parse(row.item) as { questions?: unknown };
+        const prints = parseQuestions(JSON.stringify(stored.questions ?? [])).map((q) => fingerprint(questionText(q)));
+        if (prints.length && worst(prints.map((print) => verdicts.get(print) ?? "unknown")) === filter.status) found.add(row.id);
+      } catch {
+        // item rusak: dilewati di filter status
+      }
+    }
+    ids = [...found].sort((a, b) => b - a);
+  }
+
+  const total = ids ? ids.length : Number((await db.select({ n: count() }).from(questionBank).where(where))[0]?.n ?? 0);
+  const rows = ids
+    ? ids.length
+      ? await db.select().from(questionBank).where(inArray(questionBank.id, ids.slice(offset, offset + filter.pageSize))).orderBy(desc(questionBank.id))
+      : []
+    : await db.select().from(questionBank).where(where).orderBy(desc(questionBank.id)).limit(filter.pageSize).offset(offset);
+
   const parsed = rows.map((row) => {
     let questions: ReturnType<typeof parseQuestions> = [];
     try {
@@ -118,25 +206,26 @@ export async function listBankItems(track: "toefl" | "eptr"): Promise<BankItemRo
   });
   const stats = await getQuestionStats(track, parsed.flatMap((p) => p.prints));
 
-  return parsed
-    .map(({ row, prints }) => {
+  return {
+    total,
+    rows: parsed.map(({ row, prints }) => {
       const band = row.levelBand as LevelBand;
       const hits = prints.map((print) => stats.get(print));
-      const { text, count } = bankItemPreview(row.item);
+      const { text, count: questionCount } = bankItemPreview(row.item);
       return {
         id: row.id,
         kind: row.kind,
         skill: row.skill,
         levelBand: band,
         preview: text,
-        questions: count,
+        questions: questionCount,
         attempts: hits.reduce((sum, hit) => sum + (hit?.attempts ?? 0), 0),
         correct: hits.reduce((sum, hit) => sum + (hit?.correct ?? 0), 0),
         status: worst(hits.map((hit) => judgeQuestion(hit, band))),
         createdAt: row.createdAt,
       };
-    })
-    .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.attempts - a.attempts);
+    }),
+  };
 }
 
 export async function getBankItem(id: number) {
@@ -213,6 +302,16 @@ export async function resolveModerationFlag(id: number, resolution: "safe" | "ac
     .update(moderationFlags)
     .set({ resolution, reviewedAt: sqliteNow() })
     .where(and(eq(moderationFlags.id, id), isNull(moderationFlags.resolution)))
+    .returning({ id: moderationFlags.id, reason: moderationFlags.reason, feature: moderationFlags.feature });
+  return row ?? null;
+}
+
+/** Buka ulang flag yang sudah ditinjau: hapus keputusan, kembalikan ke antrean. Null kalau flag tidak ada atau belum ditinjau. */
+export async function reopenModerationFlag(id: number) {
+  const [row] = await db
+    .update(moderationFlags)
+    .set({ resolution: null, reviewedAt: null })
+    .where(and(eq(moderationFlags.id, id), isNotNull(moderationFlags.resolution)))
     .returning({ id: moderationFlags.id, reason: moderationFlags.reason, feature: moderationFlags.feature });
   return row ?? null;
 }

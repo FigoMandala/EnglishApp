@@ -8,10 +8,13 @@ import { useState } from "react";
 
 const COUNTS = [10, 20, 40] as const;
 
-export function StartReviewButton({ dueCount }: { dueCount: number }) {
+export function StartReviewButton({ dueCount, newWaiting = 0 }: { dueCount: number; newWaiting?: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<number | null>(null);
+  // Batas sesi default dari tombol utama (perhitungan sama saat mulai):
+  // minimal 10 kartu, maksimal 60.
+  const defaultLimit = Math.min(60, Math.max(10, dueCount));
 
   function start(count: number) {
     setLoading(count);
@@ -50,7 +53,7 @@ export function StartReviewButton({ dueCount }: { dueCount: number }) {
       ) : null}
       {open ? (
         <div className="pop-in flex flex-wrap items-center gap-2 rounded-control border-2 border-mango-line bg-surface p-2 shadow-overlay">
-          <span className="px-2 text-[0.8125rem] font-bold text-ink-subtle">{dueCount > 0 ? "Ulang:" : "Kata baru:"}</span>
+          <span className="px-2 text-[0.8125rem] font-bold text-ink-subtle">{dueCount > 0 && newWaiting > 0 ? "Ulang + baru:" : dueCount > 0 ? "Ulang:" : "Kata baru:"}</span>
           {COUNTS.map((count) => (
             <button
               key={count}
@@ -64,6 +67,11 @@ export function StartReviewButton({ dueCount }: { dueCount: number }) {
             </button>
           ))}
         </div>
+      ) : null}
+      {dueCount > 0 && newWaiting > 0 ? (
+        <p className="text-[0.75rem] font-bold text-ink-subtle">
+          {Math.min(dueCount, defaultLimit)} ulang didahulukan, sisanya kata baru.
+        </p>
       ) : null}
     </div>
   );

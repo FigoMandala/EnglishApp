@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, BookA, Layers, LayoutDashboard, ListChecks, ShieldAlert, Users } from "lucide-react";
+import { ArrowLeft, BookA, Layers, LayoutDashboard, ListChecks, Sparkles, ShieldAlert, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin", label: "Ringkasan", icon: LayoutDashboard },
   { href: "/admin/soal", label: "Bank Soal", icon: ListChecks },
   { href: "/admin/kosakata", label: "Kosakata", icon: BookA },
+  { href: "/admin/generate", label: "Generate Konten", icon: Sparkles },
   { href: "/admin/materi", label: "Materi & Jalur", icon: Layers },
   { href: "/admin/moderasi", label: "Moderasi & AI", icon: ShieldAlert },
   { href: "/admin/pengguna", label: "Pengguna & Privasi", icon: Users },
@@ -33,7 +34,7 @@ export function AdminShell({ username, children }: { username: string; children:
       >
         Lewati ke konten
       </a>
-      <aside className="flex shrink-0 flex-col gap-1 bg-charcoal px-3 py-4 text-night-muted lg:sticky lg:top-0 lg:h-dvh lg:w-64">
+      <aside className="sticky top-0 z-20 flex shrink-0 flex-col gap-1 bg-charcoal px-3 py-4 text-night-muted lg:h-dvh lg:w-64">
         <div className="flex items-center gap-2.5 px-2 pb-3">
           <LoriIconBadge size={28} />
           <span className="font-display text-lg font-extrabold text-white">EnglishApp</span>

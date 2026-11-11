@@ -1,4 +1,4 @@
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, max, min, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { questionBank, questionSeen, questionStats, sqliteNow } from "@/db/schema";
@@ -28,7 +28,18 @@ export async function saveBankItems(
   await db.insert(questionBank).values(items).onConflictDoNothing();
 }
 
-/** Item acak yang belum pernah dilihat pengguna ini. */
+/** Jumlah titik awal acak per pemilihan; tiap titik memberi irisan kecil berurutan. */
+const PICK_POINTS = 6;
+
+/**
+ * Item acak yang belum pernah dilihat pengguna ini. Tanpa `order by random()` (mengurut seluruh irisan,
+ * 1,2 detik pada 300.000 baris): beberapa titik awal acak di rentang id irisan (jenis + level), tiap titik
+ * mengambil beberapa item berurutan lewat indeks. Hasil diacak ulang di memori.
+ *
+ * shortcut: item yang bersebelahan di id biasanya dibuat dalam satu batch; enam titik acak membuat
+ * campurannya tetap beragam. Kalau irisan kecil/sisa soal belum dilihat sedikit, ada pengambilan lanjutan
+ * dari awal irisan.
+ */
 export async function pickUnseenItems(
   userId: number,
   track: "toefl" | "eptr",
@@ -37,24 +48,52 @@ export async function pickUnseenItems(
   limit: number,
   skill?: string,
 ) {
+  const slice = and(
+    eq(questionBank.track, track),
+    eq(questionBank.kind, kind),
+    eq(questionBank.levelBand, band),
+    skill ? eq(questionBank.skill, skill) : undefined,
+  );
+  const [range] = await db
+    .select({ lo: min(questionBank.id), hi: max(questionBank.id) })
+    .from(questionBank)
+    .where(slice);
+  if (range?.lo == null || range.hi == null) return [];
+
   const seen = db
     .select({ fingerprint: questionSeen.fingerprint })
     .from(questionSeen)
     .where(eq(questionSeen.userId, userId));
-  return db
-    .select()
-    .from(questionBank)
-    .where(
-      and(
-        eq(questionBank.track, track),
-        eq(questionBank.kind, kind),
-        eq(questionBank.levelBand, band),
-        notInArray(questionBank.fingerprint, seen),
-        skill ? eq(questionBank.skill, skill) : undefined,
-      ),
-    )
-    .orderBy(sql`random()`)
-    .limit(limit);
+  const unseen = and(slice, notInArray(questionBank.fingerprint, seen));
+  const span = range.hi - range.lo + 1;
+  const per = Math.ceil(limit / PICK_POINTS) + 2;
+
+  const batches = await Promise.all(
+    Array.from({ length: PICK_POINTS }, () => {
+      const start = range.lo! + Math.floor(Math.random() * span);
+      return db.select().from(questionBank).where(and(unseen, gte(questionBank.id, start))).orderBy(asc(questionBank.id)).limit(per);
+    }),
+  );
+  const picked = new Map<number, (typeof batches)[number][number]>();
+  for (const row of batches.flat()) picked.set(row.id, row);
+
+  // Titik acak jatuh dekat ujung irisan atau banyak yang sudah dilihat: lengkapi dari awal irisan.
+  if (picked.size < limit) {
+    const more = await db
+      .select()
+      .from(questionBank)
+      .where(and(unseen, gte(questionBank.id, range.lo)))
+      .orderBy(asc(questionBank.id))
+      .limit(limit);
+    for (const row of more) if (picked.size < limit * 2) picked.set(row.id, row);
+  }
+
+  const rows = [...picked.values()];
+  for (let i = rows.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+  }
+  return rows.slice(0, limit);
 }
 
 /** Catat satu jawaban untuk kalibrasi; soal baru otomatis dibuatkan barisnya. */

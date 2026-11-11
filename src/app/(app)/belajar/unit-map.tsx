@@ -102,9 +102,8 @@ export function UnitMap({ units }: { units: UnitView[] }) {
                 overflow-x-clip halaman. */}
             <span
               className={cn(
-                "mt-2 w-[150px] text-center text-[0.875rem] font-bold leading-tight lg:absolute lg:left-full lg:top-1/2 lg:ml-5 lg:mt-0 lg:w-44 lg:-translate-y-1/2 lg:text-left",
+                "mt-2 w-[150px] text-center text-[0.875rem] font-bold leading-tight text-ink-subtle lg:absolute lg:left-full lg:top-1/2 lg:ml-5 lg:mt-0 lg:w-44 lg:-translate-y-1/2 lg:text-left",
                 current && "lg:hidden",
-                locked ? "text-ink-subtle" : "text-ink-subtle",
               )}
             >
               Unit {unit.order}

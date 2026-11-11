@@ -21,7 +21,7 @@ export function SoundToggle() {
         setOn(!on);
         if (!on) sfx.tap();
       }}
-      className="flex size-10 cursor-pointer items-center justify-center rounded-control border-2 border-hairline bg-surface text-ink-subtle transition-colors hover:border-primary hover:text-primary"
+      className="flex size-11 cursor-pointer items-center justify-center rounded-control border-2 border-hairline bg-surface text-ink-subtle transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:border-primary hover:text-primary active:scale-95"
     >
       <Icon className="size-4" aria-hidden />
     </button>

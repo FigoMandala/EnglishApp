@@ -14,13 +14,20 @@ const OPTIONS = [
   { key: "advanced", label: "Lanjut" },
 ] as const;
 
-export function DrillToolbar({ level }: { level: string }) {
+function href(level: string, choiceOnly: boolean, fresh = false) {
+  const q = new URLSearchParams();
+  if (level !== "all") q.set("t", level);
+  if (choiceOnly) q.set("j", "pilgan");
+  if (fresh) q.set("n", String(Date.now()));
+  return `/latihan/soal${q.size ? `?${q}` : ""}`;
+}
+
+export function DrillToolbar({ level, choiceOnly }: { level: string; choiceOnly: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function newSet() {
-    const query = level === "all" ? `n=${Date.now()}` : `t=${level}&n=${Date.now()}`;
-    startTransition(() => router.push(`/latihan/soal?${query}`));
+    startTransition(() => router.push(href(level, choiceOnly, true)));
   }
 
   return (
@@ -28,11 +35,10 @@ export function DrillToolbar({ level }: { level: string }) {
       <nav className="flex gap-1 rounded-control bg-canvas-deep p-1" aria-label="Tingkat kesulitan">
         {OPTIONS.map((option) => {
           const active = option.key === level;
-          const href = option.key === "all" ? "/latihan/soal" : `/latihan/soal?t=${option.key}`;
           return (
             <Link
               key={option.key}
-              href={href}
+              href={href(option.key, choiceOnly)}
               aria-current={active ? "true" : undefined}
               className={cn(
                 "flex h-10 items-center rounded-[10px] px-4 text-[0.875rem] transition-colors",
@@ -44,6 +50,17 @@ export function DrillToolbar({ level }: { level: string }) {
           );
         })}
       </nav>
+      <button
+        type="button"
+        aria-pressed={choiceOnly}
+        onClick={() => startTransition(() => router.push(href(level, !choiceOnly)))}
+        className={cn(
+          "flex h-10 cursor-pointer items-center rounded-control border-2 px-4 text-[0.875rem] font-extrabold transition-colors",
+          choiceOnly ? "border-primary bg-primary-soft text-primary-deep" : "border-hairline text-ink-muted hover:text-ink",
+        )}
+      >
+        Pilgan saja
+      </button>
       <button
         type="button"
         onClick={newSet}

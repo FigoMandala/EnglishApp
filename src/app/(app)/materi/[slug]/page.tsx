@@ -41,6 +41,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
 
   return (
     <LessonStepper
+      lessonId={lesson.id}
       eyebrow={`MATERI · GRAMMAR · ${LEVEL_LABEL[lesson.level].toUpperCase()}`}
       title={lesson.title}
       summary={lesson.summary}

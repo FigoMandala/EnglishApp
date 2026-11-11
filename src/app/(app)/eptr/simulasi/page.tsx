@@ -427,10 +427,13 @@ function Result({
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
             {weak.map((stat, i) => {
               const bad = i === 0;
+              // Topik Structure: preset bentuk soal (drill/written) di segmented
+              // control tabel "Latihan per topik". Reading tidak punya pilihan bentuk.
+              const formatParam = SKILLS[stat.skill].section === "structure" ? "?f=drill" : "";
               return (
                 <Link
                   key={stat.skill}
-                  href="/eptr#practice-title"
+                  href={`/eptr${formatParam}#topic-title`}
                   className={cn(
                     "flex items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-ink",
                     bad ? "border-brick-line bg-brick-soft" : "border-mango-line bg-mango-soft",

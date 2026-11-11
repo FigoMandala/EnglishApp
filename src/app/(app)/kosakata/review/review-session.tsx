@@ -39,7 +39,7 @@ const GRADES: Grade[] = [
   { label: "Gampang", hint: "paling lama", knew: true, grade: "easy", cls: "bg-primary text-white shadow-[0_4px_0_var(--color-primary-deep)]", sub: "text-primary-soft" },
 ];
 
-const PRESS = "transition-[transform,box-shadow] duration-150 active:translate-y-1 active:shadow-none";
+const PRESS = "transition-[transform,translate,box-shadow] duration-150 active:translate-y-1 active:shadow-none";
 const BIG_BTN = `${PRESS} flex h-[54px] cursor-pointer items-center justify-center gap-2 rounded-[16px] px-8 font-display text-[1.0625rem] font-extrabold tracking-[0.03em]`;
 
 /** Bold kata target di kalimat contoh. */
@@ -145,13 +145,19 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
   const header = (
     <header className="border-b-2 border-hairline">
       <div className="mx-auto flex w-full max-w-[1040px] items-center gap-[18px] px-6 py-4">
-        <Link
-          href="/kosakata"
+        <button
+          type="button"
           aria-label="Keluar dari sesi ulang"
+          onClick={() => {
+            // Sesi sudah berjalan (ada kartu dijawab): konfirmasi dulu supaya
+            // keluar tidak tak sengaja. Belum mulai / sudah selesai: langsung.
+            if (index > 0 && !finished && !window.confirm("Keluar dari sesi? Kartu yang sudah dijawab tetap tersimpan.")) return;
+            router.push("/kosakata");
+          }}
           className="grid size-11 shrink-0 place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"
         >
           <X className="size-6" strokeWidth={2.6} aria-hidden />
-        </Link>
+        </button>
         <div
           role="progressbar"
           aria-label="Kartu diulang"
@@ -288,7 +294,7 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
                     ) : null}
                     <span className="mt-6 flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
                       <RotateCcw className="size-4" aria-hidden />
-                      Klik kartu atau tekan Spasi untuk lihat arti
+                      Klik kartu untuk lihat arti
                     </span>
                   </span>
                   <span className="absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-[32px] border-2 border-hairline bg-surface px-8 py-8 shadow-[0_8px_0_var(--color-hairline)] [backface-visibility:hidden] [transform:rotateY(180deg)] sm:px-10">
@@ -415,7 +421,8 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
                     {g.label}
                   </span>
                   <span className={cn("font-sans text-[0.75rem] font-bold", g.sub)}>
-                    {i + 1} · {g.hint}
+                    <span className="hidden sm:inline">{i + 1} · </span>
+                    {g.hint}
                   </span>
                 </button>
               ))}

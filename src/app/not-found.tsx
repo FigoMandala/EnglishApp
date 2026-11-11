@@ -11,11 +11,17 @@ export default function NotFound() {
           Alamat ini tidak ada. Mungkin tautannya salah ketik.
         </p>
         <Link
-          href="/eptr"
-          className="eyebrow mt-4 inline-flex items-center gap-2 text-accent underline decoration-accent/30 underline-offset-4 hover:decoration-accent"
+          href="/"
+          className="eyebrow mt-4 inline-flex items-center gap-2 text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary"
         >
           <ArrowLeft className="size-3" aria-hidden />
-          Kembali ke EPrT
+          Kembali ke beranda
+        </Link>
+        <Link
+          href="/eptr"
+          className="mt-2 inline-flex items-center gap-2 text-[0.8125rem] font-bold text-ink-subtle underline decoration-hairline-strong underline-offset-4 hover:text-ink-muted hover:decoration-ink-faint"
+        >
+          Ke EPrT
         </Link>
       </div>
     </div>

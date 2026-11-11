@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
 
-export function Card({ className, ...props }: React.ComponentProps<"div">) {
+export function Card({ className, flat, ...props }: React.ComponentProps<"div"> & { flat?: boolean }) {
   return (
     <div
       className={cn(
-        "rounded-plate border-2 border-hairline bg-surface shadow-card",
+        "rounded-plate border-2 border-hairline bg-surface",
+        !flat && "shadow-card",
         className,
       )}
       {...props}

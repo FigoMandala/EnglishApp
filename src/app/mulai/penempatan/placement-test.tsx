@@ -62,7 +62,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
 
   return (
     <DrillPage>
-      <DrillHeader exitHref="/mulai/level" value={index + (checked ? 1 : 0)} max={questions.length} />
+      <DrillHeader exitHref="/mulai/level" exitLabel="Keluar dari tes penempatan" value={index + (checked ? 1 : 0)} max={questions.length} />
       <DrillMain className="mx-auto flex max-w-[880px] flex-col gap-7">
         <div className="rise flex items-end gap-4">
           <Lori mood={checked ? (right ? "cheer" : "sad") : "talk"} size={120} className="shrink-0" />
@@ -103,7 +103,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
                     sfx.tap();
                   }}
                   className={cn(
-                    "flex min-h-[68px] cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
+                    "flex min-h-[68px] cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,translate,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
                     !checked && sel && "border-sky bg-sky-soft shadow-[0_4px_0_var(--color-sky)]",
                     !checked && !sel && "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)] hover:border-sky",
                     isAnswer && "border-primary bg-primary-soft shadow-[0_4px_0_var(--color-primary)]",

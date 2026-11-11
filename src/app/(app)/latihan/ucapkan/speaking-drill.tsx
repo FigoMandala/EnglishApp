@@ -20,7 +20,6 @@ import { DEFAULT_PREFS, speakLines, stopSpeaking } from "@/lib/voices";
 import { cn } from "@/lib/utils";
 
 import { finishDrillAction } from "../actions";
-import { buttonVariants } from "@/components/ui/button";
 
 export type SpeakingItem = {
   id: number;
@@ -198,7 +197,7 @@ export function SpeakingDrill({
     return (
       <DrillSummary
         title="Suaramu makin jelas!"
-        subtitle={`Rata-rata skor pelafalan ${avg}.${saveFailed ? " XP gagal disimpan, coba muat ulang halaman." : ""}`}
+        subtitle={`Rata-rata skor pelafalan ${avg}/100.${saveFailed ? " XP gagal disimpan, coba muat ulang halaman." : ""}`}
         onAgain={onRestart ?? (() => window.location.reload())}
         stats={[
           { label: "SKOR", value: avg, bg: "bg-sky", ink: "text-sky-deep" },
@@ -342,9 +341,7 @@ export function SpeakingDrill({
       </DrillMain>
 
       <DrillFooter>
-        <button type="button" onClick={next} className={buttonVariants({ variant: "secondary" })}>
-          {supported ? "Lewati" : "Lewati (mikrofon mati)"}
-        </button>
+        <SecondaryButton onClick={next}>{supported ? "Lewati" : "Lewati (mikrofon mati)"}</SecondaryButton>
         <div className="flex flex-wrap gap-3">
           {phase === "result" ? (
             <SecondaryButton

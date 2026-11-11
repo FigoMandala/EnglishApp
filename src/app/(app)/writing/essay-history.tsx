@@ -67,7 +67,7 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
             title="Hapus esai"
             disabled={deleting !== null || pending}
             onClick={() => remove(row.id)}
-            className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-control text-ink-faint opacity-0 transition-opacity hover:bg-brick-soft hover:text-brick focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
+            className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-control text-ink-faint transition-colors duration-150 hover:bg-brick-soft hover:text-brick focus-visible:text-brick disabled:opacity-40"
           >
             {deleting === row.id ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />

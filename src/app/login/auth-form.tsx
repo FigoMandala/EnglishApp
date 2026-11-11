@@ -15,10 +15,7 @@ export function AuthForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="font-display text-[2.5rem] font-black leading-[1.1] tracking-[-0.03em]">Masuk admin</h1>
-        <p className="text-[1.0625rem] text-ink-subtle">Aplikasi masih dalam pengembangan, hanya admin yang bisa masuk.</p>
-      </div>
+      <h1 className="font-display text-[2.5rem] font-black leading-[1.1] tracking-[-0.03em]">Masuk admin</h1>
 
       <form action={action} className="flex flex-col gap-[18px]" noValidate>
         <div className="flex flex-col gap-1.5">
@@ -54,20 +51,22 @@ export function AuthForm() {
               onClick={() => setShowPassword((value) => !value)}
               aria-pressed={showPassword}
               aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
-              className="absolute right-[7px] top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[10px] text-ink-subtle hover:bg-surface-muted hover:text-ink"
+              className="absolute right-[7px] top-1/2 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[10px] text-ink-subtle hover:bg-surface-muted hover:text-ink"
             >
               {showPassword ? <EyeOff className="size-5" aria-hidden /> : <Eye className="size-5" aria-hidden />}
             </button>
           </div>
         </div>
 
-        <div id="auth-error">
-          <FieldError>{error}</FieldError>
-        </div>
+        {error ? (
+          <div id="auth-error">
+            <FieldError>{error}</FieldError>
+          </div>
+        ) : null}
 
         <Button type="submit" size="lg" disabled={pending} className="w-full text-[1.125rem] tracking-[0.02em]">
           {pending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-          MASUK
+          Masuk
         </Button>
       </form>
     </div>

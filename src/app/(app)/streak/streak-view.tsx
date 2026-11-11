@@ -81,6 +81,11 @@ export function StreakView({
 
   const safe = studiedToday || frozenToday;
 
+  // Ringkasan kalender untuk pembaca layar: satu label memakai angka nyata dari data hari.
+  const studiedCount = days.filter((d) => d.status === "studied").length;
+  const frozenCount = days.filter((d) => d.status === "frozen").length;
+  const emptyCount = days.filter((d) => d.status === "empty" && !d.future).length;
+
   return (
     <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6">
       <section
@@ -138,15 +143,23 @@ export function StreakView({
                 Sesi 3 menit
               </Link>
               {danger ? (
-                <button
-                  type="button"
-                  onClick={freeze}
-                  disabled={freezes === 0 || pending}
-                  className="flex h-[50px] cursor-pointer items-center gap-2 rounded-[14px] border-2 border-sky-line bg-sky-soft px-[18px] font-display text-[0.9375rem] font-extrabold text-sky-deep shadow-[0_4px_0_var(--color-sky-line)] transition-transform active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ShieldCheck className="size-[18px]" aria-hidden />
-                  Pakai pelindung (sisa {freezes})
-                </button>
+                freezes === 0 ? (
+                  // Progres pengisian pelindung berikutnya tidak tersedia di client, jadi arahan tanpa angka.
+                  <p className="flex items-center gap-2 text-[0.9375rem] font-semibold text-sky-deep">
+                    <ShieldCheck className="size-[18px]" aria-hidden />
+                    Pelindung habis — belajar lagi untuk dapat 1 baru.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={freeze}
+                    disabled={pending}
+                    className="flex h-[50px] cursor-pointer items-center gap-2 rounded-[14px] border-2 border-sky-line bg-sky-soft px-[18px] font-display text-[0.9375rem] font-extrabold text-sky-deep shadow-[0_4px_0_var(--color-sky-line)] transition-transform active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ShieldCheck className="size-[18px]" aria-hidden />
+                    Pakai pelindung (sisa {freezes})
+                  </button>
+                )
               ) : null}
             </div>
           ) : null}
@@ -171,14 +184,18 @@ export function StreakView({
               <span key={d}>{d}</span>
             ))}
           </div>
-          <div role="grid" aria-label={`Kalender streak ${monthName}`} className="grid grid-cols-7 gap-2">
+          <div
+            role="img"
+            aria-label={`Kalender streak ${monthName}: ${studiedCount} hari belajar, ${frozenCount} dilindungi, ${emptyCount} kosong`}
+            className="grid grid-cols-7 gap-2"
+          >
             {Array.from({ length: lead }, (_, i) => (
               <span key={`lead-${i}`} />
             ))}
             {days.map((d) => (
               <span
                 key={d.date}
-                aria-label={`${d.n}, ${d.status === "frozen" ? "dilindungi" : d.status === "studied" ? "belajar" : d.future ? "belum" : d.today ? "hari ini, belum belajar" : "kosong"}`}
+                aria-hidden
                 className={cn(
                   "flex aspect-square items-center justify-center rounded-[14px] font-round text-[1.0625rem] font-extrabold",
                   d.status === "studied" && "bg-mango text-mango-on",

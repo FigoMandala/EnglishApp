@@ -31,7 +31,7 @@ export type RunnerExercise = {
 type Result = { correct: boolean; explanation: string | null; answerKey: string | null; xp: number };
 type Phase = "idle" | "right" | "wrong";
 
-const PRESS = "transition-[transform,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default";
+const PRESS = "transition-[transform,translate,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default";
 const CHIP = `${PRESS} rounded-[12px] border-2 border-hairline bg-surface text-ink shadow-[0_3px_0_var(--color-hairline)]`;
 const KEYS = ["A", "B", "C", "D", "E", "F"];
 
@@ -150,6 +150,8 @@ export function ExerciseRunner({
 
   async function check() {
     if (!current || pending || phase !== "idle") return;
+    // Jangan kirim jawaban kosong (mis. isi-rumpang dibiarkan kosong) ke server.
+    if (!answer.trim()) return;
     setPending(true);
     setError(null);
     try {
@@ -186,11 +188,20 @@ export function ExerciseRunner({
 
   const solvedAtOnce = exercises.filter((e) => firstTry[e.id]).length;
   const segments = queue.map((exercise, i) => {
-    if (i < index || (i === index && phase !== "idle")) {
-      const ok = i === index ? phase === "right" : firstTry[exercise.id] !== false;
-      return ok ? "bg-primary" : "bg-brick";
+    if (i === index) {
+      // Soal aktif: hijau saat fase benar, bata saat salah, langit sebelum diperiksa.
+      if (phase === "right") return "bg-primary";
+      if (phase === "wrong") return "bg-brick";
+      return "bg-sky";
     }
-    return i === index ? "bg-sky" : "bg-hairline";
+    if (i < index) {
+      // Sudah dilewati: benar = hijau, salah = bata, tak pernah dijawab (LEWATI) = abu.
+      const tried = firstTry[exercise.id];
+      if (tried === true) return "bg-primary";
+      if (tried === false) return "bg-brick";
+      return "bg-hairline";
+    }
+    return "bg-hairline";
   });
 
   return (
@@ -220,6 +231,7 @@ export function ExerciseRunner({
                   good={solvedAtOnce}
                   seconds={seconds}
                   wrongCount={wrongList.length}
+                  headline={lessonId === null ? "Latihan beres!" : "Pelajaran beres!"}
                   onReview={() => begin(wrongList, false)}
                   onClose={close}
                 />
@@ -230,8 +242,8 @@ export function ExerciseRunner({
                       <button
                         type="button"
                         onClick={close}
-                        aria-label="Keluar dari pelajaran"
-                        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"
+                        aria-label={lessonId === null ? "Keluar dari latihan" : "Keluar dari pelajaran"}
+                        className="grid size-11 shrink-0 place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"
                       >
                         <X className="size-6" strokeWidth={2.6} aria-hidden />
                       </button>
@@ -689,6 +701,7 @@ function DoneScreen({
   good,
   seconds,
   wrongCount,
+  headline,
   onReview,
   onClose,
 }: {
@@ -697,6 +710,7 @@ function DoneScreen({
   good: number;
   seconds: number;
   wrongCount: number;
+  headline: string;
   onReview: () => void;
   onClose: () => void;
 }) {
@@ -714,7 +728,7 @@ function DoneScreen({
         <div aria-hidden className="absolute left-1/2 top-8 size-[460px] -translate-x-1/2 rounded-full bg-canvas-deep" />
         <Lori mood="cheer" size={200} label="Lori melompat gembira" className="relative" />
         <div className="pop relative [--i:3]">
-          <h1 className="font-display text-[2.5rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[3rem]">Pelajaran beres!</h1>
+          <h1 className="font-display text-[2.5rem] font-black leading-[1.05] tracking-[-0.03em] sm:text-[3rem]">{headline}</h1>
           <p className="mt-1.5 text-[1.125rem] text-ink-muted">
             {wrongCount === 0
               ? `Semua ${total} soal benar di percobaan pertama.`

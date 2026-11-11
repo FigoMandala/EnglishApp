@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { listBankItems, type BankStatus } from "@/db/queries/admin";
+import { bankHealth, listBankPage, type BankStatus } from "@/db/queries/admin";
+import type { LevelBand } from "@/db/queries/question-bank";
 import { EXPECTED_ACCURACY, MIN_ATTEMPTS } from "@/lib/calibration";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,15 @@ import { requireAdmin } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
+
+const KIND_OPTIONS: [string, string][] = [
+  ["structure", "Structure"],
+  ["written", "Written"],
+  ["reading", "Reading"],
+  ["listen-short", "Short Dialogue"],
+  ["listen-long", "Long Dialogue"],
+  ["listen-lecture", "Lecture"],
+];
 
 const STATUS: Record<BankStatus, { label: string; tone: string; dot: string }> = {
   faulty: { label: "Kunci bermasalah", tone: "bg-brick-soft text-brick-deep", dot: "bg-brick" },
@@ -25,20 +35,24 @@ export default async function AdminBankPage({
   searchParams }: { searchParams: AdminSearchParams }) {
   await requireAdmin();
   const params = await searchParams;
-  const track = param(params, "track") === "toefl" ? "toefl" : "eptr";
+  const track = "eptr"; // TOEFL disembunyikan sementara; hapus baris ini + kembalikan toggle untuk mengaktifkan lagi.
   const statusParam = param(params, "status");
   const status = statusParam && statusParam in STATUS ? (statusParam as BankStatus) : "all";
   const page = Math.max(1, Number(param(params, "page")) || 1);
 
-  const items = await listBankItems(track);
-  const counts = items.reduce<Record<string, number>>((acc, item) => {
-    acc[item.status] = (acc[item.status] ?? 0) + 1;
-    return acc;
-  }, {});
-  const filtered = status === "all" ? items : items.filter((item) => item.status === status);
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const shown = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const href = (next: Record<string, string>) => `/admin/soal?${new URLSearchParams({ track, status, ...next }).toString()}`;
+  const kindParam = param(params, "kind");
+  const kind = kindParam && KIND_OPTIONS.some(([value]) => value === kindParam) ? kindParam : undefined;
+  const bandParam = param(params, "band");
+  const band = bandParam === "low" || bandParam === "mid" || bandParam === "high" ? (bandParam as LevelBand) : undefined;
+
+  const [{ rows: shown, total }, health] = await Promise.all([
+    listBankPage(track, { kind, band, status, page, pageSize: PAGE_SIZE }),
+    bankHealth(track),
+  ]);
+  const counts: Record<string, number> = { faulty: health.faulty, "too-easy": health.tooEasy, ok: health.ok, unknown: health.unknown };
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const href = (next: Record<string, string>) =>
+    `/admin/soal?${new URLSearchParams({ track, status, ...(kind ? { kind } : {}), ...(band ? { band } : {}), ...next }).toString()}`;
 
   return (
     <div className="flex flex-col gap-5">
@@ -46,23 +60,6 @@ export default async function AdminBankPage({
         eyebrow="Mode admin"
         title="Bank Soal"
         description={`Status dihitung dari jawaban pengguna, sama seperti aturan picker soal. Soal dinilai setelah ${MIN_ATTEMPTS} jawaban.`}
-        actions={
-          <div className="flex rounded-control border-2 border-hairline bg-surface p-1" role="group" aria-label="Jenis tes">
-            {(["eptr", "toefl"] as const).map((value) => (
-              <Link
-                key={value}
-                href={`/admin/soal?track=${value}`}
-                aria-current={value === track ? "page" : undefined}
-                className={cn(
-                  "flex min-h-10 items-center rounded-[10px] px-4 font-bold uppercase",
-                  value === track ? "bg-charcoal text-white" : "text-ink-subtle hover:text-ink",
-                )}
-              >
-                {value}
-              </Link>
-            ))}
-          </div>
-        }
       />
       <Notice pesan={param(params, "pesan")} galat={param(params, "galat")} />
 
@@ -81,11 +78,34 @@ export default async function AdminBankPage({
             >
               {value !== "all" ? <span aria-hidden className={cn("size-2.5 rounded-full", STATUS[value].dot)} /> : null}
               {value === "all" ? "Semua" : STATUS[value].label}
-              <span className="tnum rounded-full bg-black/10 px-2 text-[0.75rem]">{value === "all" ? items.length : counts[value] ?? 0}</span>
+              <span className="tnum rounded-full bg-black/10 px-2 text-[0.75rem]">{value === "all" ? health.items : counts[value] ?? 0}</span>
             </Link>
           );
         })}
       </nav>
+
+      <form method="get" className="flex flex-wrap items-end gap-3" role="search" aria-label="Saring jenis dan level">
+        <input type="hidden" name="status" value={status} />
+        <label className="flex flex-col gap-1 text-[0.75rem] font-bold text-ink-subtle">
+          Jenis
+          <select name="kind" defaultValue={kind ?? ""} className="h-11 rounded-control border-2 border-hairline bg-surface px-3 text-[0.875rem] font-bold text-ink">
+            <option value="">Semua jenis</option>
+            {KIND_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-[0.75rem] font-bold text-ink-subtle">
+          Level
+          <select name="band" defaultValue={band ?? ""} className="h-11 rounded-control border-2 border-hairline bg-surface px-3 text-[0.875rem] font-bold text-ink">
+            <option value="">Semua level</option>
+            <option value="low">low</option>
+            <option value="mid">mid</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <button type="submit" className="h-11 rounded-control border-2 border-hairline bg-surface px-4 text-[0.875rem] font-bold">Terapkan</button>
+      </form>
 
       {/* relative: containing block untuk span sr-only di header tabel. */}
       <Card className="relative overflow-x-auto">
@@ -142,12 +162,12 @@ export default async function AdminBankPage({
                     <div className="flex gap-2">
                       <Link
                         href={`/admin/soal/${item.id}`}
-                        className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline px-3 font-bold text-ink transition-[border-color,transform] hover:border-primary active:translate-y-[2px]"
+                        className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline px-3 font-bold text-ink transition-[border-color,transform,translate] hover:border-primary active:translate-y-[2px]"
                       >
                         Edit
                       </Link>
                       <details>
-                        <summary className="flex min-h-10 cursor-pointer list-none items-center rounded-[10px] border-2 border-hairline px-3 font-bold transition-[border-color,transform] hover:border-brick hover:text-brick-deep active:translate-y-[2px]">
+                        <summary className="flex min-h-10 cursor-pointer list-none items-center rounded-[10px] border-2 border-hairline px-3 font-bold transition-[border-color,transform,translate] hover:border-brick hover:text-brick-deep active:translate-y-[2px]">
                           Tarik
                         </summary>
                         <form action={retireBankItemAction} className="mt-2 w-60 rounded-control border-2 border-brick/30 bg-surface p-3 shadow-overlay">
@@ -173,16 +193,16 @@ export default async function AdminBankPage({
       {pages > 1 ? (
         <nav aria-label="Halaman" className="flex items-center justify-between gap-3 text-[0.875rem] text-ink-subtle">
           <span>
-            Halaman {page} dari {pages} · {filtered.length} item
+            Halaman {page} dari {pages} · {total} item
           </span>
           <div className="flex gap-2">
             {page > 1 ? (
-              <Link href={href({ page: String(page - 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform] active:translate-y-[2px]">
+              <Link href={href({ page: String(page - 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform,translate] active:translate-y-[2px]">
                 Sebelumnya
               </Link>
             ) : null}
             {page < pages ? (
-              <Link href={href({ page: String(page + 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform] active:translate-y-[2px]">
+              <Link href={href({ page: String(page + 1) })} className="flex min-h-10 items-center rounded-[10px] border-2 border-hairline bg-surface px-4 font-bold transition-[border-color,transform,translate] active:translate-y-[2px]">
                 Berikutnya
               </Link>
             ) : null}

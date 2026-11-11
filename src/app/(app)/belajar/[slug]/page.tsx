@@ -6,6 +6,7 @@ import { Lori } from "@/components/mascot";
 import { SpeakButton } from "@/components/speak-button";
 import { LevelTag } from "@/components/ui/badge";
 import { SpeechBubble } from "@/components/ui/bubble";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { listGrammarLessons } from "@/db/queries/grammar";
 import { completedUnitIds, getUnitBySlug, isUnitCompleted, listUnitsWithItems } from "@/db/queries/learning";
@@ -96,12 +97,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
       <Crumb title={`Unit ${order + 1}`} />
 
       <header className="flex flex-wrap items-center gap-6 rounded-hero border-2 border-hairline bg-surface p-6 shadow-card sm:p-7">
-        <span
-          className={cn(
-            "grid size-[88px] shrink-0 place-items-center rounded-full font-round text-[2.5rem] font-extrabold text-white",
-            unitDone ? "bg-primary shadow-[0_5px_0_var(--color-primary-deep)]" : "bg-primary shadow-[0_5px_0_var(--color-primary-deep)]",
-          )}
-        >
+        <span className="grid size-[88px] shrink-0 place-items-center rounded-full bg-primary font-round text-[2.5rem] font-extrabold text-white shadow-[0_5px_0_var(--color-primary-deep)]">
           {unitDone ? <Check className="size-10" strokeWidth={3} aria-hidden /> : order + 1}
         </span>
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1.5">
@@ -143,7 +139,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
           <h2 className="font-display text-[1.375rem] font-extrabold">Langkah</h2>
           <ol className="flex flex-col gap-3">
             {steps.map(({ item, state, lesson }, i) => {
-              const href = item.kind === "grammar" ? (lesson ? `/materi/${lesson.slug}` : "/materi") : "/kosakata";
+              const href = item.kind === "grammar" ? (lesson ? `/materi/${lesson.slug}` : "/materi") : `/kosakata?level=${unit.level}`;
               const kind =
                 item.kind === "grammar" ? `MATERI${lesson ? "" : " · BELUM TERSEDIA"}` : `KOSAKATA · ${item.vocabCount ?? 10} KATA`;
               const sub =
@@ -159,7 +155,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
                       "flex items-center gap-4 rounded-plate border-2 px-[18px] py-4 transition-transform active:translate-y-0.5",
                       state === "done" && "border-hairline bg-surface",
                       state === "current" && "border-primary-line bg-primary-soft shadow-[0_4px_0_var(--color-primary-line)]",
-                      state === "todo" && "border-dashed border-hairline-strong",
+                      state === "todo" && "border-hairline",
                     )}
                   >
                     <span
@@ -167,7 +163,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
                         "flex size-12 shrink-0 items-center justify-center rounded-full font-round text-[1.375rem] font-extrabold",
                         state === "done" && "bg-primary text-white",
                         state === "current" && "bg-primary text-white shadow-[0_0_0_4px_#fff,0_0_0_7px_var(--color-mint)]",
-                        state === "todo" && "bg-locked text-ink-faint",
+                        state === "todo" && "bg-primary-soft text-primary-deep",
                       )}
                     >
                       {state === "done" ? <Check className="size-[22px]" strokeWidth={3} aria-hidden /> : i + 1}
@@ -206,6 +202,18 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
               <CompleteUnitButton unitId={unit.id} />
             </div>
           )}
+
+          {/* CTA lanjutan berada DI LUAR gate banner di atas: banner (beserta
+              CompleteUnitButton) di-unmount saat unitDone, jadi CTA ini yang
+              menjamin "Lanjut ke unit berikutnya" tetap terlihat setelah refresh. */}
+          {unitDone ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-plate border-2 border-primary-line bg-primary-soft p-[18px] text-primary-deep">
+              <strong className="font-display">Unit ini sudah beres!</strong>
+              <Link href="/belajar" className={buttonVariants({ variant: "primary", size: "sm" })}>
+                Lanjut ke unit berikutnya
+              </Link>
+            </div>
+          ) : null}
         </section>
 
         <aside className="flex w-full flex-col gap-4 lg:w-[340px] lg:shrink-0">

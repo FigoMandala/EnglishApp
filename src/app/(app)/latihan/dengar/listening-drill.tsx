@@ -4,7 +4,15 @@ import { Check, Eye, Pause, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { DrillFooter, DrillHeader, DrillMain, DrillPage, FeedbackBar, PrimaryButton } from "@/components/drill/parts";
+import {
+  DrillFooter,
+  DrillHeader,
+  DrillMain,
+  DrillPage,
+  FeedbackBar,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/components/drill/parts";
 import { DrillSummary } from "@/components/drill/summary";
 import { Lori } from "@/components/mascot";
 import { sfx } from "@/lib/sfx";
@@ -232,7 +240,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
                     sfx.tap();
                   }}
                   className={cn(
-                    "flex min-h-16 cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
+                    "flex min-h-16 cursor-pointer items-center gap-3.5 rounded-[18px] border-2 px-[18px] py-3 text-left text-[1.125rem] font-bold transition-[transform,translate,box-shadow] active:translate-y-1 active:shadow-none disabled:cursor-default",
                     !checked && chosen && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky-line)]",
                     !checked && !chosen && "border-hairline bg-surface shadow-[0_4px_0_var(--color-hairline)] hover:border-sky-line",
                     isAnswer && "border-primary bg-primary-soft text-primary-deep shadow-[0_4px_0_var(--color-primary-line)]",
@@ -295,12 +303,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
         </FeedbackBar>
       ) : (
         <DrillFooter>
-          <Link
-            href="/latihan"
-            className="flex h-[54px] items-center rounded-[16px] border-2 border-hairline bg-surface px-[22px] font-display font-extrabold text-ink-muted shadow-[0_4px_0_var(--color-hairline)]"
-          >
-            TIDAK BISA DENGAR
-          </Link>
+          <SecondaryButton onClick={next}>LEWATI</SecondaryButton>
           <PrimaryButton onClick={check} disabled={!picked}>
             PERIKSA
           </PrimaryButton>

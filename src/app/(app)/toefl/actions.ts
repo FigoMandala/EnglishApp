@@ -7,7 +7,7 @@ import { setSetting, SETTING_KEYS, type ToeflTarget } from "@/db/queries/activit
 import type { Track } from "@/db/queries/toefl";
 import { AiError } from "@/lib/ai-client";
 import { answerQuestion, finishSession, startBlock, type BlockKind } from "@/lib/api/toefl-turn";
-import { isAdmin, requireUser } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { isSkill } from "@/lib/toefl";
 
 export type ToeflState = { status: "idle" | "error"; message?: string };
@@ -18,11 +18,8 @@ const TARGET_KEY: Record<Track, string> = {
   eptr: SETTING_KEYS.eptrTarget,
 };
 
-const NO_ACCESS: ToeflState = { status: "error", message: "Akunmu hanya bisa memakai latihan EPrT." };
-
-function asTrack(value: FormDataEntryValue | null): Track {
-  return value === "eptr" ? "eptr" : "toefl";
-}
+// TOEFL disembunyikan sementara: semua aksi dipaksa ke EPrT. Kembalikan pembacaan form + cek admin untuk mengaktifkan lagi.
+const asTrack = (): Track => "eptr";
 
 function errorMessage(error: unknown) {
   return error instanceof AiError ? error.message : "Asisten AI sedang bermasalah.";
@@ -30,9 +27,8 @@ function errorMessage(error: unknown) {
 
 export async function startToeflBlock(_prev: ToeflState, formData: FormData): Promise<ToeflState> {
   const user = await requireUser();
-  const track = asTrack(formData.get("track"));
-  if (track === "toefl" && !isAdmin(user)) return NO_ACCESS;
-  const kind = String(formData.get("kind") ?? "");
+  const track = asTrack();
+  const kind =String(formData.get("kind") ?? "");
   const VALID_KINDS: BlockKind[] = [
     "drill",
     "written",
@@ -93,8 +89,7 @@ export async function finishToefl(sessionId: number): Promise<ToeflState> {
 
 export async function saveToeflTarget(_prev: ToeflState, formData: FormData): Promise<ToeflState> {
   const user = await requireUser();
-  const track = asTrack(formData.get("track"));
-  if (track === "toefl" && !isAdmin(user)) return NO_ACCESS;
+  const track = asTrack();
   const score = Number(formData.get("score"));
   const testDate = String(formData.get("testDate") ?? "").trim();
 

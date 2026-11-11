@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { cn } from "@/lib/utils";
 
 const fieldBase = [
@@ -33,11 +35,12 @@ export function Label({ className, ...props }: React.ComponentProps<"label">) {
   );
 }
 
-export function FieldError({ children }: { children?: React.ReactNode }) {
+export function FieldError({ children, id }: { children?: React.ReactNode; id?: string }) {
+  const autoId = useId();
   if (!children) return null;
   return (
     <p
-      id="field-error"
+      id={id ?? autoId}
       role="alert"
       className="flex items-center gap-1.5 text-[0.8125rem] font-bold leading-snug text-brick-deep"
     >

@@ -50,6 +50,9 @@ export default async function KosakataPage({
     : "semua";
   const needle = (params.q ?? "").trim().toLowerCase();
   const topic = (params.topic ?? "").trim().toLowerCase();
+  // Ada filter (kata kunci/level/topik/status) aktif? Membedakan hasil kosong
+  // karena filter vs bank kosakata yang benar-benar kosong.
+  const hasFilter = level !== "semua" || status !== "semua" || needle !== "" || topic !== "";
 
   // Filter didorong ke SQL; hanya 60 baris pertama yang pernah keluar dari DB.
   const [stats, forecast, list] = await Promise.all([
@@ -101,7 +104,7 @@ export default async function KosakataPage({
               {newWaiting > 0 ? ` · ${newWaiting} kata baru menunggu` : ""} · +{XP_REWARDS.vocabCard} XP per kartu
             </span>
           </div>
-          <StartReviewButton dueCount={stats.due} />
+          <StartReviewButton dueCount={stats.due} newWaiting={newWaiting} />
         </div>
 
         <section aria-label="Prakiraan 7 hari" className="flex min-w-0 flex-[1_1_340px] flex-col gap-3 rounded-hero border-2 border-hairline bg-surface px-6 py-5">
@@ -178,6 +181,7 @@ export default async function KosakataPage({
             >
               {STATUS_LABEL[value]}
               {value === "due" && stats.due > 0 ? ` · ${stats.due}` : ""}
+              {value === "new" && newWaiting > 0 ? ` · ${newWaiting}` : ""}
             </Link>
           ))}
         </nav>
@@ -231,19 +235,25 @@ export default async function KosakataPage({
 
       {rows.length === 0 ? (
         <Card className="p-6">
-          <p className="text-[0.9375rem] text-ink-subtle">
-            Tidak ada kata yang cocok. Bank kosakata bisa ditambah lewat{" "}
-            <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em]">npm run db:vocab</code>.
-          </p>
+          {hasFilter ? (
+            <p className="text-[0.9375rem] text-ink-subtle">
+              Tidak ada kata yang cocok. Coba hapus kata kunci atau filter, lalu cari lagi.
+            </p>
+          ) : (
+            <p className="text-[0.9375rem] text-ink-subtle">
+              Tidak ada kata yang cocok. Bank kosakata bisa ditambah lewat{" "}
+              <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em]">npm run db:vocab</code>.
+            </p>
+          )}
         </Card>
       ) : (
         <div className="overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
-          <table className="w-full min-w-[820px] border-collapse text-[0.9375rem]">
+          <table className="w-full min-w-[560px] md:min-w-[820px] border-collapse text-[0.9375rem]">
             <thead>
               <tr className="bg-surface-muted text-left text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">
                 <th scope="col" className="px-5 py-3.5">Kata</th>
                 <th scope="col" className="px-3 py-3.5">Arti</th>
-                <th scope="col" className="px-3 py-3.5">Contoh</th>
+                <th scope="col" className="hidden px-3 py-3.5 md:table-cell">Contoh</th>
                 <th scope="col" className="px-3 py-3.5">Tingkat</th>
                 <th scope="col" className="px-3 py-3.5">Ingatan</th>
                 <th scope="col" className="py-3.5 pl-3 pr-5">Ulang</th>
@@ -266,7 +276,7 @@ export default async function KosakataPage({
                       </span>
                     </td>
                     <td className="px-3 py-3.5">{card.meaning}</td>
-                    <td className="max-w-[300px] px-3 py-3.5 text-ink-muted">{card.exampleEn ? emphasize(card.exampleEn, card.word) : "–"}</td>
+                    <td className="hidden max-w-[300px] px-3 py-3.5 text-ink-muted md:table-cell">{card.exampleEn ? emphasize(card.exampleEn, card.word) : "–"}</td>
                     <td className="px-3 py-3.5">
                       <LevelTag level={card.cefr ?? (card.level === "basic" ? "Dasar" : card.level === "intermediate" ? "Menengah" : "Lanjut")} />
                     </td>
@@ -274,7 +284,7 @@ export default async function KosakataPage({
                       {s.kind === "new" ? (
                         <span className="rounded-full bg-mango px-2 py-0.5 text-[0.6875rem] font-extrabold text-mango-on">BARU</span>
                       ) : (
-                        <span aria-label={`Ingatan ${filled} dari 4`} className="inline-flex gap-[3px]">
+                        <span aria-label={`Ingatan ${filled} dari 4`} role="img" className="inline-flex gap-[3px]">
                           {[0, 1, 2, 3].map((i) => (
                             <span
                               key={i}

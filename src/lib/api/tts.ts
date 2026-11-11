@@ -13,66 +13,49 @@ const WARM_BUDGET_MS = 20_000;
 /** Audio lebih besar dari ini tidak masuk cache DB (audio normal jauh di bawah ini). */
 const MAX_CACHE_BYTES = 2_000_000;
 
-type Provider = "openrouter" | "kenari";
+const apiKey = () => process.env.FISH_AUDIO_API_KEY?.trim();
 
-/** OpenRouter (Fish Audio) dipakai kalau kuncinya ada; kenari.id jadi cadangan. */
-function pickProvider(): { provider: Provider; apiKey: string } | null {
-  const openrouter = process.env.OPENROUTER_API_KEY?.trim();
-  if (openrouter && process.env.TTS_PROVIDER?.trim() !== "kenari") return { provider: "openrouter", apiKey: openrouter };
-  const kenari = process.env.TTS_API_KEY?.trim();
-  return kenari ? { provider: "kenari", apiKey: kenari } : null;
+const ttsModel = () => process.env.FISH_AUDIO_MODEL?.trim() || "s2.1-pro-free";
+
+/** 64 kbps cukup untuk ucapan dan separuh ukuran 128 kbps (cache audio disimpan base64 di database). */
+const MP3_BITRATE = 64;
+
+/** Fish Audio memilih suara lewat reference_id; kosong = suara bawaan model. Kore = wanita, Charon = pria. */
+function modelVoice(voice: string) {
+  const id = voice === "Charon" ? process.env.FISH_VOICE_MAN : process.env.FISH_VOICE_WOMAN;
+  return id?.trim() || undefined;
 }
 
-/** Fish Audio memakai ID suara (reference_id). Kosong = suara bawaan model. */
-function fishVoice(voice: string) {
-  const id = voice === "Charon" ? process.env.OPENROUTER_TTS_VOICE_MAN : process.env.OPENROUTER_TTS_VOICE_WOMAN;
-  return id?.trim() || process.env.OPENROUTER_TTS_VOICE?.trim() || undefined;
-}
-
-function request(provider: Provider, apiKey: string, text: string, voice: string) {
-  if (provider === "openrouter") {
-    return fetch("https://openrouter.ai/api/v1/audio/speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "X-Title": "EnglishApp" },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_TTS_MODEL?.trim() || "fish-audio/s2.1-pro-free:free",
-        input: text,
-        voice: fishVoice(voice),
-        response_format: "mp3",
-      }),
-      signal: AbortSignal.timeout(40_000),
-    });
-  }
-  return fetch(`${process.env.TTS_BASE_URL?.trim() || "https://kenari.id/v1"}/audio/speech`, {
+function request(key: string, text: string, voice: string) {
+  return fetch("https://api.fish.audio/v1/tts", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "gemini-3-1-flash-tts", input: text, voice, response_format: "mp3" }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, model: ttsModel() },
+    body: JSON.stringify({ text, format: "mp3", mp3_bitrate: MP3_BITRATE, reference_id: modelVoice(voice) }),
     signal: AbortSignal.timeout(40_000),
   });
 }
 
-/** Audio mp3 dari cache, atau dibuat lewat penyedia suara lalu disimpan. Null kalau gagal/tidak dikonfigurasi. */
+/** Audio mp3 dari cache, atau dibuat lewat Fish Audio lalu disimpan. Null kalau gagal/tidak dikonfigurasi. */
 export async function getTts(text: string, voice: string): Promise<Buffer | null> {
-  const picked = pickProvider();
-  // Kunci cache memuat penyedia dan ID suara supaya ganti penyedia tidak memutar audio lama.
-  const voiceKey = picked?.provider === "openrouter" ? (fishVoice(voice) ?? "default") : voice;
-  const key = createHash("sha256").update(`${picked?.provider ?? "none"}
-${voiceKey}
+  const apiKeyValue = apiKey();
+  // Kunci cache memuat model dan suara supaya ganti model tidak memutar audio lama.
+  const key = createHash("sha256").update(`fish64
+${ttsModel()}:${modelVoice(voice) ?? "default"}
 ${text}`).digest("hex");
   const [hit] = await db.select().from(ttsCache).where(eq(ttsCache.key, key)).limit(1);
   if (hit) return Buffer.from(hit.audio, "base64");
-  if (!picked) return null;
+  if (!apiKeyValue) return null;
 
   let response: Response | null = null;
   for (let attempt = 0; attempt < 2 && !response?.ok; attempt += 1) {
-    response = await request(picked.provider, picked.apiKey, text, voice).catch((error) => {
-      console.error(`[tts] gagal menghubungi ${picked.provider}:`, error);
+    response = await request(apiKeyValue, text, voice).catch((error) => {
+      console.error("[tts] gagal menghubungi Fish Audio:", error);
       return null;
     });
     if (response && !response.ok) {
-      console.error(`[tts] ${picked.provider} status ${response.status}: ${(await response.text().catch(() => "")).slice(0, 200)}`);
-      // Kunci salah atau saldo habis tidak akan membaik dengan mengulang.
-      if ([401, 402, 403].includes(response.status)) break;
+      console.error(`[tts] Fish Audio status ${response.status}: ${(await response.text().catch(() => "")).slice(0, 200)}`);
+      // Kunci salah, saldo habis atau kuota harian habis tidak akan membaik dengan mengulang.
+      if ([401, 402, 403, 429].includes(response.status)) break;
     }
   }
   if (!response?.ok) return null;
@@ -93,7 +76,7 @@ ${text}`).digest("hex");
 
 /** Siapkan audio semua soal Listening (paralel) selama pembuatan soal, supaya langsung bunyi saat dimulai. */
 export async function warmTts(questions: ToeflQuestion[]) {
-  if (!pickProvider()) return;
+  if (!apiKey()) return;
   const lines = new Map<string, { text: string; voice: string }>();
   for (const question of questions) {
     if (!question.audio) continue;

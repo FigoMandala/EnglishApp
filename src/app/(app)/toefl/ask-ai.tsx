@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { TutorChat } from "@/app/(app)/tutor/tutor-chat";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -36,6 +36,9 @@ export function AskAi({
   // Layar kecil: panel jadi overlay layar penuh (dialog sungguhan). Layar lg:
   // panel hanya kolom samping, halaman di belakang tetap bisa digulir.
   const [isDesktop, setIsDesktop] = useState(false);
+  // Elemen yang difokuskan sebelum dialog layar kecil dibuka, untuk dikembalikan saat ditutup.
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const mobileDialog = open && !isDesktop;
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -54,9 +57,21 @@ export function AskAi({
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Layar kecil: dialog menutup layar. Simpan elemen yang sedang difokuskan saat
+  // dibuka, lalu kembalikan fokus ke sana saat ditutup.
+  useEffect(() => {
+    if (!mobileDialog) return;
+    const active = document.activeElement;
+    restoreFocusRef.current = active instanceof HTMLElement ? active : null;
+    return () => {
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [mobileDialog]);
+
   // Layar kecil: panel overlay layar penuh, kunci scroll halaman di belakang
   // (teknik position:fixed agar iOS Safari tidak rubber-band).
-  useBodyScrollLock(open && !isDesktop);
+  useBodyScrollLock(mobileDialog);
 
   const trigger = open ? null : (
     <button
@@ -76,7 +91,11 @@ export function AskAi({
           "lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6",
       )}
     >
-      <div className="min-w-0">{children(open, trigger)}</div>
+      {/* Layar kecil saat dialog terbuka: konten di belakang dibuat inert supaya
+          tidak bisa difokus/diklik dan Tab tetap berpindah di dalam dialog. */}
+      <div className="min-w-0" inert={mobileDialog}>
+        {children(open, trigger)}
+      </div>
 
       {open ? (
         <aside

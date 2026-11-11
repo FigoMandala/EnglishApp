@@ -65,7 +65,7 @@ export function MistakeBank({
           <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Bank Kesalahan</h1>
           <p className="max-w-[560px] text-ink-subtle">
             Setiap jawaban salah disimpan di sini, dikelompokkan per pola. Jawab benar sekali lagi, dan kesalahannya
-            otomatis ditebus.
+            otomatis ditebus · +5 XP per soal.
           </p>
         </div>
         <dl className="flex flex-wrap gap-3">

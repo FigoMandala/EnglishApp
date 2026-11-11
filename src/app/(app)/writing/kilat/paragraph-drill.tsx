@@ -237,7 +237,7 @@ export function ParagraphDrill({ daily }: { daily: WritingPrompt }) {
           </p>
         </div>
         <span className="tnum shrink-0 rounded-full bg-mango-soft px-3 py-1 text-[0.8125rem] font-extrabold text-mango-ink">
-          {words} / {PARAGRAPH_MIN_WORDS} kata
+          {words >= PARAGRAPH_MIN_WORDS ? `${words} kata · siap dinilai` : `${words} / ${PARAGRAPH_MIN_WORDS} kata`}
         </span>
       </div>
 
@@ -308,10 +308,10 @@ export function ParagraphDrill({ daily }: { daily: WritingPrompt }) {
         >
           <div
             className={cn(
-              "h-full rounded-full transition-[width]",
+              "h-full w-full origin-left rounded-full transition-transform duration-300 ease-[var(--ease-out)]",
               words > PARAGRAPH_MAX_WORDS ? "bg-brick" : words >= PARAGRAPH_MIN_WORDS ? "bg-primary" : "bg-mango",
             )}
-            style={{ width: `${Math.min(100, (words / PARAGRAPH_MIN_WORDS) * 100)}%` }}
+            style={{ transform: `scaleX(${Math.min(1, words / PARAGRAPH_MIN_WORDS)})` }}
           />
         </div>
         {words > PARAGRAPH_MAX_WORDS ? (
@@ -333,9 +333,11 @@ export function ParagraphDrill({ daily }: { daily: WritingPrompt }) {
           {pending ? "Lori sedang membaca…" : "Minta koreksi"}
         </Button>
         <span className="text-[0.8125rem] text-ink-subtle">
-          {words < PARAGRAPH_MIN_WORDS
-            ? `Kurang ${PARAGRAPH_MIN_WORDS - words} kata lagi.`
-            : "Sekali kirim, langsung dapat skor dan koreksi."}
+          {pending
+            ? "Biasanya 10–20 detik."
+            : words < PARAGRAPH_MIN_WORDS
+              ? `Kurang ${PARAGRAPH_MIN_WORDS - words} kata lagi.`
+              : "Sekali kirim, langsung dapat skor dan koreksi."}
         </span>
       </div>
     </div>

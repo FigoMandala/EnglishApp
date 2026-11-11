@@ -29,13 +29,14 @@ function parseLevel(value: string | undefined): PracticeLevel | undefined {
 export default async function LatihanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ t?: string; n?: string }>;
+  searchParams: Promise<{ t?: string; n?: string; j?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
   const level = parseLevel(params.t);
+  const choiceOnly = params.j === "pilgan";
 
-  const exercises = await pickPracticeExercises(user.id, { level, limit: LIMIT });
+  const exercises = await pickPracticeExercises(user.id, { level, limit: LIMIT, choiceOnly });
   const answeredCorrect = exercises.filter((exercise) => exercise.answered?.correct).length;
 
   return (
@@ -57,7 +58,7 @@ export default async function LatihanPage({
         </p>
       </header>
 
-      <DrillToolbar level={level ?? "all"} />
+      <DrillToolbar level={level ?? "all"} choiceOnly={choiceOnly} />
 
       <div key={params.n ?? "default"} className="flex flex-col gap-4">
         {exercises.length === 0 ? (

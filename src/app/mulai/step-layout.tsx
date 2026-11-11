@@ -121,4 +121,4 @@ export function OnboardingStep({
 }
 
 export const CHOICE =
-  "rise flex w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2 text-left transition-[transform,box-shadow,background-color] active:translate-y-1 active:shadow-none sm:gap-4 sm:rounded-[20px] sm:px-5 sm:py-[18px]";
+  "rise flex w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2 text-left transition-[transform,translate,box-shadow,background-color] active:translate-y-1 active:shadow-none sm:gap-4 sm:rounded-[20px] sm:px-5 sm:py-[18px]";

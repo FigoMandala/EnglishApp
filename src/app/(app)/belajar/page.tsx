@@ -164,7 +164,7 @@ export default async function BelajarPage() {
             {steps.length ? (
               <ol className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
                 {steps.map((step, i) => {
-                  const href = step.kind === "grammar" && step.refSlug ? `/materi/${step.refSlug}` : "/kosakata";
+                  const href = step.kind === "grammar" && step.refSlug ? `/materi/${step.refSlug}` : `/kosakata?level=${currentUnit.level}`;
                   return (
                     <li key={step.id}>
                       <Link

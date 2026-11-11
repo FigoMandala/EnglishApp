@@ -47,8 +47,8 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
     if (!allDone || saved.current) return;
     saved.current = true;
     sfx.levelUp();
-    // Skor 0–10: pasangan + bonus combo − kesalahan (server membatasi XP).
-    const score = Math.max(1, Math.min(10, total + Math.floor(best / 2) - mistakes));
+    // Skor 0–10: pasangan + bonus combo + bonus sempurna − kesalahan (server membatasi XP).
+    const score = Math.max(1, Math.min(10, total + Math.floor(best / 2) - mistakes + (mistakes === 0 ? 1 : 0)));
     finishDrillAction("pairs", score, 10)
       .then((res) => {
         if (res.xp) setXp(res.xp);
@@ -123,7 +123,7 @@ export function PairsDrill({ pairs, rightOrder }: { pairs: Pair[]; rightOrder: n
         disabled={done}
         aria-pressed={sel}
         className={cn(
-          "min-h-16 w-full min-w-0 cursor-pointer break-words rounded-[18px] border-2 px-4 text-left transition-[transform,box-shadow,opacity] active:translate-y-1 active:shadow-none disabled:cursor-default sm:px-5",
+          "min-h-16 w-full min-w-0 cursor-pointer break-words rounded-[18px] border-2 px-4 text-left transition-[transform,translate,box-shadow,opacity] active:translate-y-1 active:shadow-none disabled:cursor-default sm:px-5",
           side === "L" ? "font-display text-[1.25rem] font-extrabold" : "text-[1.0625rem] font-bold",
           "border-hairline bg-surface text-ink shadow-[0_4px_0_var(--color-hairline)]",
           sel && "border-sky bg-sky-soft text-sky-deep shadow-[0_4px_0_var(--color-sky-line)]",

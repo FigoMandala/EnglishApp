@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { GaugeRing } from "@/components/charts";
 import { LessonBody } from "@/components/lesson-body";
@@ -10,16 +11,20 @@ import { Lori } from "@/components/mascot";
 import { SpeechBubble } from "@/components/ui/bubble";
 import { cn } from "@/lib/utils";
 
+import { markLessonDoneAction } from "../../belajar/actions";
+
+
 export type LessonSection = { title: string; body: string };
 export type TocItem = { slug: string; title: string; completed: boolean };
 
-const PRESS = "transition-[transform,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default";
+const PRESS = "transition-[transform,translate,box-shadow,filter] duration-150 active:translate-y-[5px] active:shadow-none disabled:cursor-default";
 
 /**
  * Materi per langkah (satu bagian `##` = satu langkah) dengan rel langkah di kiri,
  * isi di tengah, penguasaan + daftar materi di kanan. Langkah terakhir selalu latihan.
  */
 export function LessonStepper({
+  lessonId,
   eyebrow,
   title,
   summary,
@@ -31,6 +36,7 @@ export function LessonStepper({
   currentSlug,
   mastery,
 }: {
+  lessonId: number;
   eyebrow: string;
   title: string;
   summary: string;
@@ -45,9 +51,14 @@ export function LessonStepper({
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState("");
 
-  const steps = [...sections.map((s) => s.title), "Latihan"];
+  // Materi tanpa soal (practice null) tidak punya langkah "Latihan": daftar
+  // langkah berakhir di bagian baca terakhir + tombol tandai selesai, bukan
+  // jalan buntu di bubble "belum tersedia".
+  const hasPractice = practice !== null;
+  const steps = [...sections.map((s) => s.title), ...(hasPractice ? ["Latihan"] : [])];
   const last = steps.length - 1;
-  const onPractice = step === last;
+  const onPractice = hasPractice && step === last;
+  const onLastRead = !hasPractice && step === last;
   const bubble = onPractice
     ? exerciseCount > 0
       ? `Sekarang praktik! ${exerciseCount} soal, satu per satu. Kalau salah, aku bedah kalimatnya.`
@@ -153,7 +164,11 @@ export function LessonStepper({
               <ChevronLeft className="size-[18px]" strokeWidth={2.6} aria-hidden />
               {step > 0 ? steps[step - 1] : "Sebelumnya"}
             </button>
-            {onPractice ? null : (
+            {step === last ? (
+              onLastRead ? (
+                <MarkLessonDoneButton lessonId={lessonId} />
+              ) : null
+            ) : (
               <button
                 type="button"
                 onClick={() => setStep((s) => Math.min(last, s + 1))}
@@ -240,6 +255,53 @@ export function LessonStepper({
           </Link>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** Tombol tandai materi selesai untuk materi tanpa soal — satu-satunya jalan keluar dari langkah terakhir. */
+function MarkLessonDoneButton({ lessonId }: { lessonId: number }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (done) {
+    return (
+      <span className="pop flex items-center gap-2 rounded-full bg-primary-soft px-4 py-2.5 text-[0.875rem] font-extrabold text-primary-deep">
+        <Check className="size-4" strokeWidth={3.2} aria-hidden />
+        Materi selesai
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null);
+            try {
+              const res = await markLessonDoneAction(lessonId);
+              if (res.status === "error") {
+                setError(res.message ?? "Gagal menandai selesai. Coba lagi.");
+                return;
+              }
+              setDone(true);
+              router.refresh();
+            } catch {
+              setError("Gagal menandai selesai. Coba lagi.");
+            }
+          })
+        }
+        className={`${PRESS} flex h-[52px] cursor-pointer items-center gap-2 rounded-[16px] bg-primary px-6 font-display text-[0.9375rem] font-extrabold uppercase tracking-[0.03em] text-white shadow-[0_5px_0_var(--color-primary-deep)] disabled:opacity-60`}
+      >
+        {pending ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <Check className="size-[18px]" strokeWidth={3} aria-hidden />}
+        Tandai materi selesai
+      </button>
+      {error ? <p className="text-[0.875rem] font-bold text-brick-deep">{error}</p> : null}
     </div>
   );
 }

@@ -1,10 +1,9 @@
 import { cn } from "@/lib/utils";
 
-type Tone = "neutral" | "accent" | "success" | "danger" | "data" | "reward" | "new" | "exam";
+type Tone = "neutral" | "success" | "danger" | "data" | "reward" | "new" | "exam";
 
 const tones: Record<Tone, string> = {
   neutral: "bg-canvas text-ink-muted border-hairline",
-  accent: "bg-primary-soft text-primary-deep border-primary-line",
   success: "bg-primary-soft text-primary-deep border-primary-line",
   danger: "bg-brick-soft text-brick-deep border-brick-line",
   data: "bg-sky-soft text-sky-deep border-sky-line",

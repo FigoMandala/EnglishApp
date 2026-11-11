@@ -166,7 +166,7 @@ export type PracticeExercise = {
  */
 export async function pickPracticeExercises(
   userId: number,
-  options: { level?: PracticeLevel; limit?: number } = {},
+  options: { level?: PracticeLevel; limit?: number; choiceOnly?: boolean } = {},
 ): Promise<PracticeExercise[]> {
   const limit = Math.min(Math.max(options.limit ?? 12, 1), 40);
 
@@ -183,7 +183,9 @@ export async function pickPracticeExercises(
     )
     .where(
       and(
-        notInArray(grammarExercises.type, ["compose"]),
+        options.choiceOnly
+          ? eq(grammarExercises.type, "choice")
+          : notInArray(grammarExercises.type, ["compose"]),
         options.level ? eq(grammarLessons.level, options.level) : undefined,
       ),
     )

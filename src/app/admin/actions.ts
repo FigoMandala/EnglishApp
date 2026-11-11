@@ -10,6 +10,7 @@ import {
   findUserRole,
   getBankItem,
   listAllUnits,
+  reopenModerationFlag,
   resetQuestionStats,
   resolveModerationFlag,
   setUnitItemOrder,
@@ -19,9 +20,13 @@ import {
   updateBankItem,
 } from "@/db/queries/admin";
 import type { LevelBand } from "@/db/queries/question-bank";
-import { createVocabulary, updateVocabulary } from "@/db/queries/vocabulary";
+import { createVocabulary, listVocabulary, updateVocabulary } from "@/db/queries/vocabulary";
 import { editBankItem, moveInOrder, parseWordInput, roleChangeError, type QuestionEdit } from "@/lib/admin";
 import { budgetError, setDailyBudgetUsd } from "@/lib/ai-budget";
+import { chatJsonRaw } from "@/lib/ai-client";
+import { aiConfigured, getAiConfig, reasoningExtra, setAiConfig, type ReasoningEffort } from "@/lib/ai-config";
+import { dictionaryPhonetic } from "@/lib/dictionary";
+import { parseGeneratedWords, toVocabRow, VOCAB_LEVELS, type VocabLevel } from "@/lib/vocabulary-generator";
 import { assertSameOrigin, logAudit } from "@/lib/security";
 import { requireAdmin } from "@/lib/session";
 
@@ -127,7 +132,7 @@ export async function saveBankItemAction(_prev: FormState, formData: FormData): 
 export async function retireBankItemAction(formData: FormData) {
   const admin = await guard();
   const id = Number(formData.get("id"));
-  const track = formData.get("track") === "toefl" ? "toefl" : "eptr";
+  const track = "eptr"; // TOEFL disembunyikan sementara
   const status = String(formData.get("status") ?? "all");
   if (!Number.isInteger(id) || id <= 0) back("/admin/soal", { track, status, galat: "Soal tidak dikenal." });
 
@@ -152,6 +157,20 @@ export async function resolveFlagAction(formData: FormData) {
   revalidatePath("/admin/moderasi");
   revalidatePath("/admin");
   back("/admin/moderasi", { pesan: row ? `Flag #${id} ditandai ${resolution === "safe" ? "aman" : "ditindak"}.` : "Flag sudah ditinjau sebelumnya." });
+}
+
+export async function reopenFlagAction(formData: FormData) {
+  const admin = await guard();
+  const id = Number(formData.get("id"));
+  const row = await reopenModerationFlag(id);
+  if (row) {
+    await logAudit({ actorId: admin.id, action: "moderation.reopen", detail: `#${id} ${row.feature}/${row.reason} → dibuka ulang` });
+  }
+  revalidatePath("/admin/moderasi");
+  revalidatePath("/admin");
+  back("/admin/moderasi", {
+    pesan: row ? `Flag #${id} dikembalikan ke antrean tinjauan.` : "Flag belum ditinjau, tidak ada yang perlu dibuka.",
+  });
 }
 
 export async function setBudgetAction(formData: FormData) {
@@ -269,4 +288,69 @@ export async function deleteUserDataAction(formData: FormData) {
   await logAudit({ actorId: admin.id, action: "user.delete", detail: `@${target.username} beserta seluruh datanya dihapus` });
   revalidatePath("/admin/pengguna");
   back("/admin/pengguna", { pesan: `Akun @${target.username} dan seluruh datanya dihapus.` });
+}
+
+/* ═══ Generate konten (AI + kamus terbuka) ═══ */
+
+const GENERATE = "/admin/generate";
+
+export async function saveAiConfigAction(formData: FormData) {
+  const admin = await guard();
+  // Kolom kosong = pertahankan nilai lama (key tidak pernah ditampilkan ulang).
+  await setAiConfig({
+    baseUrl: String(formData.get("baseUrl") ?? ""),
+    model: String(formData.get("model") ?? ""),
+    verifyModel: String(formData.get("verifyModel") ?? ""),
+    reasoningEffort: String(formData.get("reasoningEffort") ?? "") as ReasoningEffort,
+    apiKey: String(formData.get("apiKey") ?? ""),
+  });
+  await logAudit({ actorId: admin.id, action: "ai.config", detail: "Pengaturan AI diperbarui" });
+  back(GENERATE, { pesan: "Pengaturan AI tersimpan." });
+}
+
+export async function generateWordsAction(formData: FormData) {
+  const admin = await guard();
+  const config = await getAiConfig();
+  if (!aiConfigured(config)) back(GENERATE, { galat: "Isi key AI dulu di bagian Pengaturan AI." });
+
+  const typed = String(formData.get("words") ?? "").split(/[\n,;]+/).map((w) => w.trim()).filter(Boolean).slice(0, 30);
+  const topic = String(formData.get("topic") ?? "").trim().slice(0, 60) || "umum";
+  const levelRaw = String(formData.get("level"));
+  const level: VocabLevel = (VOCAB_LEVELS as readonly string[]).includes(levelRaw) ? (levelRaw as VocabLevel) : "intermediate";
+  const count = Math.min(30, Math.max(1, Number(formData.get("count")) || 10));
+
+  const ask = typed.length
+    ? `Lengkapi data kamus untuk kata-kata ini: ${typed.join(", ")}.`
+    : `Pilih ${count} kata baru yang berguna untuk EPrT/TOEFL ITP, topik "${topic}", level ${level}.`;
+  let raw: string;
+  try {
+    ({ content: raw } = await chatJsonRaw(config, [
+      {
+        role: "system",
+        content:
+          'Kamu penyusun kamus Inggris untuk pelajar Indonesia. Balas HANYA JSON {"words":[{"word","meaning" (arti Indonesia singkat),"phonetic" (IPA),"partOfSpeech","exampleEn","exampleId" (terjemahan Indonesia contoh),"level" (basic|intermediate|advanced),"topic"}]}.',
+      },
+      { role: "user", content: ask },
+    ], undefined, reasoningExtra(config)));
+  } catch (error) {
+    back(GENERATE, { galat: error instanceof Error ? error.message : "Gagal menghubungi AI." });
+  }
+
+  const existing = new Set((await listVocabulary()).map((row) => row.wordLower));
+  const words = parseGeneratedWords(raw, { level, topic }, existing);
+  // Fonetik dari kamus sungguhan lebih tepercaya daripada tebakan model.
+  const phonetics = await Promise.all(words.map((item) => dictionaryPhonetic(item.word)));
+  let added = 0;
+  for (const [i, item] of words.entries()) {
+    try {
+      await createVocabulary(toVocabRow({ ...item, phonetic: phonetics[i] ?? item.phonetic }));
+      added += 1;
+    } catch {
+      // word_lower unik: kata yang sama dilewati.
+    }
+  }
+
+  await logAudit({ actorId: admin.id, action: "vocabulary.generate", detail: `${added} kata (${typed.length ? "daftar admin" : topic})` });
+  revalidatePath("/admin/kosakata");
+  back(GENERATE, added ? { pesan: `${added} kata ditambahkan ke kamus.` } : { galat: "Tidak ada kata baru (semua sudah ada atau respons AI tidak terbaca)." });
 }

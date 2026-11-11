@@ -38,3 +38,9 @@ yarn-error.log*
 .vercel
 .env*
 .commandcode/
+
+# Blender MCP server (clone lokal)
+tools/blender_mcp/
+
+# Cadangan otomatis Blender
+*.blend1

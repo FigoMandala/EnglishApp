@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 import { logClientErrorAction } from "@/app/error-actions";
@@ -48,9 +49,14 @@ export function ErrorScreen({
           </code>
         </p>
       </div>
-      <button onClick={onReset} className={buttonVariants({ className: "min-w-[200px]" })}>
-        Coba lagi
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button onClick={onReset} className={buttonVariants({ className: "min-w-[200px]" })}>
+          Coba lagi
+        </button>
+        <Link href="/belajar" className={buttonVariants({ variant: "secondary", className: "min-w-[200px]" })}>
+          Kembali ke belajar
+        </Link>
+      </div>
     </div>
   );
 }

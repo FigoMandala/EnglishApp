@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, BookOpen, Clock, Headphones, Loader2, PenLine } from "lucide-react";
+import { ArrowRight, BookOpen, Check, ChevronDown, Clock, Headphones, Loader2, PenLine } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { Kaka } from "@/components/mascot";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,111 @@ function pctTone(pct: number | null) {
   return { bar: "bg-primary", text: "text-primary-deep" };
 }
 
+type Topic = EprtHomeProps["topics"][number];
+
+/** Dropdown topik: pemicu menampilkan topik terpilih; daftar dikelompokkan per bagian dan bisa dipakai dengan keyboard. */
+function TopicDropdown({ groups, value, onChange }: { groups: { title: string; topics: Topic[] }[]; value: Topic; onChange: (topic: Topic) => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const flat = groups.flatMap((group) => group.topics);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "Escape") setOpen(false);
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    if (!open) return setOpen(true);
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    const index = flat.findIndex((topic) => topic.skill === value.skill);
+    onChange(flat[(index + step + flat.length) % flat.length]);
+  }
+
+  const rate = (topic: Topic) => (topic.answered >= 3 ? topic.pct : null);
+
+  return (
+    <div ref={root} className="relative" onKeyDown={onKeyDown}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls="topic-listbox"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex min-h-[60px] w-full cursor-pointer items-center justify-between gap-3 rounded-[16px] border-2 bg-surface px-4 text-left transition-colors",
+          open ? "border-primary" : "border-hairline hover:border-hairline-strong",
+        )}
+      >
+        <span className="min-w-0">
+          <strong className="block truncate text-[1rem]">{value.label}</strong>
+          <span className="block truncate text-[0.8125rem] text-ink-subtle">
+            {value.section === "structure" ? "Structure" : "Reading"} · {value.hint}
+          </span>
+        </span>
+        <ChevronDown aria-hidden className={cn("size-5 shrink-0 text-ink-subtle transition-transform duration-200", open && "rotate-180")} />
+      </button>
+
+      {open ? (
+        <ul
+          id="topic-listbox"
+          role="listbox"
+          aria-label="Pilih topik latihan"
+          className="absolute inset-x-0 top-[calc(100%+6px)] z-20 max-h-[360px] overflow-y-auto rounded-[16px] border-2 border-hairline bg-surface p-1.5 shadow-[0_8px_0_var(--color-hairline)]"
+        >
+          {groups.map((group) =>
+            group.topics.length ? (
+              <li key={group.title} role="presentation">
+                <p className="px-3 pb-1 pt-2.5 text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">{group.title}</p>
+                <ul role="presentation">
+                  {group.topics.map((topic) => {
+                    const pct = rate(topic);
+                    const tone = pctTone(pct);
+                    const selected = topic.skill === value.skill;
+                    return (
+                      <li
+                        key={topic.skill}
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          onChange(topic);
+                          setOpen(false);
+                        }}
+                        className={cn(
+                          "flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2",
+                          selected ? "bg-primary-soft" : "hover:bg-surface-muted",
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <strong className="block truncate text-[0.9375rem]">{topic.label}</strong>
+                          <span className="block truncate text-[0.75rem] text-ink-subtle">{topic.hint}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          {pct !== null && pct < 60 ? (
+                            <span className="rounded-full bg-brick-soft px-2 py-0.5 text-[0.6875rem] font-extrabold text-brick-deep">Prioritas</span>
+                          ) : null}
+                          <span className={cn("w-14 text-right text-[0.8125rem] font-extrabold", tone.text)}>{pct !== null ? `${pct}%` : "baru"}</span>
+                          {selected ? <Check aria-hidden className="size-4 text-primary" /> : <span className="size-4" />}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            ) : null,
+          )}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 const MINI_TESTS = [
   { section: "listening", title: "Listening", Icon: Headphones, tone: "bg-sky-soft text-sky", note: "audio sekali putar" },
   { section: "structure", title: "Structure", Icon: PenLine, tone: "bg-primary-soft text-primary", note: "completion & error" },
@@ -128,7 +234,13 @@ export function EprtHome(props: EprtHomeProps) {
   const [state, formAction, pending] = useActionState(startToeflBlock, initialState);
   const [targetState, targetAction, targetPending] = useActionState(saveToeflTarget, initialState);
   const startedRef = useRef<string | null>(null);
-  const [format, setFormat] = useState<"drill" | "written">("drill");
+  // Param ?f=drill|written (mis. dari kartu "Perlu latihan" hasil simulasi)
+  // menentukan pilihan awal segmented control bentuk soal Structure.
+  const formatParam = useSearchParams().get("f");
+  const [format, setFormat] = useState<"drill" | "written">(
+    formatParam === "written" ? "written" : "drill",
+  );
+  const [pickedSkill, setPickedSkill] = useState<SkillKey | null>(null);
   const { activeSim, target } = props;
   const progress = activeSim ? Math.round((activeSim.doneQuestions / activeSim.totalQuestions) * 100) : 0;
 
@@ -165,63 +277,20 @@ export function EprtHome(props: EprtHomeProps) {
     );
   }
 
-  function topicRow(topic: EprtHomeProps["topics"][number], kind: "drill" | "written" | "reading", first: boolean) {
-    const key = `${kind}:${topic.skill}`;
-    const busy = pending && startedRef.current === key;
-    const tone = pctTone(topic.answered >= 3 ? topic.pct : null);
-    const weak = topic.pct !== null && topic.answered >= 3 && topic.pct < 60;
-    return (
-      <tr key={key} className={cn(!first && "border-t-2 border-hairline-soft")}>
-        <td className="px-5 py-3.5">
-          <strong className="block">{topic.label}</strong>
-          <span className="text-[0.8125rem] text-ink-subtle">{topic.hint}</span>
-        </td>
-        <td className="px-3 py-3.5 text-[0.875rem]">{topic.section === "structure" ? "Structure" : "Reading"}</td>
-        <td className="w-[240px] px-3 py-3.5">
-          {topic.pct !== null ? (
-            <span className="flex items-center gap-2.5">
-              <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
-                <span className={cn("block h-full", tone.bar)} style={{ width: `${topic.pct}%` }} />
-              </span>
-              <strong className={cn("w-10 text-[0.875rem]", tone.text)}>{topic.pct}%</strong>
-            </span>
-          ) : (
-            <span className="text-[0.8125rem] text-ink-subtle">belum dicoba</span>
-          )}
-        </td>
-        <td className="px-3 py-3.5 text-[0.875rem] text-ink-subtle">{topic.answered}</td>
-        <td className="py-3.5 pl-3 pr-5 text-right">
-          <form
-            action={formAction}
-            onSubmit={() => {
-              startedRef.current = key;
-            }}
-          >
-            <input type="hidden" name="kind" value={kind} />
-            <input type="hidden" name="skill" value={topic.skill} />
-            <input type="hidden" name="track" value="eptr" />
-            <button
-              type="submit"
-              disabled={pending || !props.configured}
-              title={topic.hint}
-              className={cn(
-                "inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-[12px] px-3.5 text-[0.875rem] font-extrabold transition-transform active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50",
-                weak ? "bg-primary text-white shadow-[0_3px_0_var(--color-primary-deep)]" : "border-2 border-hairline bg-surface",
-              )}
-            >
-              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              Latih
-            </button>
-          </form>
-        </td>
-      </tr>
-    );
-  }
-
   const structureTopics = props.topics.filter((topic) => topic.section === "structure");
   const readingTopics = props.topics
     .filter((topic) => topic.section === "reading")
     .sort((a, b) => (a.pct ?? 101) - (b.pct ?? 101));
+  const allTopics = [...structureTopics, ...readingTopics];
+  // Bawaan: topik paling lemah (akurasi terendah dari >= 3 soal); kalau belum ada, topik pertama.
+  const weakestTopic = allTopics
+    .filter((topic) => topic.answered >= 3 && topic.pct !== null)
+    .sort((a, b) => (a.pct ?? 101) - (b.pct ?? 101))[0];
+  const picked = allTopics.find((topic) => topic.skill === pickedSkill) ?? weakestTopic ?? allTopics[0];
+  const pickedKind = picked?.section === "structure" ? format : "reading";
+  const pickedKey = picked ? `${pickedKind}:${picked.skill}` : "";
+  const pickedBusy = pending && startedRef.current === pickedKey;
+  const pickedPct = picked && picked.answered >= 3 ? picked.pct : null;
   const gap = target && props.estimate !== null ? target.score - props.estimate : null;
   const firstTrend = props.trend[0];
   const delta = props.estimate !== null && firstTrend !== undefined && props.trend.length > 1 ? props.estimate - firstTrend : null;
@@ -267,7 +336,7 @@ export function EprtHome(props: EprtHomeProps) {
               </>
             ) : (
               <a href="#target" className="mt-2 text-[0.9375rem] font-extrabold text-mango-line hover:underline">
-                Atur tanggal tes
+                {props.daysToTest !== null ? "Tanggal tes sudah lewat · perbarui" : "Atur tanggal tes"}
               </a>
             )}
           </div>
@@ -437,29 +506,57 @@ export function EprtHome(props: EprtHomeProps) {
             ))}
           </div>
         </div>
-        {/* relative: containing block untuk span sr-only di header tabel, supaya
-            tidak menambah ruang scroll horizontal di root pada layar sempit. */}
-        <div className="relative overflow-x-auto rounded-[24px] border-2 border-hairline bg-surface">
-          <table className="w-full min-w-[760px] border-collapse text-[0.9375rem]">
-            <thead>
-              <tr className="bg-surface-muted text-left text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">
-                <th scope="col" className="px-5 py-3.5">Topik</th>
-                <th scope="col" className="px-3 py-3.5">Bagian</th>
-                <th scope="col" className="px-3 py-3.5">Akurasi</th>
-                <th scope="col" className="px-3 py-3.5">Soal</th>
-                <th scope="col" className="py-3.5 pl-3 pr-5">
-                  <span className="sr-only">Aksi</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...structureTopics.map((t) => [t, format] as const), ...readingTopics.map((t) => [t, "reading"] as const)].map(
-                ([topic, kind], i) => topicRow(topic, kind, i === 0),
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-[0.8125rem] text-ink-subtle">Reading per tipe soal membuat teks baru, tunggu sekitar 30 detik.</p>
+        {picked ? (
+          <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5">
+            <div className="flex flex-col gap-1.5">
+              <Label>Pilih topik</Label>
+              <TopicDropdown
+                groups={[
+                  { title: "Structure", topics: structureTopics },
+                  { title: "Reading", topics: readingTopics },
+                ]}
+                value={picked}
+                onChange={(topic) => setPickedSkill(topic.skill)}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div className="min-w-[200px] flex-1">
+                <p className="mb-1.5 text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">Akurasi kamu</p>
+                {pickedPct !== null ? (
+                  <span className="flex items-center gap-2.5">
+                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
+                      <span className={cn("block h-full", pctTone(pickedPct).bar)} style={{ width: `${pickedPct}%` }} />
+                    </span>
+                    <strong className={cn("w-10 text-[0.875rem]", pctTone(pickedPct).text)}>{pickedPct}%</strong>
+                  </span>
+                ) : (
+                  <span className="text-[0.875rem] text-ink-subtle">belum cukup data ({picked.answered} soal dijawab)</span>
+                )}
+              </div>
+              <form
+                action={formAction}
+                onSubmit={() => {
+                  startedRef.current = pickedKey;
+                }}
+              >
+                <input type="hidden" name="kind" value={pickedKind} />
+                <input type="hidden" name="skill" value={picked.skill} />
+                <input type="hidden" name="track" value="eptr" />
+                <button
+                  type="submit"
+                  disabled={pending || !props.configured}
+                  className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-[14px] bg-primary px-6 text-[1rem] font-extrabold text-white shadow-[0_4px_0_var(--color-primary-deep)] transition-transform active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {pickedBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                  Latih 10 soal
+                </button>
+              </form>
+            </div>
+            {picked.section === "reading" ? (
+              <p className="text-[0.8125rem] text-ink-subtle">Reading per tipe soal membuat teks baru, tunggu sekitar 30 detik.</p>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {/* Latihan per bagian */}

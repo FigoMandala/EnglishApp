@@ -12,19 +12,64 @@ export type ReviewAspect = { label: string; score: number };
 
 type Segment = { text: string; index: number | null };
 
-/** Pecah esai menjadi potongan; kalimat yang cocok dengan koreksi diberi indeks. */
+/** Samakan wujud karakter yang sering diubah AI: kutip keriting dan dash panjang. */
+function normalizeChar(ch: string) {
+  if (ch === "’" || ch === "‘") return "'";
+  if (ch === "“" || ch === "”") return '"';
+  if (ch === "–" || ch === "—") return "-";
+  return ch;
+}
+
+/** Normalisasi teks koreksi untuk pencarian: karakter di atas + spasi beruntun jadi satu. */
+function normalizeText(text: string) {
+  let out = "";
+  for (const ch of text) {
+    const mapped = normalizeChar(ch);
+    if (/\s/.test(mapped)) {
+      if (out !== "" && !out.endsWith(" ")) out += " ";
+    } else {
+      out += mapped;
+    }
+  }
+  return out.trim();
+}
+
+/** Pecah esai menjadi potongan; kalimat yang cocok dengan koreksi diberi indeks.
+ *  Pencarian memakai teks ternormalisasi (dengan peta balik ke posisi asli) supaya
+ *  tetap ketemu walau kutipan AI beda wujud kutip/dash/spasi dengan esai asli. */
 function segments(essay: string, corrections: ReviewCorrection[]): Segment[] {
+  const normChars: string[] = [];
+  const map: number[] = [];
+  for (let i = 0; i < essay.length; i += 1) {
+    const mapped = normalizeChar(essay[i]);
+    if (/\s/.test(mapped)) {
+      if (normChars.length > 0 && normChars[normChars.length - 1] !== " ") {
+        normChars.push(" ");
+        map.push(i);
+      }
+    } else {
+      normChars.push(mapped);
+      map.push(i);
+    }
+  }
+  const normEssay = normChars.join("");
   const found = corrections
-    .map((c, index) => ({ index, at: essay.indexOf(c.original), len: c.original.length }))
-    .filter((c) => c.at >= 0 && c.len > 0)
+    .map((c, index) => {
+      const needle = normalizeText(c.original);
+      if (!needle) return { index, at: -1, end: -1 };
+      const at = normEssay.indexOf(needle);
+      if (at < 0) return { index, at: -1, end: -1 };
+      return { index, at: map[at], end: map[at + needle.length - 1] + 1 };
+    })
+    .filter((c) => c.at >= 0)
     .sort((a, b) => a.at - b.at);
   const out: Segment[] = [];
   let cursor = 0;
   for (const c of found) {
     if (c.at < cursor) continue; // tumpang tindih: lewati
     if (c.at > cursor) out.push({ text: essay.slice(cursor, c.at), index: null });
-    out.push({ text: essay.slice(c.at, c.at + c.len), index: c.index });
-    cursor = c.at + c.len;
+    out.push({ text: essay.slice(c.at, c.end), index: c.index });
+    cursor = c.end;
   }
   if (cursor < essay.length) out.push({ text: essay.slice(cursor), index: null });
   return out;
@@ -53,10 +98,19 @@ export function EssayReview({
   const marks = useRef<Record<number, HTMLElement | null>>({});
   const items = useRef<Record<number, HTMLElement | null>>({});
   const parts = useMemo(() => segments(essay, corrections), [essay, corrections]);
+  // Koreksi yang kutipannya tidak ketemu di esai tetap tampil di daftar, tapi ditandai.
+  const matched = useMemo(() => {
+    const set = new Set<number>();
+    for (const part of parts) {
+      if (part.index !== null) set.add(part.index);
+    }
+    return set;
+  }, [parts]);
 
   function select(index: number, from: "text" | "list") {
     setActive(index);
-    (from === "list" ? marks : items).current[index]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const prm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    (from === "list" ? marks : items).current[index]?.scrollIntoView({ behavior: prm ? "auto" : "smooth", block: "center" });
   }
 
   return (
@@ -127,7 +181,16 @@ export function EssayReview({
                     ref={(el) => {
                       marks.current[part.index!] = el;
                     }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={'Koreksi ' + (part.index! + 1)}
                     onClick={() => select(part.index!, "text")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        select(part.index!, "text");
+                      }
+                    }}
                     className={cn(
                       "cursor-pointer rounded-[4px] border-b-[3px] border-brick bg-brick-soft px-[3px] py-px text-ink",
                       active === part.index && "outline outline-[3px] outline-offset-2 outline-sky",
@@ -173,6 +236,11 @@ export function EssayReview({
                         <s className="text-brick-deep">{c.original}</s> → <span className="text-primary-deep">{c.correction}</span>
                       </strong>
                     </span>
+                    {!matched.has(i) ? (
+                      <span className="self-start rounded-[6px] bg-mango-soft px-1.5 py-0.5 text-[0.6875rem] font-bold text-mango-ink">
+                        kutipan tidak persis ada di teks
+                      </span>
+                    ) : null}
                     <span className="text-[0.875rem] text-ink-muted">{c.reason}</span>
                   </button>
                 </li>

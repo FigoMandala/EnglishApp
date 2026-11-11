@@ -14,7 +14,6 @@ import {
 } from "@/db/queries/toefl";
 import { sqliteNow } from "@/db/schema";
 import { AiError } from "@/lib/ai-client";
-import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { buildSimulationPartBatch, finishSession } from "@/lib/api/toefl-turn";
 import {
   emptyParts,
@@ -82,10 +81,6 @@ export async function startSectionTimer(userId: number, simulationId: number, se
 }
 
 export async function startSimulation(userId: number, scope: SimScope = null) {
-  const config = await getAiConfig();
-  if (!aiConfigured(config)) {
-    throw new AiError("Tutor AI belum dikonfigurasi. Isi API key di Pengaturan.");
-  }
   const row = await createSimulation(userId, emptyParts());
   if (scope) await updateSimulation(row.id, { timers: serializeTimers({}, scope) });
   return row.id;

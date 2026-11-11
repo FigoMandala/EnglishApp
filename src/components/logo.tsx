@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { useId } from "react";
+
 import { cn } from "@/lib/utils";
 
 type LogoProps = {
@@ -21,6 +23,7 @@ type LogoProps = {
  * Dibuat dalam SVG murni beresolusi tajam di semua DPI
  */
 export function LoriIconBadge({ size = 40, className }: { size?: number; className?: string }) {
+  const uid = useId();
   return (
     <svg
       viewBox="0 0 100 100"
@@ -31,30 +34,30 @@ export function LoriIconBadge({ size = 40, className }: { size?: number; classNa
     >
       <defs>
         {/* Gradien background badge hijau khas EnglishApp */}
-        <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`${uid}-badgeGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#258554" />
           <stop offset="100%" stopColor="#145536" />
         </linearGradient>
 
         {/* Gradien kilau halus pada badge */}
-        <linearGradient id="sheenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id={`${uid}-sheenGrad`} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.25" />
           <stop offset="60%" stopColor="#ffffff" stopOpacity="0.0" />
         </linearGradient>
 
         {/* Gradien syal Lori */}
-        <linearGradient id="scarfGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`${uid}-scarfGrad`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#F2A93B" />
           <stop offset="100%" stopColor="#C4831F" />
         </linearGradient>
 
-        <clipPath id="squircleClip">
+        <clipPath id={`${uid}-squircleClip`}>
           <rect x="2" y="2" width="96" height="96" rx="26" ry="26" />
         </clipPath>
       </defs>
 
       {/* Background Squircle dengan sudut rounded khas modern app */}
-      <rect x="2" y="2" width="96" height="96" rx="26" ry="26" fill="url(#badgeGrad)" />
+      <rect x="2" y="2" width="96" height="96" rx="26" ry="26" fill={`url(#${uid}-badgeGrad)`} />
       
       {/* Inner border untuk efek kedalaman / 3D rim */}
       <rect
@@ -74,7 +77,7 @@ export function LoriIconBadge({ size = 40, className }: { size?: number; classNa
       <circle cx="50" cy="50" r="38" fill="#ffffff" fillOpacity="0.06" />
 
       {/* Konten Lori dipotong agar rapi di dalam squircle jika lewat bawah */}
-      <g clipPath="url(#squircleClip)">
+      <g clipPath={`url(#${uid}-squircleClip)`}>
         {/* Telinga Kukang */}
         <circle cx="28" cy="38" r="9.5" fill="#C98B52" />
         <circle cx="28" cy="38" r="4.5" fill="#8A5530" />
@@ -127,14 +130,14 @@ export function LoriIconBadge({ size = 40, className }: { size?: number; classNa
         {/* Syal Hangat Lori (Kuning Mangga Emas Aksen Belajar) */}
         <path
           d="M26 73 Q50 82 74 73 L75 82 Q50 91 25 82 Z"
-          fill="url(#scarfGrad)"
+          fill={`url(#${uid}-scarfGrad)`}
         />
         {/* Ujung syal menjuntai */}
         <path d="M58 80 L67 96 L58 95 L54 81 Z" fill="#C4831F" />
       </g>
 
       {/* Kilau glossy atas */}
-      <rect x="2" y="2" width="96" height="42" rx="26" fill="url(#sheenGrad)" clipPath="url(#squircleClip)" />
+      <rect x="2" y="2" width="96" height="42" rx="26" fill={`url(#${uid}-sheenGrad)`} clipPath={`url(#${uid}-squircleClip)`} />
 
       {/* Badge aksen bintang kecil belajar di kanan atas */}
       <g transform="translate(68, 8) scale(0.7)">

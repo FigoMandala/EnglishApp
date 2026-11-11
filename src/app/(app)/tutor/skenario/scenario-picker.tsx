@@ -32,7 +32,7 @@ export function ScenarioPicker({ scenarios }: { scenarios: Scenario[] }) {
       </header>
 
       <div className="flex flex-wrap items-start gap-6">
-        <div role="radiogroup" aria-label="Skenario" className="grid min-w-0 flex-[1_1_520px] gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">
+        <div role="group" aria-label="Skenario" className="grid min-w-0 flex-[1_1_520px] gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">
           {scenarios.map((s, i) => {
             const on = i === sel;
             const { Icon, tone } = ICONS[s.id] ?? ICONS.smalltalk;
@@ -40,8 +40,7 @@ export function ScenarioPicker({ scenarios }: { scenarios: Scenario[] }) {
               <button
                 key={s.id}
                 type="button"
-                role="radio"
-                aria-checked={on}
+                aria-pressed={on}
                 onClick={() => setSel(i)}
                 className={cn(
                   "rise flex min-h-[150px] cursor-pointer flex-col items-start gap-2 rounded-[22px] border-2 p-[18px] text-left transition-transform active:translate-y-1 active:shadow-none",
@@ -97,7 +96,7 @@ export function ScenarioPicker({ scenarios }: { scenarios: Scenario[] }) {
             <div role="group" aria-labelledby="s-koreksi" className="relative flex gap-1 rounded-[14px] bg-surface-sunken p-1">
               <span
                 aria-hidden
-                className="absolute inset-y-1 left-1 w-[calc(50%-0.75rem)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-out"
+                className="absolute inset-y-1 left-1 w-[calc(50%-0.75rem)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-[var(--ease-out)]"
                 style={{ transform: `translateX(calc(${activeIndex} * (100% + 4px)))` }}
               />
               {(

@@ -122,8 +122,11 @@ export function EssayForm({ daily, usedPrompts }: { daily: WritingPrompt; usedPr
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
           <div
-            className={cn("h-full transition-[width]", ready ? "bg-primary" : tooLong ? "bg-brick" : "bg-mango")}
-            style={{ width: `${Math.min(100, Math.round((words / ESSAY_MIN_WORDS) * 100))}%` }}
+            className={cn(
+              "h-full w-full origin-left transition-transform duration-300 ease-[var(--ease-out)]",
+              ready ? "bg-primary" : tooLong ? "bg-brick" : "bg-mango",
+            )}
+            style={{ transform: `scaleX(${Math.min(1, words / ESSAY_MIN_WORDS)})` }}
           />
         </div>
         {restored && essay.trim() && !savedId ? (

@@ -1,4 +1,8 @@
-﻿import { warmTts } from "@/lib/api/tts";
+﻿import { and, eq, isNull, sql } from "drizzle-orm";
+
+import { db } from "@/db";
+import { toeflSessions } from "@/db/schema";
+import { warmTts } from "@/lib/api/tts";
 import {
   countReviews,
   createReview,
@@ -22,12 +26,9 @@ import {
   getToeflTrend,
   listActivity,
   logActivity,
-  getSetting,
   setSetting,
   SETTING_KEYS,
 } from "@/db/queries/activity";
-import { countQuestionCallsToday, logAiUsage, type AiFeature } from "@/db/queries/ai-usage";
-import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
 
 import {
   getQuestionStats,
@@ -35,31 +36,22 @@ import {
   markSeen,
   pickUnseenItems,
   recordAnswerStat,
-  saveBankItems,
   type LevelBand,
 } from "@/db/queries/question-bank";
 import { judgeQuestion } from "@/lib/calibration";
-import { chatJsonRaw, AiError, type ProviderMessage } from "@/lib/ai-client";
-import { EMPTY_USAGE } from "@/lib/ai-pricing";
-import { aiConfigured, getAiConfig, type AiConfig } from "@/lib/ai-config";
+import { AiError, setAiConcurrency } from "@/lib/ai-client";
+import { aiConfigured, getAiConfig } from "@/lib/ai-config";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { isExpired, parseTimers } from "@/lib/eprt-simulation";
 import {
-  copiesExample,
   fingerprint,
 PASSAGE_SIMILAR,
-  pickFresh,
-  pickScenes,
   questionText,
-  readingAngle,
-  rememberSeeds,
   SimilarityIndex,
-  SUBTOPICS,
-  talkStyle,
 } from "@/lib/question-variety";
 import { MAX_REVIEW_BOX, nextReview, shiftDate, streakDays, todayISO } from "@/lib/srs";
 import {
   collectAnswers,
-  dialogueKey,
   estimateScore,
   focusSkills,
   isComplete,
@@ -111,16 +103,6 @@ function isSpeaker(value: unknown): value is AudioSpeaker {
   return typeof value === "string" && (SPEAKERS as string[]).includes(value);
 }
 
-// Cadangan kecil saja: tiap soal tambahan memperpanjang output (dan waktu tunggu) model.
-const SPARE_QUESTIONS = 2;
-/** Batas panggilan AI pembuat soal per pengguna per hari. Satu simulasi mode cepat bisa memakai ~11-22 panggilan. */
-export const DAILY_AI_LIMIT = 80;
-/** Porsi blok yang tetap dibuat baru oleh AI walau bank punya stok, supaya bank tidak basi. */
-const FRESH_RATIO = 0.3;
-/** Anggaran waktu total satu pembuatan soal, di bawah maxDuration 300 detik Vercel. */
-const GENERATION_BUDGET_MS = 270_000;
-/** Coba ulang hanya kalau sisa anggaran masih cukup untuk satu panggilan lagi. */
-const MIN_RETRY_MS = 20_000;
 const DEFAULT_LEVEL = 500;
 const TREND_DAYS = 30;
 
@@ -133,6 +115,14 @@ function skillList(section: ToeflSection) {
 
 const OPTION_RULES =
   "Aturan opsi supaya jawaban tidak mudah ditebak: keempat opsi HARUS mirip panjang dan struktur kalimatnya (selisih panjang paling banyak sekitar 20%); jawaban benar JANGAN yang paling panjang, paling rinci, atau paling lengkap, dan sering buat distraktor yang sama panjang atau lebih panjang dari jawaban benar. Distraktor harus masuk akal: memakai kata atau fakta dari teks/percakapan tetapi salah makna, salah detail, terlalu umum, atau berlawanan. Jangan buat distraktor yang absurd, tidak nyambung topik, atau memakai kata ekstrem (always, never, only, all) hanya di distraktor. Jangan biarkan jawaban benar satu-satunya yang mengulang kata di pertanyaan.";
+
+/** Definisi kesulitan per level, supaya "tingkat setara 400/500/600" tidak hanya label. */
+const LEVEL_RUBRIC = {
+  low: "Tingkat RENDAH (skor sampai 450): kalimat pendek (sekitar 8-15 kata), kosakata sehari-hari, struktur dasar (tense sederhana, agreement, artikel, preposisi umum). Listening: tuturan lugas, satu ide per giliran, jawaban hampir langsung terucap. Reading: informasi tersurat, soal terutama ide utama dan detail. Distraktor salah dengan jelas bagi yang paham dasar.",
+  mid: "Tingkat MENENGAH (skor 451-550): kalimat 15-25 kata, kosakata akademik umum, struktur menengah (klausa relatif, pasif, conditional, perbandingan). Listening: ada parafrase dan satu detail pengecoh. Reading: campuran detail dan inferensi ringan. Distraktor memakai kata dari teks tetapi salah makna atau detail.",
+  high: "Tingkat TINGGI (skor di atas 550): kalimat 20-35 kata, kosakata akademik dan abstrak, struktur rumit (inversi, paralelisme, reduced clause, subjunctive, kata hubung kontras). Listening: makna tersirat, idiom, perubahan pendapat pembicara. Reading: banyak inferensi dan soal NOT/EXCEPT. Distraktor sangat mirip dan hanya beda tipis dari jawaban benar.",
+} as const;
+export const levelRubric = (level: number) => LEVEL_RUBRIC[levelBand(level)];
 
 const BASE_SYSTEM = [
   "Kamu pembuat soal TOEFL ITP (paper-based, gaya ETS).",
@@ -268,7 +258,7 @@ function extractJson(raw: string) {
   return candidate.slice(start, end + 1);
 }
 
-function parseAiJson(raw: string): { passage?: unknown; questions?: unknown } {
+export function parseAiJson(raw: string): { passage?: unknown; questions?: unknown } {
   try {
     return JSON.parse(extractJson(raw)) as { passage?: unknown; questions?: unknown };
   } catch {
@@ -285,7 +275,7 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
-function sanitizeQuestions(value: unknown, type: QuestionType, grouped = false): ToeflQuestion[] {
+export function sanitizeQuestions(value: unknown, type: QuestionType, grouped = false): ToeflQuestion[] {
   if (!Array.isArray(value)) return [];
   // Dialog/monolog panjang: model menulis transkrip sekali di soal pertama,
   // soal berikutnya tanpa audio mewarisi transkrip soal sebelumnya.
@@ -332,89 +322,9 @@ function sanitizeQuestions(value: unknown, type: QuestionType, grouped = false):
   });
 }
 
-async function ask(config: AiConfig, system: string, prompt: string, ctx: UsageContext, deadline: number) {
-  const startedAt = Date.now();
-
-  // Kill-switch anggaran: reservasi atomik menahan generate kalau biaya
-  // harian lewat batas, dan mencegah request paralel menembus anggaran.
-  const reservation = await reserveBudget(ctx.userId, ctx.feature, config.model);
-  if (!reservation) {
-    throw new AiError("Kuota AI harian habis. Coba lagi besok, atau hubungi admin.");
-  }
-
-  let totalLatency = 0;
-  let lastRaw = "";
-  const messages: ProviderMessage[] = [
-    { role: "system", content: system },
-    { role: "user", content: prompt },
-  ];
-
-  try {
-    // JSON mode + 1x retry perbaikan: menekan output malformed.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const left = deadline - Date.now();
-      if (attempt > 0 && left < MIN_RETRY_MS) break;
-      const result = await chatJsonRaw(config, messages, left);
-      totalLatency += result.latencyMs;
-      lastRaw = result.content;
-      const parsed = parseAiJson(result.content);
-      if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-        await logAiUsage({
-          userId: ctx.userId,
-          feature: ctx.feature,
-          model: config.model,
-          usage: result.usage,
-          latencyMs: totalLatency,
-          ok: true,
-        });
-        return parsed;
-      }
-      messages.push({
-        role: "user",
-        content: "Output sebelumnya bukan JSON valid atau tidak punya array `questions`. Kirim ulang JSON yang benar saja.",
-      });
-    }
-
-    await logAiUsage({
-      userId: ctx.userId,
-      feature: ctx.feature,
-      model: config.model,
-      usage: EMPTY_USAGE,
-      latencyMs: totalLatency,
-      ok: false,
-    });
-    console.error(`[ai] soal tidak valid: ${lastRaw.slice(0, 160)}`);
-    throw new AiError("Model AI tidak menghasilkan soal yang bisa dibaca. Coba lagi.");
-  } catch (error) {
-    if (!(error instanceof AiError)) {
-      await logAiUsage({
-        userId: ctx.userId,
-        feature: ctx.feature,
-        model: config.model,
-        usage: EMPTY_USAGE,
-        latencyMs: Date.now() - startedAt,
-        ok: false,
-      });
-    }
-    throw error;
-  } finally {
-    await releaseReservation(reservation);
-  }
-}
-
-function skillLine(count: number, focus: SkillKey[], only: boolean) {
-  if (only && focus.length) return `Semua soal menguji skill ${focus[0]}.`;
-  if (focus.length) {
-    return `Minimal ${Math.ceil(count * 0.7)} soal menguji skill ${focus.join(" dan ")}, sisanya skill lain.`;
-  }
-  return "Sebar soal merata ke semua skill.";
-}
-
 type BuildKind = "structure" | "written" | "reading" | "listen-short" | "listen-long" | "listen-lecture";
 
-type UsageContext = { userId: number; feature: AiFeature };
-
-const BUILD_SYSTEM: Record<Track, Record<BuildKind, string>> = {
+export const BUILD_SYSTEM: Record<Track, Record<BuildKind, string>> = {
   toefl: {
     structure: STRUCTURE_SYSTEM,
     written: WRITTEN_SYSTEM,
@@ -433,54 +343,9 @@ const BUILD_SYSTEM: Record<Track, Record<BuildKind, string>> = {
   },
 };
 
-const TEST_NAME: Record<Track, string> = { toefl: "TOEFL ITP", eptr: "EPrT (skala mirip TOEFL ITP)" };
-
-function questionTypeOf(kind: BuildKind): QuestionType {
-  if (kind === "reading") return "reading";
-  if (kind === "written") return "written";
-  if (kind === "structure") return "structure";
-  return "listening";
-}
-
-/** Satu panggilan AI; hasilnya belum disaring. */
-async function buildQuestions(
-  config: AiConfig,
-  kind: BuildKind,
-  count: number,
-  level: number,
-  focus: SkillKey[],
-  ctx: UsageContext,
-  track: Track,
-  extra: string,
-  deadline: number,
-  only = false,
-): Promise<Item> {
-  const system = BUILD_SYSTEM[track][kind];
-  const test = TEST_NAME[track];
-  const talks = track === "eptr" ? 2 : 3;
-  const total = count + SPARE_QUESTIONS;
-  const perTalk = Math.max(2, Math.ceil(Math.max(count, SPARE_QUESTIONS) / talks));
-  const prompt =
-    kind === "listen-long"
-      ? `Buat ${talks} dialog panjang berbeda, masing-masing dengan ${perTalk} soal (total minimal ${count} soal), tingkat setara ${test} ${level}.`
-      : kind === "listen-lecture"
-        ? `Buat ${talks} monolog berbeda, masing-masing dengan ${perTalk} soal (total minimal ${count} soal), tingkat setara ${test} ${level}.`
-        : kind === "listen-short"
-          ? `Buat ${total} soal, tingkat setara ${test} ${level}.`
-          : `Buat ${total} soal, tingkat setara ${test} ${level}. ${skillLine(count, focus, only)}`;
-
-  const parsed = await ask(config, system, `${prompt}\n${extra}`.trim(), ctx, deadline);
-  const passage = typeof parsed.passage === "string" ? parsed.passage.trim() : "";
-  return {
-    passage: kind === "reading" && passage ? passage : null,
-    questions: sanitizeQuestions(parsed.questions, questionTypeOf(kind), GROUPED.includes(kind)),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Variasi soal: bank bersama, seed topik/skenario, dan saringan duplikat.
 
-type SeedMemory = { topics: string[]; scenes: string[] };
 type Item = { passage: string | null; questions: ToeflQuestion[] };
 type History = Awaited<ReturnType<typeof questionHistory>>;
 
@@ -518,28 +383,6 @@ async function questionHistory(userId: number) {
   return { questions, passages, stems };
 }
 
-function itemFingerprint(kind: BuildKind, item: Item) {
-  if (item.passage) return fingerprint(item.passage);
-  if (GROUPED.includes(kind)) {
-    return fingerprint((item.questions[0]?.audio ?? []).map((line) => line.text).join(" "));
-  }
-  return fingerprint(questionText(item.questions[0]));
-}
-
-/** Pecah hasil menjadi item bank: per soal, per teks, atau per dialog/monolog. */
-function toItems(kind: BuildKind, block: Item): Item[] {
-  if (kind === "reading") return block.passage ? [block] : [];
-  if (!GROUPED.includes(kind)) {
-    return block.questions.map((question) => ({ passage: null, questions: [question] }));
-  }
-  const groups = new Map<string, ToeflQuestion[]>();
-  for (const question of block.questions) {
-    const key = dialogueKey(question);
-    groups.set(key, [...(groups.get(key) ?? []), question]);
-  }
-  return [...groups.values()].map((questions) => ({ passage: null, questions }));
-}
-
 function reshuffle(question: ToeflQuestion): ToeflQuestion {
   if (question.type === "written") return question;
   const order = shuffle(question.options.map((_, index) => index));
@@ -561,8 +404,6 @@ type Request = {
   note: string;
   /** Latihan satu topik: semua soal harus menguji skill `focus[0]`. */
   only?: boolean;
-  /** Lewati bank soal; dipakai kalau bank tidak bisa disaring sesuai permintaan. */
-  forceFresh?: boolean;
 };
 
 type Served = { block: Item; prints: string[] };
@@ -628,180 +469,62 @@ async function serveFromBank(request: Request, band: LevelBand, history: History
   };
 }
 
-/** Seed topik/skenario untuk satu panggilan AI, plus daftar soal yang harus dihindari. */
-function varietyPrompt(request: Request, memory: SeedMemory, avoid: string[]) {
-  const { kind } = request;
-  const n = request.count + SPARE_QUESTIONS;
-  const talks = request.track === "eptr" ? 2 : 3;
-  const perTalk = Math.max(2, Math.ceil(request.count / talks));
-  let topics: string[] = [];
-  let scenes: string[] = [];
-  let line: string;
-
-  if (kind === "reading") {
-    topics = pickFresh(SUBTOPICS, memory.topics, 1);
-    line = `Topik teks: "${topics[0]}". Sudut pembahasan: ${readingAngle()}.`;
-  } else if (kind === "listen-lecture") {
-    topics = pickFresh(SUBTOPICS, memory.topics, talks);
-    line = `Buat tepat ${talks} monolog, masing-masing dengan ${perTalk} soal. Topik tiap monolog (urut): ${topics.map((topic, i) => `${i + 1}. ${talkStyle()} about ${topic}`).join("; ")}.`;
-  } else if (kind === "listen-long") {
-    scenes = pickScenes(memory.scenes, talks);
-    line = `Buat tepat ${talks} dialog, masing-masing dengan ${perTalk} soal. Skenario tiap dialog (urut): ${scenes.map((scene, i) => `${i + 1}. ${scene}`).join("; ")}.`;
-  } else if (kind === "listen-short") {
-    scenes = pickScenes(memory.scenes, n);
-    line = `Skenario tiap soal (urut, satu skenario per soal): ${scenes.map((scene, i) => `${i + 1}. ${scene}`).join("; ")}.`;
-  } else {
-    topics = pickFresh(SUBTOPICS, memory.topics, n);
-    line = `Konteks kalimat tiap soal (urut, satu konteks per soal): ${topics.map((topic, i) => `${i + 1}. ${topic}`).join("; ")}.`;
-  }
-
-  const avoidLine = avoid.length
-    ? `Pengguna sudah pernah mendapat soal berikut; JANGAN buat yang mirip:\n- ${avoid.join("\n- ")}`
-    : "";
-  return { text: [line, request.note, avoidLine].filter(Boolean).join("\n"), topics, scenes };
-}
-
-async function generateFresh(
-  request: Request,
-  band: LevelBand,
-  history: History,
-  config: AiConfig,
-  startedAt: number,
-): Promise<Served> {
-  const { userId, track, kind, count, level, focus } = request;
-  const ctx: UsageContext = { userId, feature: track === "eptr" ? "eptr" : "toefl" };
-  const memory = await getSetting<SeedMemory>(userId, SETTING_KEYS.questionSeeds, {
-    topics: [],
-    scenes: [],
-  });
-  const avoid = history.stems.get(kind) ?? [];
-  const deadline = startedAt + GENERATION_BUDGET_MS;
-
-  const batch = new SimilarityIndex();
-  const kept: ToeflQuestion[] = [];
-  const used: SeedMemory = { topics: [], scenes: [] };
-  let passage: string | null = null;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const variety = varietyPrompt(
-      request,
-      { topics: [...memory.topics, ...used.topics], scenes: [...memory.scenes, ...used.scenes] },
-      avoid,
-    );
-    used.topics.push(...variety.topics);
-    used.scenes.push(...variety.scenes);
-
-    let result: Item;
-    try {
-      result = await buildQuestions(
-        config,
-        kind,
-        count,
-        level,
-        focus,
-        ctx,
-        track,
-        variety.text,
-        deadline,
-        request.only,
-      );
-    } catch (error) {
-      // Percobaan ulang yang gagal/timeout tidak boleh membuang hasil percobaan pertama.
-      if (attempt === 0 || !(error instanceof AiError)) throw error;
-      break;
-    }
-    const passageOk =
-      kind !== "reading" ||
-      (result.passage !== null &&
-        !copiesExample(result.passage) &&
-        !history.passages.has(result.passage));
-
-    if (passageOk) {
-      // Soal Reading terikat pada teksnya: teks baru berarti mulai dari nol.
-      if (kind === "reading") {
-        passage = result.passage;
-        kept.length = 0;
-        batch.clear();
-      }
-      // Soal yang berbagi satu dialog/monolog (listen-long/lecture) tidak boleh
-      // dinilai per transkrip: AI menyalin transkrip dialog yang sama dengan
-      // variasi kecil, dan semua soal dalam satu dialog memang mirip. Cukup
-      // cegah pertanyaan kembar, dan cek dialog baru terhadap riwayat lewat q.
-      const grouped = GROUPED.includes(kind);
-      const seenQuestions = new Set<string>();
-      for (const question of result.questions) {
-        const text = questionText(question);
-        const key = grouped ? question.q : text;
-        const seenBefore = kind !== "reading" && history.questions.has(text);
-        const drop = copiesExample(text) || seenBefore || seenQuestions.has(key) || batch.has(key);
-        if (drop) continue;
-        seenQuestions.add(key);
-        batch.add(key);
-        kept.push(question);
-      }
-    }
-
-    if ((kind !== "reading" || passage) && kept.length >= count) break;
-    const retryable =
-      deadline - Date.now() >= MIN_RETRY_MS &&
-      (await countQuestionCallsToday(userId)) < DAILY_AI_LIMIT;
-    if (!retryable) break;
-  }
-
-  if ((kind === "reading" && !passage) || kept.length < Math.min(4, count)) {
-    throw new AiError("Soal dari AI tidak bisa dibaca. Coba lagi sebentar lagi.");
-  }
-
-  // Semua soal yang lolos (termasuk cadangan) masuk bank; yang disajikan hanya `count`.
-  await saveBankItems(
-    toItems(kind, { passage, questions: kept }).map((item) => ({
-      track,
-      kind,
-      levelBand: band,
-      fingerprint: itemFingerprint(kind, item),
-      skill: item.questions[0]?.skill ?? null,
-      questionCount: item.questions.length,
-      item: JSON.stringify(item),
-    })),
-  );
-  await setSetting(userId, SETTING_KEYS.questionSeeds, {
-    topics: rememberSeeds(memory.topics, used.topics),
-    scenes: rememberSeeds(memory.scenes, used.scenes),
-  });
-
-  const served = kept.slice(0, count);
-  return {
-    block: { passage, questions: renumber(served, request.first) },
-    prints: toItems(kind, { passage, questions: served }).map((item) => itemFingerprint(kind, item)),
-  };
-}
+/** Urutan band yang dicoba: band level pengguna dulu, lalu yang terdekat kalau stoknya kurang. */
+const BAND_ORDER: Record<LevelBand, LevelBand[]> = {
+  low: ["low", "mid", "high"],
+  mid: ["mid", "low", "high"],
+  high: ["high", "mid", "low"],
+};
 
 /**
- * Sumber soal untuk semua blok: bank bersama dulu (soal yang belum pernah dilihat
- * pengguna), AI kalau stok kurang atau untuk porsi soal segar.
+ * Sumber soal untuk semua blok: bank soal yang dibuat admin (halaman Generate Konten), soal yang belum
+ * pernah dilihat pengguna. Pembuatan soal oleh AI saat berlatih hanya aktif SEMENTARA lewat env
+ * EPRT_AI_FALLBACK=1 (selagi stok bank masih tipis); matikan env itu untuk kembali bank-only.
  */
 async function produceQuestions(request: Request): Promise<Item> {
-  const startedAt = Date.now();
-  const band = levelBand(request.level);
   const history = await questionHistory(request.userId);
-  const config = await getAiConfig();
-  const aiReady = aiConfigured(config);
-  const aiAllowed =
-    aiReady && (await countQuestionCallsToday(request.userId)) < DAILY_AI_LIMIT;
-
-  const wantFresh = aiAllowed && (request.forceFresh || Math.random() < FRESH_RATIO);
-  let result = wantFresh ? null : await serveFromBank(request, band, history);
-  if (!result) {
-    if (!aiReady) throw new AiError("Tutor AI belum dikonfigurasi. Isi API key di Pengaturan.");
-    if (!aiAllowed) {
-      throw new AiError(
-        `Batas ${DAILY_AI_LIMIT} pembuatan soal AI hari ini sudah tercapai dan stok bank soal untuk latihan ini habis. Coba lagi besok.`,
-      );
+  const order = BAND_ORDER[levelBand(request.level)];
+  const serve = async () => {
+    for (const band of order) {
+      const result = await serveFromBank(request, band, history);
+      if (result) return result;
     }
-    result = await generateFresh(request, band, history, config, startedAt);
+    return null;
+  };
+
+  let result = await serve();
+  if (!result && process.env.EPRT_AI_FALLBACK === "1" && request.track === "eptr") {
+    await topUpFromAi(request);
+    result = await serve();
+  }
+  if (!result) {
+    throw new AiError("Stok soal untuk latihan ini belum tersedia. Coba lagi nanti; admin menambah soal baru secara berkala.");
   }
   await markSeen(request.userId, result.prints);
   return result.block;
+}
+
+/** Perkiraan soal lolos per batch pembuat bank, untuk menghitung berapa batch yang dibutuhkan. */
+const SOAL_PER_BATCH: Record<BuildKind, number> = { structure: 6, written: 6, reading: 10, "listen-short": 6, "listen-long": 8, "listen-lecture": 8 };
+
+/**
+ * SEMENTARA (EPRT_AI_FALLBACK=1): stok bank kurang, jadi buat soal lewat pembuat bank yang sama dengan halaman admin
+ * (rencana variasi + verifikasi model kedua + penyaring kualitas), simpan ke bank, lalu dilayani dari bank.
+ * Dibatasi per pengguna supaya biaya AI tidak bisa dibakar dari sisi pelajar.
+ */
+async function topUpFromAi(request: Request) {
+  const config = await getAiConfig();
+  if (!aiConfigured(config)) throw new AiError("Stok soal belum tersedia dan AI belum dikonfigurasi. Hubungi admin.");
+  const limit = await checkRateLimit(`eptr-topup:user:${request.userId}`, 40, 60 * 60_000);
+  if (!limit.ok) throw new AiError("Terlalu banyak permintaan pembuatan soal. Coba lagi sebentar lagi.");
+
+  // Impor dinamis: eprt-generate memakai prompt dari berkas ini (hindari impor melingkar saat modul dimuat).
+  const { createEprtContext, generateEprtBatch } = await import("@/lib/eprt-generate");
+  setAiConcurrency(8);
+  const band = levelBand(request.level);
+  const ctx = await createEprtContext(config, undefined, { recent: 500, kinds: [request.kind] });
+  const batches = Math.min(4, Math.ceil(request.count / SOAL_PER_BATCH[request.kind]) + 1);
+  await Promise.allSettled(Array.from({ length: batches }, () => generateEprtBatch(ctx, request.kind, band)));
 }
 
 const BLOCK_CONFIG: Record<
@@ -873,8 +596,6 @@ export async function startBlock(
     first: 1,
     note: "",
     only: topic !== null && section === "structure",
-    // Bank reading disimpan per teks, tidak bisa disaring per tipe soal.
-    forceFresh: topic !== null && section === "reading",
   });
 
   const labels = focus.map((key) => SKILLS[key].label).join(", ");
@@ -924,6 +645,23 @@ async function loadSessionAnswers(userId: number, track: Track = "toefl") {
   });
 }
 
+/**
+ * Timpa satu slot jawaban untuk sesi non-audio (koreksi jawaban di mode ujian).
+ * Berbeda dari `setSessionAnswer`, slot yang sudah terisi boleh ditimpa selama
+ * sesi belum ditutup (completedAt masih null) — setelah selesai, jawaban final.
+ * Mengembalikan isi kolom answers terbaru, null kalau sesi sudah ditutup di
+ * antara baca dan tulis.
+ */
+async function overwriteSessionAnswer(id: number, index: number, choice: number) {
+  const path = `$[${index}]`;
+  const [row] = await db
+    .update(toeflSessions)
+    .set({ answers: sql`json_set(${toeflSessions.answers}, ${path}, ${choice})` })
+    .where(and(eq(toeflSessions.id, id), isNull(toeflSessions.completedAt)))
+    .returning({ answers: toeflSessions.answers });
+  return row ?? null;
+}
+
 export async function answerQuestion(
   userId: number,
   sessionId: number,
@@ -945,9 +683,19 @@ export async function answerQuestion(
     }
   }
 
+  // Sesi audio mengikuti aturan tes asli: urutan putar terkunci, slot yang
+  // sudah terisi tidak boleh diubah. Sesi non-audio boleh mengoreksi jawaban
+  // selama section belum ditutup.
+  const audioSession = questions.some((item) => Boolean(item.audio));
+  const previous = parseAnswers(row.answers, questions.length)[index];
+
   // Klaim slot jawaban secara atomik (json_set per slot): pengiriman paralel
   // dari antrean offline tidak lagi saling menimpa jawaban satu sama lain.
-  const updated = await setSessionAnswer(row.id, index, choice);
+  // Slot kosong diklaim; slot terisi di sesi non-audio ditimpa terkontrol.
+  const updated =
+    previous !== null && !audioSession
+      ? await overwriteSessionAnswer(row.id, index, choice)
+      : await setSessionAnswer(row.id, index, choice);
   if (!updated) {
     // Slot tidak terisi: sudah terisi oleh kiriman lain, atau sesi baru saja
     // ditutup. Baca ulang dan perlakukan jawaban duplikat sebagai benign.
@@ -956,8 +704,12 @@ export async function answerQuestion(
     return isComplete(parseAnswers(fresh.answers, questions.length));
   }
 
-  await recordResult(userId, question, choice);
-  await recordCalibration(userId, row.track, question, choice);
+  // Review dan kalibrasi hanya dicatat dari pengisian PERTAMA supaya koreksi
+  // jawaban tidak mendobel statistik; skor akhir dihitung sekali saat finish.
+  if (previous === null) {
+    await recordResult(userId, question, choice);
+    await recordCalibration(userId, row.track, question, choice);
+  }
   return isComplete(parseAnswers(updated.answers, questions.length));
 }
 

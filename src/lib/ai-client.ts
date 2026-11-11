@@ -166,15 +166,65 @@ export function extractJson(raw: string): unknown | null {
 }
 
 /** Versi publik: paksa JSON mode, tanpa validasi skema. */
-export function chatJsonRaw(config: AiConfig, messages: ProviderMessage[], timeoutMs = TIMEOUT_MS) {
-  return chatCompletionRaw(config, messages, true, timeoutMs);
+export function chatJsonRaw(config: AiConfig, messages: ProviderMessage[], timeoutMs = TIMEOUT_MS, extra: Record<string, unknown> = {}) {
+  return chatCompletionRaw(config, messages, true, timeoutMs, extra);
 }
 
-async function chatCompletionRaw(
+/* ── Ketahanan: batas permintaan serentak + ulang otomatis saat provider menolak sementara ── */
+
+let maxConcurrent = Number(process.env.AI_MAX_CONCURRENT ?? 0);
+let active = 0;
+const waiters: (() => void)[] = [];
+
+/** Batasi jumlah panggilan AI yang berjalan bersamaan di proses ini (0 = tanpa batas). Provider menolak dengan 429 di atas batas aslinya. */
+export function setAiConcurrency(limit: number) {
+  maxConcurrent = Math.max(0, Math.floor(limit));
+}
+
+async function withSlot<T>(task: () => Promise<T>): Promise<T> {
+  while (maxConcurrent > 0 && active >= maxConcurrent) await new Promise<void>((resolve) => waiters.push(resolve));
+  active += 1;
+  try {
+    return await task();
+  } finally {
+    active -= 1;
+    waiters.shift()?.();
+  }
+}
+
+const RETRYABLE = new Set([429, 502, 503, 504]);
+const MAX_RETRIES = 6;
+
+/** Ulangi permintaan yang ditolak sementara (429/502/503/504) dengan jeda eksponensial + jitter, selama anggaran waktu masih cukup. */
+async function sendWithRetry(send: () => Promise<Response>, budgetMs: number): Promise<Response> {
+  const startedAt = Date.now();
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await send();
+    if (!RETRYABLE.has(response.status) || attempt >= MAX_RETRIES) return response;
+    const retryAfter = Number(response.headers.get("retry-after")) * 1000;
+    const wait = Math.min(30_000, retryAfter || 1_500 * 2 ** attempt) + Math.random() * 1_000;
+    if (Date.now() - startedAt + wait > budgetMs) return response;
+    await response.arrayBuffer().catch(() => null);
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+}
+
+function chatCompletionRaw(
   config: AiConfig,
   messages: ProviderMessage[],
   jsonMode: boolean,
   timeoutMs = TIMEOUT_MS,
+  extra: Record<string, unknown> = {},
+): Promise<ChatResult> {
+  return withSlot(() => chatCompletionRawOnce(config, messages, jsonMode, timeoutMs, extra));
+}
+
+async function chatCompletionRawOnce(
+  config: AiConfig,
+  messages: ProviderMessage[],
+  jsonMode: boolean,
+  timeoutMs = TIMEOUT_MS,
+  extra: Record<string, unknown> = {},
 ): Promise<ChatResult> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   const startedAt = Date.now();
@@ -188,6 +238,7 @@ async function chatCompletionRaw(
       body: JSON.stringify({
         model: config.model,
         messages: foldSystemMessages(messages),
+        ...extra,
         ...(useJsonMode ? { response_format: { type: "json_object" } } : {}),
       }),
       signal: AbortSignal.timeout(Math.max(1_000, timeoutMs - (Date.now() - startedAt))),
@@ -195,13 +246,13 @@ async function chatCompletionRaw(
 
   let response: Response;
   try {
-    response = await send(jsonMode);
+    response = await sendWithRetry(() => send(jsonMode), timeoutMs);
     // Sebagian provider non-OpenAI menolak response_format. Coba lagi tanpa itu.
     if (jsonMode && response.status === 400) {
       const detail = await response.text().catch(() => "");
       if (/response_format/i.test(detail)) {
         console.warn(`[ai] provider menolak response_format, mencoba tanpa JSON mode: ${detail.slice(0, 120)}`);
-        response = await send(false);
+        response = await sendWithRetry(() => send(false), timeoutMs);
       }
     }
   } catch (error) {

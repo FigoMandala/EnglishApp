@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Send, Sparkles, Square, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { Lori } from "@/components/mascot";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,38 @@ const SUGGESTIONS = [
 /** Jaga-jaga kalau model tetap memakai markdown: buang tanda bintang dan pagar. */
 const plain = (text: string) =>
   text.replace(/^\s*\*\s+/gm, "- ").replace(/\*+/g, "").replace(/^#+\s*/gm, "");
+
+const CORRECTION_PREFIX = "Lebih natural:";
+
+/** Render balasan tutor. Baris "Lebih natural:" (mode koreksi skenario) ditampilkan
+ *  sebagai kartu koreksi kecil di dalam bubble yang sama, sisanya teks biasa. */
+function renderAssistant(content: string) {
+  const text = plain(content);
+  if (!text) return null;
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    if (line.trim().startsWith(CORRECTION_PREFIX)) {
+      return (
+        <span
+          key={i}
+          className="mt-2 block rounded-[12px] border-t-2 border-hairline-soft bg-sky-soft/60 px-3 py-2 text-[0.875rem] text-sky-deep"
+        >
+          <strong className="mr-1 font-extrabold">Koreksi:</strong>
+          {line.trim().slice(CORRECTION_PREFIX.length).trim()}
+        </span>
+      );
+    }
+    // Baris koreksi adalah elemen block (pindah baris sendiri), jadi pemisah "\n"
+    // tidak perlu kalau baris berikutnya adalah koreksi.
+    const nextIsCorrection = lines[i + 1]?.trim().startsWith(CORRECTION_PREFIX) ?? false;
+    return (
+      <Fragment key={i}>
+        {line}
+        {i < lines.length - 1 && !nextIsCorrection ? "\n" : ""}
+      </Fragment>
+    );
+  });
+}
 
 export function TutorChat({
   initialMessages,
@@ -49,7 +81,8 @@ export function TutorChat({
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: streaming ? "auto" : "smooth", block: "end" });
+    const prm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: streaming || prm ? "auto" : "smooth", block: "end" });
   }, [messages, streaming]);
 
   // Textarea tumbuh mengikuti isi (maksimal ±8 baris) lalu scroll sendiri.
@@ -280,7 +313,7 @@ export function TutorChat({
                         ))}
                       </span>
                     ) : (
-                      plain(entry.content) || "…"
+                      renderAssistant(entry.content) || "…"
                     )}
                   </span>
                 </li>
@@ -356,7 +389,7 @@ export function TutorChat({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-plate bg-surface-muted p-3">
+      <div role="log" aria-label="Transkrip percakapan" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-plate bg-surface-muted p-3">
         {messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-primary-soft text-primary">
@@ -370,8 +403,9 @@ export function TutorChat({
                 <button
                   key={suggestion}
                   type="button"
+                  disabled={streaming}
                   onClick={() => send(suggestion)}
-                  className="rounded-full border-2 border-hairline bg-surface px-4 py-2 text-[0.8125rem] font-semibold text-ink-subtle transition-colors hover:border-primary hover:text-primary"
+                  className="cursor-pointer rounded-full border-2 border-hairline bg-surface px-4 py-2 text-[0.8125rem] font-semibold text-ink-subtle transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
@@ -390,7 +424,7 @@ export function TutorChat({
                   entry.role === "user" ? "bg-primary text-white" : "bg-surface text-ink",
                 )}
               >
-                {(entry.role === "assistant" ? plain(entry.content) : entry.content) ||
+                {(entry.role === "assistant" ? renderAssistant(entry.content) : entry.content) ||
                   (streaming && index === messages.length - 1 ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "…")}
               </div>
             </div>

@@ -13,7 +13,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Kaka, Lori } from "@/components/mascot";
-import { Lori3D } from "@/components/lori-3d";
+import { LoriPlay } from "@/components/lori-play";
 import { Logo } from "@/components/logo";
 import { Anatomy } from "@/components/ui/anatomy";
 import { getCurrentUser } from "@/lib/session";
@@ -72,14 +72,15 @@ const FEATURES = [
   },
   {
     Icon: Flame,
-    tone: "bg-mango-soft text-mango-ink",
+    tone: "bg-mango text-mango-on",
     title: "Streak & Liga",
     body: "Pelindung streak untuk hari berat, akhir pekan santai, dan liga mingguan yang adil berdasarkan level.",
+    highlight: true,
   },
 ];
 
 const ledge =
-  "transition-transform active:translate-y-[5px] active:shadow-none font-display font-extrabold";
+  "transition-[transform,translate,box-shadow] active:translate-y-[5px] active:shadow-none font-display font-extrabold";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -194,8 +195,8 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="relative mx-auto -mt-[18px] flex max-w-[520px] items-end gap-1 pl-3">
-            <Lori3D size={150} label="Lori menjelaskan — putar untuk melihat 3D" />
-            <div className="mb-16 max-w-[300px] rounded-[20px_20px_20px_6px] border-2 border-hairline bg-surface px-4 py-3.5 text-[0.9375rem] leading-normal shadow-[0_3px_0_var(--color-hairline)]">
+            <LoriPlay size={150} label="Lori menjelaskan — klik untuk melihat aksinya" className="z-0" />
+            <div className="relative z-10 mb-16 max-w-[300px] rounded-[20px_20px_20px_6px] border-2 border-hairline bg-surface px-4 py-3.5 text-[0.9375rem] leading-normal shadow-[0_3px_0_var(--color-hairline)]">
               <strong className="block text-primary-deep">Lori</strong>
               Suratnya nggak menulis sendiri, kan? Yang dikenai aksi → pasif: <strong>was + V3</strong>.
             </div>
@@ -247,8 +248,15 @@ export default async function HomePage() {
           </h2>
         </div>
         <div className="grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))]">
-          {FEATURES.map(({ Icon, tone, title, body }) => (
-            <div key={title} className="flex flex-col gap-3 rounded-[24px] border-2 border-hairline bg-surface p-7 shadow-card">
+          {FEATURES.map(({ Icon, tone, title, body, highlight }) => (
+            <div
+              key={title}
+              className={
+                highlight
+                  ? "flex flex-col gap-3 rounded-[24px] border-2 border-mango-line bg-mango-soft p-7 shadow-[0_4px_0_var(--color-mango-line)]"
+                  : "flex flex-col gap-3 rounded-[24px] border-2 border-hairline bg-surface p-7 shadow-card"
+              }
+            >
               <span className={`flex size-12 items-center justify-center rounded-[14px] ${tone}`}>
                 {Icon ? <Icon className="size-6" aria-hidden /> : <span className="font-display text-[1.125rem] font-black">Aa</span>}
               </span>

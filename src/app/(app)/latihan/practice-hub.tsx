@@ -37,7 +37,7 @@ type Mode = {
 };
 
 const MODES: Mode[] = [
-  { title: "Susun kalimat & soal", desc: "Isian, pilihan ganda, susun kata. Acak lintas materi.", skill: "Structure", sid: "structure", meta: "12 soal", xp: "+5/soal", href: "/latihan/soal", Icon: PenLine, tone: "bg-primary-soft text-primary" },
+  { title: "Susun kalimat & soal", desc: "Isian, pilihan ganda, susun kata, terjemah. Acak lintas materi.", skill: "Structure", sid: "structure", meta: "12 soal", xp: "+5/soal", href: "/latihan/soal", Icon: PenLine, tone: "bg-primary-soft text-primary" },
   { title: "Dengar & jawab", desc: "Dengarkan kalimat, pilih kata yang tertangkap. Bisa 0.75×.", skill: "Listening", sid: "listening", meta: "8 kalimat", xp: "+40 penuh", href: "/latihan/dengar", Icon: Headphones, tone: "bg-sky-soft text-sky" },
   { title: "Ucapkan", desc: "Pilih topik, ucapkan 5 kalimat, lihat kata yang belum terdengar jelas.", skill: "Speaking", sid: "speaking", meta: `${SPEAKING_PROMPTS.length} topik`, xp: "+20 maks", href: "/latihan/ucapkan", Icon: Mic, tone: "bg-sky-soft text-sky", isNew: true },
   { title: "Cocokkan pasangan", desc: "Adu cepat jodohkan kata dan arti. Combo bikin skor naik.", skill: "Vocabulary", sid: "kosakata", meta: "6 pasang", xp: "+40 tanpa salah", href: "/latihan/pasangan", Icon: null, glyph: "A↔a", tone: "bg-mango-soft text-mango-ink" },

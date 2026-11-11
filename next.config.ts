@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
-// Dev butuh unsafe-eval untuk react-refresh/HMR. Produksi cukup wasm-unsafe-eval:
-// decoder WASM (Draco di model-viewer) tetap jalan, tapi eval JS ditutup.
+// Dev butuh unsafe-eval untuk react-refresh/HMR; produksi menutup eval JS sepenuhnya.
 const isDev = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
@@ -23,7 +22,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'" + (isDev ? " 'unsafe-eval'" : " 'wasm-unsafe-eval'"),
+              "script-src 'self' 'unsafe-inline'" + (isDev ? " 'unsafe-eval'" : ""),
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               // Audio suara AI diputar dari blob URL (hasil fetch /api/tts).

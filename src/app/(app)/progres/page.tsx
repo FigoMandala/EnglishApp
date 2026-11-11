@@ -19,6 +19,13 @@ import { DAILY_GOAL_XP as DEFAULT_GOAL_XP, levelFromXp, levelTitle } from "@/lib
 export const metadata = { title: "Profil & Progres · EnglishApp" };
 
 const SHADES = ["bg-hairline-soft", "bg-mango-mark", "bg-mango-line", "bg-mango"];
+// Urutan swatch = nilai lvl sel heatmap: 0 kosong, <½ target, <target, ≥target.
+const HEAT_LEGEND = [
+  { label: "0", shade: SHADES[0] },
+  { label: "<½ target", shade: SHADES[1] },
+  { label: "<target", shade: SHADES[2] },
+  { label: "≥target", shade: SHADES[3] },
+];
 const WEEKS = 16;
 
 export default async function ProgresPage() {
@@ -121,7 +128,7 @@ export default async function ProgresPage() {
           </span>
           <span className="flex justify-between gap-3 text-[0.875rem]">
             <span className="text-ink-subtle">Target harian</span>
-            <strong>{dailyGoal} XP</strong>
+            <strong>{dailyGoal} XP/hari</strong>
           </span>
           <span className="flex flex-wrap gap-x-4 gap-y-1 text-[0.875rem] font-extrabold">
             <Link href="/eptr#target" className="text-primary-deep hover:underline">
@@ -174,7 +181,7 @@ export default async function ProgresPage() {
           </div>
           <div
             role="img"
-            aria-label={`Kalender aktivitas harian ${WEEKS} minggu terakhir. Streak saat ini ${streak} hari.`}
+            aria-label={`Kalender aktivitas harian ${WEEKS} minggu terakhir. Streak saat ini ${streak} hari. Hari ini ditandai cincin.`}
             className="grid gap-1"
             style={{ gridTemplateColumns: `repeat(${WEEKS}, minmax(0, 1fr))` }}
           >
@@ -182,7 +189,11 @@ export default async function ProgresPage() {
               <div key={w} className="grid grid-rows-7 gap-1">
                 {week.map((day, d) =>
                   day ? (
-                    <span key={d} title={`${day.date}: ${day.amount} XP`} className={cn("h-3.5 rounded-[4px]", SHADES[day.lvl])} />
+                    <span
+                      key={d}
+                      title={`${day.date}: ${day.amount} XP`}
+                      className={cn("h-3.5 rounded-[4px]", SHADES[day.lvl], day.date === today && "ring-2 ring-ink/60")}
+                    />
                   ) : (
                     <span key={d} className="h-3.5" />
                   ),
@@ -190,12 +201,16 @@ export default async function ProgresPage() {
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-end gap-1.5 text-[0.75rem] font-extrabold text-ink-subtle">
-            Sedikit
-            {SHADES.map((s) => (
-              <span key={s} className={cn("size-3.5 rounded-[4px]", s)} />
-            ))}
-            Banyak
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-[0.75rem] font-extrabold text-ink-subtle">
+            <span>Target {dailyGoal} XP/hari</span>
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {HEAT_LEGEND.map((step) => (
+                <span key={step.label} className="inline-flex items-center gap-1.5">
+                  <span className={cn("size-3.5 rounded-[4px]", step.shade)} />
+                  {step.label}
+                </span>
+              ))}
+            </span>
           </div>
         </section>
 

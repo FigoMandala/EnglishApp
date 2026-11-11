@@ -20,8 +20,22 @@ const PRICES: { match: RegExp; rate: Rate }[] = [
   { match: /deepseek/i, rate: { input: 0.27, output: 1.1 } },
 ];
 
+/**
+ * Harga per juta token bisa ditimpa lewat env AI_PRICES, JSON { "nama-model": { "input": 1, "output": 4 } }
+ * (nama model persis). Model baru yang belum ada di tabel di atas jatuh ke harga bawaan, yang kemungkinan keliru.
+ */
+function overridePrice(model: string): Rate | null {
+  try {
+    const parsed = JSON.parse(process.env.AI_PRICES ?? "{}") as Record<string, Partial<Rate>>;
+    const entry = parsed[model];
+    return entry && Number.isFinite(entry.input) && Number.isFinite(entry.output) ? { input: Number(entry.input), output: Number(entry.output) } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function priceFor(model: string): Rate {
-  return PRICES.find((entry) => entry.match.test(model))?.rate ?? PER_MILLION;
+  return overridePrice(model) ?? PRICES.find((entry) => entry.match.test(model))?.rate ?? PER_MILLION;
 }
 
 export function estimateCostUsd(model: string, usage: TokenUsage) {
