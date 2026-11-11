@@ -28,6 +28,8 @@
     "db:content:migrate": "drizzle-kit migrate --config=drizzle.content.config.ts",
     "db:content:migrate:prod": "node --env-file=.env.production.local node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.content.config.ts",
     "db:push-bank:prod": "node --env-file=.env.production.local --import tsx src/db/push-bank.ts",
+    "db:push-tts": "tsx src/db/push-tts.ts",
+    "db:push-tts:prod": "node --env-file=.env.production.local --import tsx src/db/push-tts.ts",
     "db:count": "tsx src/db/count-questions.ts",
     "db:count:prod": "node --env-file=.env.production.local --import tsx src/db/count-questions.ts",
     "db:wipe": "tsx src/db/wipe-data.ts",

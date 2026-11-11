@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { blob, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 const createdAt = () =>
   text("created_at")
     .notNull()
@@ -448,6 +448,16 @@ export const ttsCache = sqliteTable("tts_cache", {
   key: text("key").primaryKey(),
   audio: text("audio").notNull(),
   createdAt: createdAt(),
+});
+
+/**
+ * Audio Listening yang dibuat di muka (Kokoro di Modal), satu baris per suara+teks.
+ * Kunci: sha256("man"|"woman" + "
+" + teks). Tidak pernah dibersihkan, beda dengan tts_cache.
+ */
+export const ttsPregen = sqliteTable("tts_pregen", {
+  key: text("key").primaryKey(),
+  audio: blob("audio", { mode: "buffer" }).notNull(),
 });
 
 export const userSettings = sqliteTable(

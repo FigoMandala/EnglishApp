@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { ttsCache } from "@/db/schema";
+import { ttsCache, ttsPregen } from "@/db/schema";
 import type { ToeflQuestion } from "@/lib/toefl";
 import { ttsVoice } from "@/lib/voices";
 
@@ -37,6 +37,10 @@ function request(key: string, text: string, voice: string) {
 
 /** Audio mp3 dari cache, atau dibuat lewat Fish Audio lalu disimpan. Null kalau gagal/tidak dikonfigurasi. */
 export async function getTts(text: string, voice: string): Promise<Buffer | null> {
+  // Audio Listening yang dibuat di muka (tools/modal-drama3, Kokoro) menang atas cache dan Fish API.
+  const pregenKey = createHash("sha256").update(`${voice === "Charon" ? "man" : "woman"}\n${text}`).digest("hex");
+  const [pregen] = await db.select().from(ttsPregen).where(eq(ttsPregen.key, pregenKey)).limit(1);
+  if (pregen) return Buffer.from(pregen.audio);
   const apiKeyValue = apiKey();
   // Kunci cache memuat model dan suara supaya ganti model tidak memutar audio lama.
   const key = createHash("sha256").update(`fish64
