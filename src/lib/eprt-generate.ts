@@ -227,6 +227,40 @@ async function dropGuessable(ctx: EprtContext, questions: ToeflQuestion[]) {
   );
 }
 
+/**
+ * Penjelasan jawaban (Bahasa Indonesia) tidak pernah diperiksa oleh langkah lain: kunci bisa benar sementara penjelasannya salah
+ * atau menyesatkan. Pemeriksa kedua membaca soal + kunci + penjelasan dan membuang yang tidak akurat. Matikan dengan EPRT_CHECK_EXPLAIN=0.
+ */
+async function dropBadExplanations(ctx: EprtContext, kind: Kind, passage: string | null, questions: ToeflQuestion[]) {
+  if (process.env.EPRT_CHECK_EXPLAIN === "0" || !questions.length) return questions;
+  let lastScript = "";
+  const body = questions
+    .map((q, i) => {
+      const script = isListening(kind) ? dialogueKey(q) : "";
+      const header = script && script !== lastScript ? `[Naskah]\n${script}\n\n` : "";
+      if (script) lastScript = script;
+      const key = q.options[q.answer];
+      const target = kind === "written" ? `Bagian yang salah (kunci): ${key}` : `Jawaban benar (kunci): ${key}`;
+      return `${header}${i + 1}. ${q.q}\n${target}\nPenjelasan: ${q.explain_id}`;
+    })
+    .join("\n\n");
+  const messages: ProviderMessage[] = [
+    {
+      role: "system",
+      content:
+        'Kamu pemeriksa penjelasan jawaban soal bahasa Inggris gaya TOEFL ITP. Tiap soal diberi kalimat/pertanyaan, kunci, dan penjelasan berbahasa Indonesia. "ok" = true bila penjelasan akurat, sesuai dengan kunci, tidak memuat klaim tata bahasa atau isi yang salah, dan tidak menyebut huruf opsi; false bila salah, menyesatkan, bertentangan dengan kunci, atau tidak menjelaskan alasan yang benar. Balas HANYA JSON {"ok":[true,false,...]} urut sesuai nomor.',
+    },
+    { role: "user", content: `${passage ? `Teks:\n${passage}\n\n` : ""}${body}` },
+  ];
+  const checker = ctx.config.verifyModel ? { ...ctx.config, model: ctx.config.verifyModel } : ctx.config;
+  const result = await chatJsonRaw(checker, messages, undefined, ctx.extra);
+  tally(ctx, result);
+  const ok = (parseAiJson(result.content) as { ok?: unknown }).ok;
+  if (process.env.EPRT_DEBUG) console.error(`[explain ${kind}] ok=${JSON.stringify(ok)}`);
+  if (!Array.isArray(ok) || ok.length !== questions.length) return questions;
+  return questions.filter((_, i) => ok[i] !== false);
+}
+
 function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
   const level = LEVEL_SCORE[band];
   const test = `EPrT (skala mirip TOEFL ITP) ${level}`;
@@ -290,7 +324,8 @@ export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: Leve
   if (!candidates.length) throw new Error("tidak ada soal valid");
 
   const verified = await verify(ctx, kind, passage, candidates);
-  const kept = isListening(kind) && verified.length ? await dropGuessable(ctx, verified) : verified;
+  const unguessable = isListening(kind) && verified.length ? await dropGuessable(ctx, verified) : verified;
+  const kept = await dropBadExplanations(ctx, kind, passage, unguessable);
   let items: { passage: string | null; questions: ToeflQuestion[] }[];
   if (kind === "reading") {
     items = kept.length >= READING_MIN && passage ? [{ passage, questions: kept }] : [];

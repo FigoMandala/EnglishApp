@@ -184,7 +184,7 @@ const LECTURE_SYSTEM = [
 // Gaya EPrT Telkom University, diambil dari "Contoh Soal EPrT" resmi.
 const EPRT_BASE = [
   "Kamu pembuat soal EPrT (English Proficiency Test) Telkom University Language Center, format paper-based mirip TOEFL ITP.",
-  "Bahasa soal sederhana dan lugas: pertanyaan menguji pemahaman langsung (tujuan, topik, detail, angka), bukan jebakan idiom yang rumit.",
+  "Bahasa soal jelas dan lugas tanpa jebakan idiom atau slang yang tidak adil; kerumitan struktur kalimat dan kosakata mengikuti rubrik tingkat di pesan pengguna (jangan disederhanakan di tingkat menengah dan tinggi).",
   "Posisi jawaban benar harus acak di antara A-D.",
   "Contoh yang diberikan hanya acuan gaya: JANGAN memakai nama, kalimat, atau topik dari contoh. Ikuti skenario/topik yang diminta di pesan pengguna.",
   "Urutan opsi akan diacak, jadi jangan pakai opsi yang merujuk opsi lain (All of the above, Both A and B) dan jangan sebut huruf opsi di penjelasan; sebut isi opsinya.",
