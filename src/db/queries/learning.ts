@@ -2,6 +2,8 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  grammarLessonProgress,
+  grammarLessons,
   learningUnitItems,
   learningUnitProgress,
   learningUnits,
@@ -47,6 +49,15 @@ export async function getUnitBySlug(slug: string) {
   return { ...unit, items };
 }
 
+export async function getUnitById(unitId: number) {
+  const [unit] = await db
+    .select()
+    .from(learningUnits)
+    .where(eq(learningUnits.id, unitId))
+    .limit(1);
+  return unit ?? null;
+}
+
 export async function completedUnitIds(userId: number): Promise<Set<number>> {
   const rows = await db
     .select({ unitId: learningUnitProgress.unitId })
@@ -69,6 +80,40 @@ export async function isUnitCompleted(userId: number, unitId: number) {
     )
     .limit(1);
   return Boolean(row?.completedAt);
+}
+
+/**
+ * Jumlah materi grammar pada unit yang belum diselesaikan pengguna (belum
+ * ada baris progres dengan completedAt). Dipakai sebagai syarat bonus XP
+ * "unit selesai" supaya completeUnitAction tidak bisa dipanggil langsung
+ * untuk unit yang belum dikerjakan (audit keamanan P1).
+ */
+export async function countUnitIncompleteLessons(userId: number, unitId: number) {
+  const rows = await db
+    .select({ id: grammarLessons.id })
+    .from(learningUnitItems)
+    .innerJoin(
+      grammarLessons,
+      and(
+        eq(grammarLessons.slug, sql`${learningUnitItems.refSlug}`),
+        eq(grammarLessons.published, true),
+      ),
+    )
+    .leftJoin(
+      grammarLessonProgress,
+      and(
+        eq(grammarLessonProgress.lessonId, grammarLessons.id),
+        eq(grammarLessonProgress.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        eq(learningUnitItems.unitId, unitId),
+        eq(learningUnitItems.kind, "grammar"),
+        sql`${grammarLessonProgress.completedAt} is null`,
+      ),
+    );
+  return rows.length;
 }
 
 export async function completeUnit(userId: number, unitId: number) {

@@ -26,7 +26,10 @@ export async function POST(request: Request) {
     );
   }
   // Cek di sini (bukan hanya di ask()) supaya sesi soal tidak dibuat dulu
-  // lalu yatim ketika kuota sudah habis.
+  // lalu yatim ketika kuota sudah habis. Cek ini sifatnya saran (read-only,
+  // bisa TOCTOU): penegakan kuota yang atomik untuk jalur AI-nya ada di
+  // reserveBudget() topUpFromAi/warmTts — gerbang nyata tidak bisa ditembus
+  // paralel (audit keamanan P2-14).
   const budget = await checkBudget();
   if (!budget.allowed) {
     return NextResponse.json(

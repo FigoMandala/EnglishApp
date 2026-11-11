@@ -50,8 +50,53 @@ export async function getAiConfig(): Promise<AiConfig> {
   };
 }
 
+/**
+ * Validasi baseUrl AI dari form admin. Key API dikirim sebagai Bearer header
+ * ke host ini, jadi nilai yang tidak divalidasi menjadi saluran eksfiltrasi
+ * kredensial (audit keamanan P2): wajib https, tanpa userinfo, dan bukan
+ * host internal. Mengembalikan pesan galat atau null.
+ */
+export function aiBaseUrlError(rawBaseUrl: string): string | null {
+  const value = rawBaseUrl.trim();
+  if (!value) return null; // kosong = pertahankan nilai lama
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "Base URL AI tidak valid (harus URL https lengkap).";
+  }
+  if (url.protocol !== "https:") return "Base URL AI wajib https://";
+  if (url.username || url.password) return "Base URL AI tidak boleh memuat kredensial di URL.";
+  const host = url.hostname.toLowerCase();
+  const privateLike =
+    host === "localhost" ||
+    host === "0.0.0.0" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".internal") ||
+    host.endsWith(".local");
+  const ipLiteral = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  // IP literal: hanya publik yang lewat (127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x ditolak).
+  if (privateLike || (ipLiteral && !isPublicIpv4(host))) {
+    return "Base URL AI tidak boleh mengarah ke host internal.";
+  }
+  if (value.length > 300) return "Base URL AI terlalu panjang.";
+  return null;
+}
+
+function isPublicIpv4(host: string) {
+  const parts = host.split(".").map(Number);
+  const [a, b] = parts;
+  if (a === 10 || a === 127 || a === 0) return false;
+  if (a === 169 && b === 254) return false;
+  if (a === 172 && b >= 16 && b <= 31) return false;
+  if (a === 192 && b === 168) return false;
+  return true;
+}
+
 export async function setAiConfig(values: Partial<AiConfig>) {
   const current = await getAiConfig();
+  const baseUrlError = aiBaseUrlError(values.baseUrl ?? "");
+  if (baseUrlError) throw new Error(baseUrlError);
   const next = {
     baseUrl: values.baseUrl?.trim() || current.baseUrl,
     apiKey: values.apiKey?.trim() || current.apiKey,

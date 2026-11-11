@@ -9,6 +9,11 @@ import {
 } from "@/db/schema";
 import { nextReviewFsrs, shiftDate, todayISO, type ReviewGrade } from "@/lib/srs";
 
+/** Escape wildcard LIKE (\, %, _) dari input pengguna; pasangkan dengan `escape '\'` di SQL. */
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 export type VocabularyCard = Vocabulary & {
   box: number;
   dueAt: string | null;
@@ -95,11 +100,14 @@ export type VocabularyPage = {
  */
 export async function listVocabularyPage(userId: number, filter: VocabularyPageFilter): Promise<VocabularyPage> {
   const p = vocabularyProgress;
+  // Wildcard LIKE dari input pengguna di-escape: % dan _ bebas membuat query
+  // memindai seluruh tabel (audit keamanan P3). Nilainya tetap parameter terikat.
+  const q = filter.q ? escapeLike(filter.q.toLowerCase()) : "";
   const conditions = [
     filter.level ? eq(vocabulary.level, filter.level) : undefined,
     filter.topic ? sql`lower(${vocabulary.topic}) = ${filter.topic.toLowerCase()}` : undefined,
     filter.q
-      ? sql`(lower(${vocabulary.word}) like ${`%${filter.q.toLowerCase()}%`} or lower(${vocabulary.meaning}) like ${`%${filter.q.toLowerCase()}%`})`
+      ? sql`(lower(${vocabulary.word}) like ${`%${q}%`} escape '\\' or lower(${vocabulary.meaning}) like ${`%${q}%`} escape '\\')`
       : undefined,
   ];
   if (filter.status === "new") {

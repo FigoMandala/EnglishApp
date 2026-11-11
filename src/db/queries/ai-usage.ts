@@ -5,7 +5,7 @@ import { aiUsage, users } from "@/db/schema";
 import { estimateCostUsd, type TokenUsage } from "@/lib/ai-pricing";
 import { shiftDate, todayISO } from "@/lib/srs";
 
-export type AiFeature = "tutor" | "toefl" | "eptr" | "writing" | "grammar";
+export type AiFeature = "tutor" | "toefl" | "eptr" | "writing" | "grammar" | "content";
 
 export async function logAiUsage(values: {
   userId: number;

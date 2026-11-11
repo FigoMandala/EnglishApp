@@ -70,6 +70,7 @@ const RESERVE_TOKENS: Record<AiFeature, TokenUsage> = {
   eptr: { promptTokens: 2_500, completionTokens: 1_800, totalTokens: 4_300 },
   writing: { promptTokens: 2_000, completionTokens: 800, totalTokens: 2_800 },
   grammar: { promptTokens: 900, completionTokens: 400, totalTokens: 1_300 },
+  content: { promptTokens: 2_000, completionTokens: 2_000, totalTokens: 4_000 },
 };
 
 /**

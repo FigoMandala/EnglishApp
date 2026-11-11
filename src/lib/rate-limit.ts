@@ -22,6 +22,19 @@ export async function checkRateLimit(
   const now = Date.now();
   const nowStr = String(now);
 
+  // 0) Fast-path: kalau jendela masih aktif dan kuota sudah habis, tolak
+  // langsung dari satu SELECT. Tanpa ini setiap request yang diblokir tetap
+  // menjalankan rantai 3 query di bawah — satu curl loop anonim berubah
+  // menjadi amplifikasi 4 round-trip DB per request (audit keamanan P2).
+  const [current] = await db
+    .select({ count: rateLimits.count, windowStart: rateLimits.windowStart })
+    .from(rateLimits)
+    .where(eq(rateLimits.key, key))
+    .limit(1);
+  if (current && Number(current.count) >= limit && Number(current.windowStart) > now - windowMs) {
+    return { ok: false, remaining: 0, retryAfterMs: Math.max(0, windowMs - (now - Number(current.windowStart))) };
+  }
+
   // 1) Jendela masih berlaku dan masih ada sisa kuota: naikkan atomik.
   // Syarat windowStart mencegah jendela basi ikut dihitung (tanpanya kuota
   // menjadi kumulatif "N selamanya" sampai penuh, bukan "N per window").

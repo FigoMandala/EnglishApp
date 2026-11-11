@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { activityLog, userSettings } from "@/db/schema";
+import { activityLog, auditLogs, userSettings } from "@/db/schema";
 import type { SpeakingBest } from "@/lib/speaking-scores";
 import { todayISO } from "@/lib/srs";
 
@@ -54,6 +54,17 @@ export async function studyDays(userId: number) {
     .from(activityLog)
     .where(eq(activityLog.userId, userId));
   return rows.map((row) => row.date);
+}
+
+/**
+ * Buang log aktivitas & audit lebih tua dari `days` hari (retensi 90 hari).
+ * Dipanggil cron harian: tanpa ini kedua tabel tumbuh tanpa batas dan bisa
+ * diperbesar secara sengaja lewat aksi yang mencatat log (audit keamanan P2).
+ */
+export async function purgeOldLogs(days = 90) {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
+  await db.delete(activityLog).where(lt(activityLog.createdAt, cutoff));
+  await db.delete(auditLogs).where(lt(auditLogs.createdAt, cutoff));
 }
 
 export const SETTING_KEYS = {

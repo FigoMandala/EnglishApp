@@ -18,7 +18,7 @@ import {
 import { PROMPT_KIND_LABEL, PROMPT_LEVEL_LABEL, type WritingPrompt } from "@/lib/writing-prompts";
 import { cn } from "@/lib/utils";
 
-import { finishParagraphAction, reviewParagraphAction, type ParagraphState } from "../actions";
+import { reviewParagraphAction, type ParagraphState } from "../actions";
 import { PromptBank } from "../prompt-bank";
 
 type Step = "pilih" | "tulis" | "hasil";
@@ -48,8 +48,8 @@ export function ParagraphDrill({ daily }: { daily: WritingPrompt }) {
       setState(result);
       if (result.status === "done") {
         setStep("hasil");
-        const earned = await finishParagraphAction(result.score.total, wordCount(paragraph));
-        if (earned.xp) setXp(earned.xp);
+        // XP diberikan langsung oleh action review setelah AI menilai.
+        setXp(result.xp);
       }
     });
   }

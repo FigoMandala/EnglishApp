@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import { addXp } from "@/db/queries/learning";
+import { addCappedXp } from "@/db/queries/learning";
 import { getExerciseById, recordAttempt } from "@/db/queries/grammar-exercises";
 import { checkSentence } from "@/lib/api/sentence";
 import { checkAnswer, parseAnswers, validateAnswerText } from "@/lib/grammar-exercise";
 import { logActivity } from "@/db/queries/activity";
 import { requireUser } from "@/lib/session";
 import { todayISO } from "@/lib/srs";
-import { XP_REWARDS } from "@/lib/xp";
+import { XP_DAILY_CAPS, XP_REWARDS } from "@/lib/xp";
 import { AiError } from "@/lib/ai-client";
 
 export type MateriState = { status: "idle" | "error"; message?: string };
@@ -69,7 +69,7 @@ export async function submitExerciseAction(
 
   const { firstCorrect } = await recordAttempt(user.id, exerciseId, answer, correct);
   if (firstCorrect) {
-    await addXp(user.id, XP_REWARDS.grammarExercise, "exercise", todayISO());
+    await addCappedXp(user.id, "exercise", todayISO(), XP_REWARDS.grammarExercise, XP_DAILY_CAPS.exercise);
     await logActivity(user.id, "grammar", exercise.type, todayISO());
     revalidatePath("/materi");
   }

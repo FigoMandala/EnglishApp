@@ -8,8 +8,6 @@ import { writingSubmissions } from "@/db/schema";
 import { logActivity } from "@/db/queries/activity";
 import { addCappedXp } from "@/db/queries/learning";
 import {
-  PARAGRAPH_MAX_WORDS,
-  PARAGRAPH_MIN_WORDS,
   validateEssay,
   validateParagraph,
   wordCount,
@@ -88,12 +86,23 @@ export async function submitEssayAction(
 }
 
 export type ParagraphState =
-  | { status: "done"; score: WritingScore }
+  | { status: "done"; score: WritingScore; xp: number }
   | { status: "idle" | "error"; message?: string };
 
 export type ParagraphInput = { prompt: string; outline: string; paragraph: string };
 
-/** Koreksi paragraf kilat. Tidak disimpan ke database, jadi tidak mengotori riwayat esai. */
+/** Batas XP paragraf kilat per hari, supaya bisa jadi kebiasaan tanpa bisa dipompa. */
+const PARAGRAPH_XP_DAILY_CAP = 60;
+
+/** XP per poin skor dan batas per paragraf. */
+const PARAGRAPH_XP_PER_POINT = 0.25;
+const PARAGRAPH_XP_PER_RUN = 25;
+
+/**
+ * Koreksi paragraf kilat. Tidak disimpan ke database, jadi tidak mengotori riwayat esai.
+ * XP langsung diberikan di sini setelah review AI benar-benar jalan — skor
+ * deklarasi klien tidak bisa dipakai untuk memanen XP (audit keamanan P2).
+ */
 export async function reviewParagraphAction(input: ParagraphInput): Promise<ParagraphState> {
   const user = await requireUser();
   const prompt = String(input.prompt ?? "").trim().slice(0, 300);
@@ -118,7 +127,21 @@ export async function reviewParagraphAction(input: ParagraphInput): Promise<Para
 
   try {
     const score = await reviewParagraph(user.id, { prompt, outline, paragraph });
-    return { status: "done", score };
+
+    // Cap harian dicek di dalam INSERT (atomik): submit paralel tidak bisa
+    // menembus batas 60 XP/hari paragraf.
+    const xp = await addCappedXp(
+      user.id,
+      "paragraph",
+      todayISO(),
+      Math.min(PARAGRAPH_XP_PER_RUN, Math.round(score.total * PARAGRAPH_XP_PER_POINT)),
+      PARAGRAPH_XP_DAILY_CAP,
+    );
+    await logActivity(user.id, "writing", `Paragraf kilat: skor ${score.total}`, todayISO());
+    revalidatePath("/belajar");
+    revalidatePath("/writing");
+
+    return { status: "done", score, xp };
   } catch (error) {
     // Panggilan AI gagal: kembalikan slot kuota harian.
     await refundRateLimit(paragraphLimitKey, 24 * 60 * 60 * 1000).catch(() => undefined);
@@ -127,46 +150,6 @@ export async function reviewParagraphAction(input: ParagraphInput): Promise<Para
       message: error instanceof AiError ? error.message : "Koreksi paragraf sedang bermasalah.",
     };
   }
-}
-
-/** Batas XP paragraf kilat per hari, supaya bisa jadi kebiasaan tanpa bisa dipompa. */
-const PARAGRAPH_XP_DAILY_CAP = 60;
-
-/** XP per poin skor dan batas per paragraf. */
-const PARAGRAPH_XP_PER_POINT = 0.25;
-const PARAGRAPH_XP_PER_RUN = 25;
-
-export type ParagraphXp = { status: "idle" | "error"; xp?: number; message?: string };
-
-/**
- * Catat satu latihan paragraf: XP harian + entri aktivitas (biar streak dan
- * kalender belajar ikut jalan). Isi paragrafnya sendiri tidak disimpan, jadi
- * riwayat esai dan statistik topik tetap bersih.
- */
-export async function finishParagraphAction(score: number, words: number): Promise<ParagraphXp> {
-  const user = await requireUser();
-  if (!Number.isInteger(score) || score < 0 || score > 100) {
-    return { status: "error", message: "Skor paragraf tidak valid." };
-  }
-  if (!Number.isInteger(words) || words < PARAGRAPH_MIN_WORDS || words > PARAGRAPH_MAX_WORDS) {
-    return { status: "error", message: "Panjang paragraf tidak valid." };
-  }
-
-  const today = todayISO();
-
-  // Cap harian dicek di dalam INSERT (atomik): submit paralel tidak bisa
-  // menembus batas 60 XP/hari paragraf.
-  const xp = await addCappedXp(
-    user.id,
-    "paragraph",
-    today,
-    Math.min(PARAGRAPH_XP_PER_RUN, Math.round(score * PARAGRAPH_XP_PER_POINT)),
-    PARAGRAPH_XP_DAILY_CAP,
-  );
-  await logActivity(user.id, "writing", `Paragraf kilat: skor ${score}`, today);
-  revalidatePath("/belajar");
-  revalidatePath("/writing");
-  return { status: "idle", xp };
 }
 
 export async function deleteEssayAction(id: number): Promise<WritingState> {

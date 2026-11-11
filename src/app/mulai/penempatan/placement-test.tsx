@@ -4,6 +4,7 @@ import { ArrowRight, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { checkPlacementAnswerAction } from "./actions";
 import { DrillFooter, DrillHeader, DrillMain, DrillPage, FeedbackBar, PrimaryButton, SecondaryButton } from "@/components/drill/parts";
 import { Lori } from "@/components/mascot";
 import type { PlacementQuestion } from "@/db/queries/onboarding";
@@ -22,22 +23,39 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
   const [checked, setChecked] = useState(false);
   const [skipped, setSkipped] = useState(false);
   const [results, setResults] = useState<boolean[]>([]);
+  const [picks, setPicks] = useState<(string | null)[]>([]);
+  const [feedback, setFeedback] = useState<{ ok: boolean; keys: string[] } | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const q = questions[index];
-  // Kunci jawaban bisa beda huruf besar/kecil/tanda baca dengan opsi, dan satu
-  // soal boleh punya beberapa kunci sah — nilai seperti latihan materi.
-  const sameAsAnswer = (value: string | null) =>
-    value !== null &&
-    normalizeAnswer(value) !== "" &&
-    q.answers.some((key) => normalizeAnswer(key) === normalizeAnswer(value));
-  const right = checked && !skipped && sameAsAnswer(picked);
+  const right = Boolean(feedback?.ok);
 
-  function check(skip = false) {
+  // Penilaian di server (kunci tidak ikut payload halaman); kunci balikan
+  // dipakai untuk sorotan jawaban benar setelah pengguna memeriksa.
+  const isCorrectOption = (option: string) =>
+    feedback?.keys.some((key) => normalizeAnswer(key) === normalizeAnswer(option)) ?? false;
+
+  async function check(skip = false) {
+    if (checked || checking) return;
+    setChecking(true);
+    const choice = skip ? null : picked;
+    let ok = false;
+    let keys: string[] = [];
+    try {
+      const res = await checkPlacementAnswerAction(q.id, choice);
+      ok = res.ok;
+      keys = res.keys;
+    } catch {
+      // Koneksi gagal: anggap belum tepat, biar aliran tes tetap jalan.
+      ok = false;
+    }
     setSkipped(skip);
     setChecked(true);
-    const ok = !skip && sameAsAnswer(picked);
+    setFeedback({ ok, keys });
     setResults((prev) => [...prev, ok]);
+    setPicks((prev) => [...prev, choice]);
     (ok ? sfx.correct : sfx.wrong)();
+    setChecking(false);
   }
 
   function next() {
@@ -46,6 +64,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
       setPicked(null);
       setChecked(false);
       setSkipped(false);
+      setFeedback(null);
       return;
     }
     const byLevel: Record<WordLevel, [number, number]> = { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] };
@@ -53,7 +72,9 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
       byLevel[question.level][1] += 1;
       if (results[i]) byLevel[question.level][0] += 1;
     });
-    saveOnboarding({ placement: { score: results.filter(Boolean).length, total: questions.length, byLevel } });
+    // Jawaban mentah ikut disimpan: skor asli dinilai ulang server saat daftar.
+    const placementResponses = questions.map((question, i) => ({ id: question.id, choice: picks[i] ?? null }));
+    saveOnboarding({ placement: { score: results.filter(Boolean).length, total: questions.length, byLevel }, placementResponses });
     router.push("/mulai/hasil");
   }
 
@@ -82,7 +103,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
               <span key={i}>
                 {part}
                 {i < parts.length - 1 ? (
-                  <span className="inline-block min-w-[150px] border-b-4 border-ink px-2 text-center text-sky-deep">{picked ?? " "}</span>
+                  <span className="inline-block min-w-[150px] border-b-4 border-ink px-2 text-center text-sky-deep">{picked ?? " "}</span>
                 ) : null}
               </span>
             ))}
@@ -90,7 +111,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
           <div role="radiogroup" aria-label="Pilihan jawaban" className={cn("grid gap-3.5 sm:grid-cols-2", checked && !right && !skipped && "shake")}>
             {q.options.map((option, i) => {
               const sel = picked === option;
-              const isAnswer = checked && sameAsAnswer(option);
+              const isAnswer = checked && isCorrectOption(option);
               return (
                 <button
                   key={option}
@@ -126,7 +147,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
         <FeedbackBar
           tone={right ? "right" : "wrong"}
           title={skipped ? "Oke, dicatat!" : right ? "Tepat!" : "Belum tepat"}
-          body={right ? "Bagus, lanjut ke soal berikutnya." : `Jawaban: ${q.answers.join(" / ")}`}
+          body={right ? "Bagus, lanjut ke soal berikutnya." : feedback?.keys.length ? `Jawaban: ${feedback.keys.join(" / ")}` : "Lanjut ke soal berikutnya."}
         >
           <PrimaryButton onClick={next} autoFocus className={cn("gap-2", !right && "bg-ink-subtle [--ledge:var(--color-ink)]")}>
             {index + 1 < questions.length ? "LANJUT" : "LIHAT HASIL"}
@@ -135,15 +156,15 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
         </FeedbackBar>
       ) : (
         <DrillFooter>
-          <SecondaryButton onClick={() => check(true)} className="text-ink-subtle">
+          <SecondaryButton onClick={() => check(true)} disabled={checking} className="text-ink-subtle">
             BELUM TAHU
           </SecondaryButton>
           <PrimaryButton
             onClick={() => check(false)}
-            disabled={!picked}
-            className={picked ? undefined : "bg-hairline text-ink-faint [--ledge:transparent]"}
+            disabled={!picked || checking}
+            className={picked && !checking ? undefined : "bg-hairline text-ink-faint [--ledge:transparent]"}
           >
-            PERIKSA
+            {checking ? "MEMERIKSA…" : "PERIKSA"}
           </PrimaryButton>
         </DrillFooter>
       )}

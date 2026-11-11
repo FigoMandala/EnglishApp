@@ -51,6 +51,8 @@ export default async function AdminBankPage({
   ]);
   const counts: Record<string, number> = { faulty: health.faulty, "too-easy": health.tooEasy, ok: health.ok, unknown: health.unknown };
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Sama seperti jepitan di listBankPage: supaya teks "Halaman X dari Y" konsisten.
+  const shownPage = Math.min(page, pages);
   const href = (next: Record<string, string>) =>
     `/admin/soal?${new URLSearchParams({ track, status, ...(kind ? { kind } : {}), ...(band ? { band } : {}), ...next }).toString()}`;
 
@@ -193,7 +195,7 @@ export default async function AdminBankPage({
       {pages > 1 ? (
         <nav aria-label="Halaman" className="flex items-center justify-between gap-3 text-[0.875rem] text-ink-subtle">
           <span>
-            Halaman {page} dari {pages} · {total} item
+            Halaman {shownPage} dari {pages} · {total} item
           </span>
           <div className="flex gap-2">
             {page > 1 ? (

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import type { LevelBand } from "@/db/queries/question-bank";
+import { logAiUsage } from "@/db/queries/ai-usage";
 import { setAiConcurrency } from "@/lib/ai-client";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { BANDS, createEprtContext, generateEprtBatch, KINDS, type Kind } from "@/lib/eprt-generate";
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
   setAiConcurrency(8);
   const ctx = await createEprtContext(config, undefined, { recent: 3_000, kinds });
   const encoder = new TextEncoder();
+  const startedAt = Date.now();
   const stream = new ReadableStream({
     async start(controller) {
       const send = (value: object) => controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
@@ -57,6 +59,16 @@ export async function POST(request: Request) {
           }
         }),
       );
+      // Belanja AI pembuat bank ikut tercatat di dashboard biaya (ctx.usage =
+      // total seluruh panggilan provider lintas batch, termasuk verifikasi).
+      await logAiUsage({
+        userId: user.id,
+        feature: "eptr",
+        model: config.model,
+        usage: ctx.usage,
+        latencyMs: Date.now() - startedAt,
+        ok: added > 0,
+      }).catch(() => undefined);
       await logAudit({ actorId: user.id, action: "question.generate", detail: `eptr ${kinds.join("+")}/${band}: +${added}, ${dropped} dibuang` });
       send({ type: "end", added, dropped });
       controller.close();

@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as { endpoint?: unknown } | null;
   const endpoint = typeof body?.endpoint === "string" ? body.endpoint : "";
-  if (!endpoint) return Response.json({ ok: false, message: "Endpoint tidak valid." }, { status: 400 });
+  if (!endpoint || endpoint.length > 500) return Response.json({ ok: false, message: "Endpoint tidak valid." }, { status: 400 });
 
   await deletePushSubscription(user.id, endpoint);
   return Response.json({ ok: true });

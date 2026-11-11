@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 
-// Dev butuh unsafe-eval untuk react-refresh/HMR; produksi menutup eval JS sepenuhnya.
-const isDev = process.env.NODE_ENV !== "production";
-
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["@libsql/client", "libsql"],
+  // Jangan bocorkan framework/versi lewat header bawaan (audit keamanan P3).
+  poweredByHeader: false,
   async headers() {
     return [
       {
@@ -18,21 +17,9 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'" + (isDev ? " 'unsafe-eval'" : ""),
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
-              // Audio suara AI diputar dari blob URL (hasil fetch /api/tts).
-              "media-src 'self' blob: data:",
-              "font-src 'self' data:",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "frame-ancestors 'none'",
-            ].join("; "),
-          },
+          // CSP dipindah ke src/middleware.ts (berbasis nonce per-request);
+          // yang lama memakai script-src 'unsafe-inline' sehingga hampir
+          // tidak memberi perlindungan script (audit keamanan P2).
         ],
       },
     ];

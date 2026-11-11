@@ -20,6 +20,8 @@ const eslintConfig = [
       // Skrip internal tooling dan mockup statis, bukan bagian dari build app.
       ".opencode/**",
       "mockups/**",
+      // Virtualenv / tool pihak ketiga, bukan kode app.
+      "tools/**",
     ],
   },
 ];

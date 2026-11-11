@@ -519,7 +519,7 @@ export const aiUsage = sqliteTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    feature: text("feature", { enum: ["tutor", "toefl", "eptr", "writing", "grammar"] }).notNull(),
+    feature: text("feature", { enum: ["tutor", "toefl", "eptr", "writing", "grammar", "content"] }).notNull(),
     model: text("model").notNull(),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),

@@ -3,6 +3,7 @@ import "./load-env";
 import { eq } from "drizzle-orm";
 
 import { db } from "./index";
+import { deleteSessionsByUserId } from "./queries/auth";
 import { users } from "./schema";
 import { hashPassword } from "@/lib/password";
 
@@ -24,12 +25,11 @@ async function main() {
     const updates: { role?: "admin"; passwordHash?: string } = {};
     if (existing.role !== "admin") updates.role = "admin";
     updates.passwordHash = await hashPassword(PASSWORD);
-    if (Object.keys(updates).length) {
-      await db.update(users).set(updates).where(eq(users.id, existing.id));
-      console.log(`Admin "${existing.username}" diperbarui (${Object.keys(updates).join(", ")}).`);
-    } else {
-      console.log(`Admin "${existing.username}" sudah ada, dilewati.`);
-    }
+    await db.update(users).set(updates).where(eq(users.id, existing.id));
+    // Rotasi sandi tanpa mencabut sesi = cookie curian tetap berlaku sampai
+    // 30 hari; logout paksa semua perangkat adalah bagian dari rotasi.
+    await deleteSessionsByUserId(existing.id);
+    console.log(`Admin "${existing.username}" diperbarui (${Object.keys(updates).join(", ")}); semua sesinya dicabut.`);
     return;
   }
 

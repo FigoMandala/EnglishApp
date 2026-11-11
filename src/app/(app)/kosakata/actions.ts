@@ -52,11 +52,14 @@ export async function logVocabSessionAction(correctCount: number, totalCount: nu
     return { status: "error", message: "Data sesi tidak valid." };
   }
   if (correctCount > totalCount) correctCount = totalCount;
+  // Sesi nyata paling besar 60 kartu; tanpa jepitan atas, Number.MAX_SAFE_INTEGER
+  // lolos dan mengotori feed aktivitas + membesarkan activity_log (audit P2).
+  const total = Math.min(totalCount, 500);
 
   await logActivity(
     user.id,
     "vocab",
-    `Review ${totalCount} kartu, ${correctCount} benar`,
+    `Review ${total} kartu, ${correctCount} benar`,
     todayISO(),
   );
   return { status: "idle" };

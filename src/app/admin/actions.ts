@@ -7,6 +7,7 @@ import {
   adminCounts,
   deleteBankItem,
   deleteUser,
+  demoteAdminGuarded,
   findUserRole,
   getBankItem,
   listAllUnits,
@@ -20,10 +21,14 @@ import {
   updateBankItem,
 } from "@/db/queries/admin";
 import type { LevelBand } from "@/db/queries/question-bank";
+import { logAiUsage } from "@/db/queries/ai-usage";
 import { createVocabulary, listVocabulary, updateVocabulary } from "@/db/queries/vocabulary";
 import { editBankItem, moveInOrder, parseWordInput, roleChangeError, type QuestionEdit } from "@/lib/admin";
+import { fingerprint, questionText } from "@/lib/question-variety";
+import { parseQuestions } from "@/lib/toefl";
 import { budgetError, setDailyBudgetUsd } from "@/lib/ai-budget";
 import { chatJsonRaw } from "@/lib/ai-client";
+import { EMPTY_USAGE } from "@/lib/ai-pricing";
 import { aiConfigured, getAiConfig, reasoningExtra, setAiConfig, type ReasoningEffort } from "@/lib/ai-config";
 import { dictionaryPhonetic } from "@/lib/dictionary";
 import { parseGeneratedWords, toVocabRow, VOCAB_LEVELS, type VocabLevel } from "@/lib/vocabulary-generator";
@@ -100,7 +105,9 @@ export async function saveBankItemAction(_prev: FormState, formData: FormData): 
   if (!BANDS.includes(levelBand)) return fail(formData, "Level tidak dikenal.");
 
   const count = Number(formData.get("count")) || 0;
-  const questions: QuestionEdit[] = Array.from({ length: count }, (_, i) => {
+  // Jepit sebelum alokasi: count raksasa mencoba mengalokasikan miliaran
+  // elemen sebelum validasi struktural jalan (self-DoS admin, audit P3).
+  const questions: QuestionEdit[] = Array.from({ length: Math.min(50, Math.max(0, count)) }, (_, i) => {
     const optionCount = Number(formData.get(`optcount-${i}`)) || 0;
     return {
       q: String(formData.get(`q-${i}`) ?? ""),
@@ -136,12 +143,29 @@ export async function retireBankItemAction(formData: FormData) {
   const status = String(formData.get("status") ?? "all");
   if (!Number.isInteger(id) || id <= 0) back("/admin/soal", { track, status, galat: "Soal tidak dikenal." });
 
-  const removed = await deleteBankItem(id);
-  if (removed) {
-    await logAudit({ actorId: admin.id, action: "question.retire", detail: `${removed.track} #${removed.id} (${removed.kind})` });
+  // Statistik kalibrasi soal yang ditarik ikut direset — kalau tidak, soal
+  // identik yang dibuat ulang nanti mewarisi vonis lama (audit keamanan P3).
+  const row = await getBankItem(id);
+  if (row && row.track === track) {
+    const prints = fingerprintPrints(row.item);
+    await resetQuestionStats(track, prints);
+    await deleteBankItem(id, track);
+    await logAudit({ actorId: admin.id, action: "question.retire", detail: `${track} #${id} (${row.kind}), ${prints.length} fingerprint direset` });
+    revalidatePath("/admin/soal");
+    back("/admin/soal", { track, status, pesan: `Soal #${id} ditarik dari bank.` });
   }
   revalidatePath("/admin/soal");
-  back("/admin/soal", { track, status, pesan: removed ? `Soal #${id} ditarik dari bank.` : "Soal sudah tidak ada." });
+  back("/admin/soal", { track, status, pesan: "Soal sudah tidak ada." });
+}
+
+/** Fingerprint semua soal dalam satu item bank (untuk reset statistik). */
+function fingerprintPrints(item: string): string[] {
+  try {
+    const stored = JSON.parse(item) as { questions?: unknown };
+    return parseQuestions(JSON.stringify(stored.questions ?? [])).map((q) => fingerprint(questionText(q)));
+  } catch {
+    return [];
+  }
 }
 
 /* ═══ Moderasi & AI ═══ */
@@ -258,7 +282,14 @@ export async function setRoleAction(formData: FormData) {
   });
   if (error) back("/admin/pengguna", { id: String(targetId), galat: error });
 
-  await setUserRole(targetId, nextRole);
+  // Demote admin lewat jalur atomik: dua admin saling menurunkan secara
+  // paralel tidak boleh menyisakan nol admin (audit keamanan P3).
+  if (nextRole === "user" && target.role === "admin") {
+    const demoted = await demoteAdminGuarded(targetId);
+    if (!demoted) back("/admin/pengguna", { id: String(targetId), galat: "Harus ada minimal satu admin." });
+  } else {
+    await setUserRole(targetId, nextRole);
+  }
   await logAudit({ actorId: admin.id, action: "user.role", detail: `@${target.username}: ${target.role} → ${nextRole}` });
   revalidatePath("/admin/pengguna");
   back("/admin/pengguna", { id: String(targetId), pesan: `Peran @${target.username} sekarang ${nextRole === "admin" ? "Admin" : "Pengguna"}.` });
@@ -297,13 +328,18 @@ const GENERATE = "/admin/generate";
 export async function saveAiConfigAction(formData: FormData) {
   const admin = await guard();
   // Kolom kosong = pertahankan nilai lama (key tidak pernah ditampilkan ulang).
-  await setAiConfig({
-    baseUrl: String(formData.get("baseUrl") ?? ""),
-    model: String(formData.get("model") ?? ""),
-    verifyModel: String(formData.get("verifyModel") ?? ""),
-    reasoningEffort: String(formData.get("reasoningEffort") ?? "") as ReasoningEffort,
-    apiKey: String(formData.get("apiKey") ?? ""),
-  });
+  try {
+    await setAiConfig({
+      baseUrl: String(formData.get("baseUrl") ?? ""),
+      model: String(formData.get("model") ?? ""),
+      verifyModel: String(formData.get("verifyModel") ?? ""),
+      reasoningEffort: String(formData.get("reasoningEffort") ?? "") as ReasoningEffort,
+      apiKey: String(formData.get("apiKey") ?? ""),
+    });
+  } catch (error) {
+    // Validasi baseUrl (https, bukan host internal) menolak nilainya.
+    back(GENERATE, { galat: error instanceof Error ? error.message : "Pengaturan AI tidak valid." });
+  }
   await logAudit({ actorId: admin.id, action: "ai.config", detail: "Pengaturan AI diperbarui" });
   back(GENERATE, { pesan: "Pengaturan AI tersimpan." });
 }
@@ -323,18 +359,38 @@ export async function generateWordsAction(formData: FormData) {
     ? `Lengkapi data kamus untuk kata-kata ini: ${typed.join(", ")}.`
     : `Pilih ${count} kata baru yang berguna untuk EPrT/TOEFL ITP, topik "${topic}", level ${level}.`;
   let raw: string;
+  let result: Awaited<ReturnType<typeof chatJsonRaw>> | null = null;
+  const startedAt = Date.now();
   try {
-    ({ content: raw } = await chatJsonRaw(config, [
+    result = await chatJsonRaw(config, [
       {
         role: "system",
         content:
           'Kamu penyusun kamus Inggris untuk pelajar Indonesia. Balas HANYA JSON {"words":[{"word","meaning" (arti Indonesia singkat),"phonetic" (IPA),"partOfSpeech","exampleEn","exampleId" (terjemahan Indonesia contoh),"level" (basic|intermediate|advanced),"topic"}]}.',
       },
       { role: "user", content: ask },
-    ], undefined, reasoningExtra(config)));
+    ], undefined, reasoningExtra(config));
+    raw = result.content;
   } catch (error) {
+    // Panggilan gagal tetap tercatat supaya dashboard biaya tidak silau.
+    await logAiUsage({
+      userId: admin.id,
+      feature: "content",
+      model: config.model,
+      usage: EMPTY_USAGE,
+      latencyMs: Date.now() - startedAt,
+      ok: false,
+    }).catch(() => undefined);
     back(GENERATE, { galat: error instanceof Error ? error.message : "Gagal menghubungi AI." });
   }
+  await logAiUsage({
+    userId: admin.id,
+    feature: "content",
+    model: config.model,
+    usage: result.usage,
+    latencyMs: result.latencyMs,
+    ok: true,
+  }).catch(() => undefined);
 
   const existing = new Set((await listVocabulary()).map((row) => row.wordLower));
   const words = parseGeneratedWords(raw, { level, topic }, existing);

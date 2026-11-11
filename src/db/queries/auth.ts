@@ -62,6 +62,15 @@ export async function deleteSession(sessionId: string) {
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
+/**
+ * Cabut semua sesi milik satu pengguna (logout paksa semua perangkat).
+ * Wajib dipanggil setelah rotasi password: tanpa ini cookie curian tetap
+ * hidup sampai 30 hari meski sandinya sudah diganti (audit keamanan P2).
+ */
+export async function deleteSessionsByUserId(userId: number) {
+  await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
 export async function purgeExpiredSessions() {
   await db.delete(sessions).where(lt(sessions.expiresAt, stamp(new Date())));
 }

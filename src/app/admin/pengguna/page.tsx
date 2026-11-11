@@ -17,7 +17,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const [admin, students, requests] = await Promise.all([requireAdmin(), listStudents(), listDataRequests(20)]);
+  // Cek admin dulu, baru ambil data sensitif — App Router merender page dan
+  // layout bersamaan, jadi Promise.all membuat query daftar pengguna tetap
+  // dieksekusi untuk pengunjung anonim (hasilnya dibuang, bebannya tetap ada).
+  const admin = await requireAdmin();
+  const [students, requests] = await Promise.all([listStudents(), listDataRequests(20)]);
   const q = param(params, "q")?.trim().toLowerCase() ?? "";
   const shown = q
     ? students.filter((s) => s.username.toLowerCase().includes(q) || (s.displayName ?? "").toLowerCase().includes(q))

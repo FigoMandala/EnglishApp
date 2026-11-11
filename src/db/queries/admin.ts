@@ -151,7 +151,6 @@ export async function listBankPage(track: "toefl" | "eptr", filter: BankFilter):
     filter.kind ? eq(questionBank.kind, filter.kind) : undefined,
     filter.band ? eq(questionBank.levelBand, filter.band) : undefined,
   );
-  const offset = (filter.page - 1) * filter.pageSize;
   let ids: number[] | null = null;
   let where: SQL | undefined = base;
 
@@ -188,11 +187,16 @@ export async function listBankPage(track: "toefl" | "eptr", filter: BankFilter):
   }
 
   const total = ids ? ids.length : Number((await db.select({ n: count() }).from(questionBank).where(where))[0]?.n ?? 0);
+  // ?page=raksasa memaksa SQLite memindai seluruh offset sebelum kembali
+  // kosong — jepit halaman ke jumlah halaman yang benar-benar ada (audit P3).
+  const maxPage = Math.max(1, Math.ceil(total / filter.pageSize));
+  const page = Math.min(filter.page, maxPage);
+  const safeOffset = (page - 1) * filter.pageSize;
   const rows = ids
     ? ids.length
-      ? await db.select().from(questionBank).where(inArray(questionBank.id, ids.slice(offset, offset + filter.pageSize))).orderBy(desc(questionBank.id))
+      ? await db.select().from(questionBank).where(inArray(questionBank.id, ids.slice(safeOffset, safeOffset + filter.pageSize))).orderBy(desc(questionBank.id))
       : []
-    : await db.select().from(questionBank).where(where).orderBy(desc(questionBank.id)).limit(filter.pageSize).offset(offset);
+    : await db.select().from(questionBank).where(where).orderBy(desc(questionBank.id)).limit(filter.pageSize).offset(safeOffset);
 
   const parsed = rows.map((row) => {
     let questions: ReturnType<typeof parseQuestions> = [];
@@ -245,10 +249,12 @@ export async function resetQuestionStats(track: "toefl" | "eptr", prints: string
     .where(and(eq(questionStats.track, track), inArray(questionStats.fingerprint, prints)));
 }
 
-export async function deleteBankItem(id: number) {
+export async function deleteBankItem(id: number, track?: "toefl" | "eptr") {
   const [row] = await db
     .delete(questionBank)
-    .where(eq(questionBank.id, id))
+    // Predicate track: id yang salah sasaran (track tersembunyi) tidak boleh
+    // ikut terhapus diam-diam (audit keamanan P3).
+    .where(track ? and(eq(questionBank.id, id), eq(questionBank.track, track)) : eq(questionBank.id, id))
     .returning({ id: questionBank.id, track: questionBank.track, kind: questionBank.kind });
   return row ?? null;
 }
@@ -389,4 +395,21 @@ export async function findUserRole(id: number) {
 
 export async function setUserRole(id: number, role: UserRole) {
   await db.update(users).set({ role }).where(eq(users.id, id));
+}
+
+/**
+ * Demote admin secara atomik: syarat "masih ada admin lain" dievaluasi di
+ * statement UPDATE yang sama. Dua admin yang saling menurunkan secara
+ * paralel tidak bisa lagi sama-sama lolos cek baca-lalu-tulis dan menyisakan
+ * nol admin (audit keamanan P3). Mengembalikan false kalau target bukan
+ * admin atau dia admin terakhir.
+ */
+export async function demoteAdminGuarded(id: number) {
+  const result = await db.run(sql`
+    update users set role = 'user'
+    where id = ${id} and role = 'admin'
+      and (select count(*) from users where role = 'admin') > 1
+    returning id
+  `);
+  return result.rowsAffected > 0;
 }

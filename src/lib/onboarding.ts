@@ -9,16 +9,26 @@ export type DailyMinutes = (typeof DAILY_MINUTES)[number];
 /** Satu menit belajar kira-kira 5 XP (target harian bawaan 50 XP = 10 menit). */
 export const XP_PER_MINUTE = 5;
 
+/** Satu jawaban tes penempatan: id soal + pilihan (null kalau "Belum tahu"). */
+export type PlacementResponse = { id: number; choice: string | null };
+
 export type Onboarding = {
   goal: GoalId | null;
   /** Level yang dipilih sendiri (self-report). */
   cefr: Cefr | null;
   dailyMinutes: DailyMinutes;
-  /** Hasil tes penempatan, kalau dikerjakan. */
+  /**
+   * Hasil tes penempatan versi klien — HANYA untuk tampilan halaman hasil.
+   * Keputusan server (level CEFR, unit yang dilewati) selalu memakai skor
+   * yang dinilai ulang server-side dari placementResponses (audit keamanan:
+   * skor deklarasi klien bisa dipalsukan).
+   */
   placement: { score: number; total: number; byLevel: Record<WordLevel, [number, number]> } | null;
+  /** Jawaban mentah tes penempatan untuk dinilai ulang di server saat daftar. */
+  placementResponses: PlacementResponse[];
 };
 
-export const EMPTY_ONBOARDING: Onboarding = { goal: null, cefr: null, dailyMinutes: 10, placement: null };
+export const EMPTY_ONBOARDING: Onboarding = { goal: null, cefr: null, dailyMinutes: 10, placement: null, placementResponses: [] };
 
 /** Level akhir: hasil tes menang atas pilihan sendiri. */
 export function placedCefr(data: Onboarding): Cefr {
@@ -79,7 +89,20 @@ export function parseOnboarding(raw: unknown): Onboarding | null {
       placement = { score, total, byLevel };
     }
   }
-  return { goal, cefr, dailyMinutes, placement };
+
+  // Jawaban mentah tes penempatan: dinilai ulang server-side saat daftar.
+  // Skor deklarasi klien diabaikan untuk keputusan level.
+  const placementResponses: PlacementResponse[] = [];
+  if (Array.isArray(v.placementResponses)) {
+    for (const item of v.placementResponses.slice(0, 20)) {
+      if (!item || typeof item !== "object") continue;
+      const r = item as Record<string, unknown>;
+      const id = Number(r.id);
+      const choice = typeof r.choice === "string" ? r.choice.slice(0, 300) : null;
+      if (Number.isInteger(id) && id > 0) placementResponses.push({ id, choice });
+    }
+  }
+  return { goal, cefr, dailyMinutes, placement, placementResponses };
 }
 
 const KEY = "ea-onboarding";

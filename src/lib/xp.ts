@@ -6,6 +6,18 @@ export const XP_REWARDS = {
   unitComplete: 30,
 } as const;
 
+/**
+ * Batas harian XP per-reason untuk sumber yang dulunya tanpa cap (audit
+ * keamanan P1: lesson/unit/exercise bisa dipompa lewat pemanggilan server
+ * action langsung). 100/day lesson ≈ 5 materi, 60/day exercise ≈ 12 soal,
+ * 90/day unit ≈ 3 unit.
+ */
+export const XP_DAILY_CAPS = {
+  lesson: 100,
+  exercise: 60,
+  unit: 90,
+} as const;
+
 export type XpReason = keyof typeof XP_REWARDS;
 
 /** Total XP yang dibutuhkan untuk mencapai sebuah level (kurva bertingkat). */

@@ -2,7 +2,9 @@
 
 import { db } from "@/db";
 import { toeflSessions } from "@/db/schema";
+import { logAiUsage } from "@/db/queries/ai-usage";
 import { warmTts } from "@/lib/api/tts";
+import { releaseReservation, reserveBudget } from "@/lib/ai-budget";
 import {
   countReviews,
   createReview,
@@ -511,6 +513,9 @@ const SOAL_PER_BATCH: Record<BuildKind, number> = { structure: 6, written: 6, re
  * SEMENTARA (EPRT_AI_FALLBACK=1): stok bank kurang, jadi buat soal lewat pembuat bank yang sama dengan halaman admin
  * (rencana variasi + verifikasi model kedua + penyaring kualitas), simpan ke bank, lalu dilayani dari bank.
  * Dibatasi per pengguna supaya biaya AI tidak bisa dibakar dari sisi pelajar.
+ * Setiap batch dihitung ke kuota AI harian (reserveBudget atomik) dan pemakaiannya
+ * dicatat ke ai_usage — tanpa ini kill-switch anggaran tidak pernah melihat biaya
+ * jalur termahal ini (audit keamanan P1).
  */
 async function topUpFromAi(request: Request) {
   const config = await getAiConfig();
@@ -524,7 +529,49 @@ async function topUpFromAi(request: Request) {
   const band = levelBand(request.level);
   const ctx = await createEprtContext(config, undefined, { recent: 500, kinds: [request.kind] });
   const batches = Math.min(4, Math.ceil(request.count / SOAL_PER_BATCH[request.kind]) + 1);
-  await Promise.allSettled(Array.from({ length: batches }, () => generateEprtBatch(ctx, request.kind, band)));
+
+  // Satu reservasi estimasi per batch; batch hanya dijalankan sebanyak reservasi
+  // yang lolos gerbang anggaran. N request paralel tidak bisa bersama-sama
+  // menembus batas harian karena syarat dievaluasi di statement INSERT.
+  const reservations: number[] = [];
+  for (let i = 0; i < batches; i += 1) {
+    const id = await reserveBudget(request.userId, "eptr", config.model);
+    if (!id) break;
+    reservations.push(id);
+  }
+  if (!reservations.length) {
+    throw new AiError("Kuota AI harian untuk pembuatan soal sudah habis. Coba lagi besok.");
+  }
+
+  const startedAt = Date.now();
+  try {
+    const results = await Promise.allSettled(
+      Array.from({ length: reservations.length }, () => generateEprtBatch(ctx, request.kind, band)),
+    );
+    // ctx.usage menjumlahkan seluruh panggilan provider (buat + verifikasi + saring)
+    // lintas batch; dicatat sekali sebagai belanja nyata hari ini.
+    await logAiUsage({
+      userId: request.userId,
+      feature: "eptr",
+      model: config.model,
+      usage: ctx.usage,
+      latencyMs: Date.now() - startedAt,
+      ok: results.some((r) => r.status === "fulfilled"),
+    });
+  } catch (error) {
+    await logAiUsage({
+      userId: request.userId,
+      feature: "eptr",
+      model: config.model,
+      usage: ctx.usage,
+      latencyMs: Date.now() - startedAt,
+      ok: false,
+    }).catch(() => undefined);
+    throw error;
+  } finally {
+    // Lepas reservasi estimasi: total bersih harian kembali tepat.
+    await Promise.allSettled(reservations.map((id) => releaseReservation(id)));
+  }
 }
 
 const BLOCK_CONFIG: Record<

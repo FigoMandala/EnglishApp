@@ -2,6 +2,8 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  grammarAttempts,
+  grammarExercises,
   grammarLessonProgress,
   grammarLessons,
   type GrammarLesson,
@@ -117,4 +119,32 @@ export async function grammarStats(userId: number) {
       ),
     );
   return { total: Number(total?.n ?? 0), completed: Number(done?.n ?? 0) };
+}
+
+/**
+ * Syarat XP "lesson selesai": materi ada dan terbit, plus pengguna punya
+ * minimal satu jawaban benar pada latihannya (bukti kerja server-side —
+ * melawan pemanggilan markLessonDoneAction langsung tanpa mengerjakan soal).
+ * Materi tanpa latihan dianggap boleh diselesaikan setelah dibaca.
+ */
+export async function lessonReadyToComplete(userId: number, lessonId: number) {
+  const lesson = await getGrammarLessonById(lessonId);
+  if (!lesson || !lesson.published) return false;
+  const [totalExercises] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(grammarExercises)
+    .where(eq(grammarExercises.lessonId, lessonId));
+  if (Number(totalExercises?.n ?? 0) === 0) return true;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(grammarAttempts)
+    .innerJoin(grammarExercises, eq(grammarExercises.id, grammarAttempts.exerciseId))
+    .where(
+      and(
+        eq(grammarAttempts.userId, userId),
+        eq(grammarExercises.lessonId, lessonId),
+        eq(grammarAttempts.correct, true),
+      ),
+    );
+  return Number(row?.n ?? 0) > 0;
 }

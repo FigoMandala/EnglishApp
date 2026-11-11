@@ -7,10 +7,16 @@ import { clientIp } from "./rate-limit";
 
 /**
  * Verifikasi Origin header untuk mutasi server action (mitigasi CSRF).
- * sameSite=lax menolong, tapi cek eksplisit menutup celah.
+ * sameSite=lax menolong, tapi cek eksplisit menutup celah. Browser selalu
+ * mengirim Sec-Fetch-Site; kalau header itu ada dan bilang cross-site,
+ * tolak meski Origin-nya sedang tidak ada (audit keamanan P3).
  */
 export async function verifyOrigin(): Promise<boolean> {
   const store = await headers();
+  const fetchSite = store.get("sec-fetch-site");
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "same-site" && fetchSite !== "none") {
+    return false;
+  }
   const origin = store.get("origin");
   const host = store.get("host");
   if (!origin) return true; // non-browser (mis. fetch server) — biarkan route lain yang menjaga

@@ -28,6 +28,11 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000;
 
+// Hash buangan untuk memverifikasi username yang tidak ada dengan biaya scrypt
+// yang sama, supaya latensi tidak membocorkan keberadaan akun.
+const DUMMY_HASH =
+  "scrypt2$65536$8$1$ZWB2U2ZGC5WhghDS30RqXg$Ngh9-OCyJqkpVAqbEh5lBbCU3TAj8AqfWsv1xxSXNctfuuB0GUGFLdq1G9Xor2qBLdtmi-vF9LFE9wwBxWeh7Q";
+
 export type AuthState = { error?: string };
 
 function isUniqueViolation(error: unknown) {
@@ -97,7 +102,11 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
   }
 
   const user = await findUserByUsername(username);
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+  // Username yang tidak ada tetap diverifikasi ke hash dummy supaya waktu
+  // responsnya sama — tanpa ini keberadaan akun bisa dihitung dari latensi
+  // (audit keamanan P3).
+  const verified = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !verified) {
     // Hanya percobaan GAGAL yang menghitung limit per-username: username
     // terlihat di papan liga, jadi limit atas semua percobaan memudahkan
     // lockout tertarget terhadap pengguna sah.
@@ -112,6 +121,10 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
       return { error: `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.` };
     }
     await logAudit({ action: "login_failed", detail: username });
+    // Saat situs ditutup, sandi benar dan sandi salah dibalas sama persis —
+    // tanpa ini pesan penutupan menjadi oracle untuk memverifikasi sandi
+    // bocoran (audit keamanan P3).
+    if (SITE_CLOSED) return { error: CLOSED_MESSAGE };
     return { error: "Username atau kata sandi salah." };
   }
 

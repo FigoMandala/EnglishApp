@@ -49,4 +49,32 @@ describe("parseOnboarding", () => {
     assert.equal(parseOnboarding(JSON.stringify({ placement: { score: 9, total: 8 } }))?.placement, null);
     assert.equal(parseOnboarding("x".repeat(3000)), null);
   });
+
+  it("jawaban tes penempatan divalidasi: id positif, pilihan terpotong, maksimal 20", () => {
+    const parsed = parseOnboarding(
+      JSON.stringify({
+        placementResponses: [
+          { id: 7, choice: "goes" },
+          { id: 8, choice: null },
+          { id: -3, choice: "x" },
+          { id: 9, choice: "y".repeat(500) },
+          "rusak",
+          { id: 10 },
+        ],
+      }),
+    );
+    assert.deepEqual(parsed?.placementResponses, [
+      { id: 7, choice: "goes" },
+      { id: 8, choice: null },
+      { id: 9, choice: "y".repeat(300) },
+      { id: 10, choice: null },
+    ]);
+    const flood = parseOnboarding(JSON.stringify({ placementResponses: Array.from({ length: 50 }, (_, i) => ({ id: i + 1, choice: null })) }));
+    assert.equal(flood?.placementResponses.length, 20);
+  });
+
+  it("tanpa placementResponses tetap bernilai array kosong", () => {
+    assert.deepEqual(parseOnboarding(JSON.stringify({ goal: "eprt" }))?.placementResponses, []);
+    assert.deepEqual(EMPTY_ONBOARDING.placementResponses, []);
+  });
 });
