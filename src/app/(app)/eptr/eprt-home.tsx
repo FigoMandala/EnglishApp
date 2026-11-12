@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { Kaka } from "@/components/mascot";
+import { CountUp } from "@/components/fx/count-up";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input, Label } from "@/components/ui/field";
 import { formatDate } from "@/lib/dates";
@@ -101,7 +102,7 @@ function Sparkline({ values, target }: { values: number[]; target: number | null
     <svg
       viewBox="0 0 240 64"
       preserveAspectRatio="none"
-      className="h-11 w-full"
+      className="reveal h-11 w-full"
       role="img"
       aria-label={`Tren perkiraan skor: ${values.join(", ")}${target ? `, target ${target}` : ""}`}
     >
@@ -177,7 +178,7 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
           id="topic-listbox"
           role="listbox"
           aria-label="Pilih topik latihan"
-          className="absolute inset-x-0 top-[calc(100%+6px)] z-20 max-h-[360px] overflow-y-auto rounded-[16px] border-2 border-hairline bg-surface p-1.5 shadow-[0_8px_0_var(--color-hairline)]"
+          className="pop absolute inset-x-0 top-[calc(100%+6px)] z-20 max-h-[360px] origin-top overflow-y-auto rounded-[16px] border-2 border-hairline bg-surface p-1.5 shadow-[0_8px_0_var(--color-hairline)]"
         >
           {groups.map((group) =>
             group.topics.length ? (
@@ -198,7 +199,7 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
                           setOpen(false);
                         }}
                         className={cn(
-                          "flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2",
+                          "flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-[12px] px-3 py-2 transition-colors duration-150 motion-reduce:transition-none",
                           selected ? "bg-primary-soft" : "hover:bg-surface-muted",
                         )}
                       >
@@ -263,7 +264,7 @@ export function EprtHome(props: EprtHomeProps) {
           type="submit"
           disabled={disabled}
           className={cn(
-            "flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-3 rounded-[14px] border-2 px-4 text-left text-[0.9375rem] font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+            "flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-3 rounded-[14px] border-2 px-4 text-left text-[0.9375rem] font-extrabold transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
             tone === "warning"
               ? "border-mango-line bg-mango-soft text-mango-ink"
               : "border-hairline bg-surface-muted text-ink hover:border-primary-line hover:bg-surface",
@@ -331,7 +332,7 @@ export function EprtHome(props: EprtHomeProps) {
             <span className="text-[0.75rem] font-extrabold tracking-[0.06em] text-charcoal-muted">HITUNG MUNDUR</span>
             {props.daysToTest !== null && props.daysToTest >= 0 ? (
               <>
-                <span className="font-round text-[2.75rem] font-extrabold leading-none text-mango">{props.daysToTest}</span>
+                <span className="font-round text-[2.75rem] font-extrabold leading-none text-mango"><CountUp to={props.daysToTest} ms={600} /></span>
                 <span className="text-[0.8125rem] text-charcoal-muted">
                   hari lagi{target?.testDate ? ` · ${formatDate(target.testDate)}` : ""}
                 </span>
@@ -345,7 +346,7 @@ export function EprtHome(props: EprtHomeProps) {
           <div className="flex flex-col gap-1 rounded-[20px] bg-charcoal-raised p-[18px]">
             <span className="text-[0.75rem] font-extrabold tracking-[0.06em] text-charcoal-muted">PERKIRAAN SKOR</span>
             <span className="flex items-baseline gap-1.5">
-              <span className="font-round text-[2.75rem] font-extrabold leading-none">{props.estimate ?? "–"}</span>
+              <span className="font-round text-[2.75rem] font-extrabold leading-none">{props.estimate !== null ? <CountUp to={props.estimate} /> : "–"}</span>
               {delta !== null && delta !== 0 ? (
                 <span className={cn("text-[0.875rem] font-extrabold", delta > 0 ? "text-mint" : "text-brick-line")}>
                   {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}
@@ -394,7 +395,7 @@ export function EprtHome(props: EprtHomeProps) {
               aria-valuemax={100}
               className="mt-1 h-2.5 overflow-hidden rounded-full bg-canvas-deep"
             >
-              <div className="h-full rounded-full bg-mango" style={{ width: `${progress}%` }} />
+              <div className="grow-x h-full rounded-full bg-mango" style={{ width: `${progress}%` }} />
             </div>
           </div>
           <div className="flex flex-col items-start gap-2.5 sm:items-end">
@@ -411,7 +412,7 @@ export function EprtHome(props: EprtHomeProps) {
       ) : null}
 
       {/* Mulai tes baru */}
-      <section aria-labelledby="mini-title" className="flex flex-col gap-3.5">
+      <section aria-labelledby="mini-title" className="rise flex flex-col gap-3.5 [--i:2]">
         <h2 id="mini-title" className="font-display text-[1.375rem] font-extrabold">
           Mulai tes baru
         </h2>
@@ -434,7 +435,7 @@ export function EprtHome(props: EprtHomeProps) {
             </div>
           </div>
           {MINI_TESTS.map((test) => (
-            <div key={test.section} className="flex flex-col gap-2.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] shadow-card">
+            <div key={test.section} className="flex flex-col gap-2.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] shadow-card transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary-line motion-reduce:transition-none motion-reduce:hover:translate-y-0">
               <span className="flex items-center gap-2.5">
                 <span className={cn("grid size-11 place-items-center rounded-[12px]", test.tone)}>
                   <test.Icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
@@ -472,7 +473,7 @@ export function EprtHome(props: EprtHomeProps) {
       ) : null}
 
       {/* Latihan per topik */}
-      <section aria-labelledby="topic-title" className="flex flex-col gap-3.5">
+      <section aria-labelledby="topic-title" className="rise flex flex-col gap-3.5 [--i:3]">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="topic-title" className="font-display text-[1.375rem] font-extrabold">
@@ -483,7 +484,7 @@ export function EprtHome(props: EprtHomeProps) {
           <div role="radiogroup" aria-label="Bentuk soal Structure" className="relative flex gap-1 rounded-control bg-canvas-deep p-1">
             <span
               aria-hidden
-              className="absolute inset-y-1 left-1 w-[calc(50%-0.75rem)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-out"
+              className="absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-out"
               style={{ transform: `translateX(calc(${format === "written" ? 1 : 0} * (100% + 4px)))` }}
             />
             {(
@@ -527,7 +528,7 @@ export function EprtHome(props: EprtHomeProps) {
                 {pickedPct !== null ? (
                   <span className="flex items-center gap-2.5">
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
-                      <span className={cn("block h-full", pctTone(pickedPct).bar)} style={{ width: `${pickedPct}%` }} />
+                      <span key={picked.skill} className={cn("grow-x block h-full", pctTone(pickedPct).bar)} style={{ width: `${pickedPct}%` }} />
                     </span>
                     <strong className={cn("w-10 text-[0.875rem]", pctTone(pickedPct).text)}>{pickedPct}%</strong>
                   </span>
@@ -562,7 +563,7 @@ export function EprtHome(props: EprtHomeProps) {
       </section>
 
       {/* Latihan per bagian */}
-      <section aria-labelledby="practice-title" className="flex flex-col gap-3.5">
+      <section aria-labelledby="practice-title" className="rise flex flex-col gap-3.5 [--i:4]">
         <h2 id="practice-title" className="font-display text-[1.375rem] font-extrabold">
           Latihan per bagian
         </h2>

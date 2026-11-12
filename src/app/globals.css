@@ -383,6 +383,11 @@ h3 {
   80% { transform: translateX(3px); }
 }
 .shake-b { animation: fx-shake-b 420ms ease-in-out both; }
+/* Grafik garis tersingkap dari kiri ke kanan. Hanya `from`: tanpa animasi (kurangi gerakan) langsung tampil penuh. */
+@keyframes fx-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+}
+.reveal { animation: fx-reveal 900ms var(--ease-out) 200ms both; }
 .grow-x { transform-origin: left; animation: fx-grow-x 600ms var(--ease-out) both; }
 .grow-y { transform-origin: bottom; animation: fx-grow-y 400ms var(--ease-spring) both; animation-delay: calc(var(--i, 0) * 70ms); }
 .ping { animation: fx-ping 1.8s ease-out infinite; }
