@@ -5,13 +5,8 @@ import {
   activityLog,
   aiUsage,
   dataRequests,
-  grammarAttempts,
-  grammarExercises,
-  grammarLessons,
-  toeflReviews,
   users,
   userSettings,
-  vocabulary,
   vocabularyProgress,
   writingSubmissions,
   xpEvents,
@@ -78,85 +73,6 @@ export async function listStudents(): Promise<StudentRow[]> {
     lastActive: lastMap.get(row.id) ?? null,
     aiCostUsd: costMap.get(row.id) ?? 0,
   }));
-}
-
-/* ═══ Review kesalahan terpadu ═══ */
-export type MistakeItem = {
-  kind: "vocab" | "grammar" | "eptr";
-  label: string;
-  detail: string;
-  href: string;
-};
-
-export async function unifiedMistakes(userId: number, limit = 20): Promise<MistakeItem[]> {
-  const items: MistakeItem[] = [];
-
-  const vocabRows = await db
-    .select({
-      word: vocabulary.word,
-      meaning: vocabulary.meaning,
-      reviewCount: vocabularyProgress.reviewCount,
-      correctCount: vocabularyProgress.correctCount,
-    })
-    .from(vocabularyProgress)
-    .innerJoin(vocabulary, eq(vocabulary.id, vocabularyProgress.vocabularyId))
-    .where(and(eq(vocabularyProgress.userId, userId), eq(vocabularyProgress.box, 0), gte(vocabularyProgress.reviewCount, 1)))
-    .limit(limit);
-
-  for (const row of vocabRows) {
-    items.push({
-      kind: "vocab",
-      label: row.word,
-      detail: `${row.correctCount}/${row.reviewCount} benar · ${row.meaning}`,
-      href: "/vocabulary?mode=review",
-    });
-  }
-
-  const grammarRows = await db
-    .select({
-      prompt: grammarExercises.prompt,
-      slug: grammarLessons.slug,
-      title: grammarLessons.title,
-    })
-    .from(grammarAttempts)
-    .innerJoin(grammarExercises, eq(grammarExercises.id, grammarAttempts.exerciseId))
-    .innerJoin(grammarLessons, eq(grammarLessons.id, grammarExercises.lessonId))
-    .where(and(eq(grammarAttempts.userId, userId), eq(grammarAttempts.correct, false)))
-    .limit(limit);
-
-  for (const row of grammarRows) {
-    items.push({
-      kind: "grammar",
-      label: row.title,
-      detail: row.prompt.slice(0, 90),
-      href: `/grammar/${row.slug}`,
-    });
-  }
-
-  const reviewRows = await db
-    .select({ question: toeflReviews.question, dueAt: toeflReviews.dueAt })
-    .from(toeflReviews)
-    .where(eq(toeflReviews.userId, userId))
-    .orderBy(toeflReviews.dueAt)
-    .limit(limit);
-
-  for (const row of reviewRows) {
-    let label = "Soal EPrT";
-    try {
-      const parsed = JSON.parse(row.question) as { q?: string };
-      if (parsed.q) label = parsed.q.slice(0, 80);
-    } catch {
-      // biarkan default
-    }
-    items.push({
-      kind: "eptr",
-      label,
-      detail: `jatuh tempo ${row.dueAt}`,
-      href: "/eptr",
-    });
-  }
-
-  return items;
 }
 
 /* ═══ Ekspor data (UU PDP) ═══ */

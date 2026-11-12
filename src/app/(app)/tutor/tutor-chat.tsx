@@ -3,6 +3,7 @@
 import { Loader2, Send, Sparkles, Square, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Lori } from "@/components/mascot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
@@ -76,6 +77,7 @@ export function TutorChat({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [askClear, setAskClear] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -90,7 +92,11 @@ export function TutorChat({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 192)}px`;
+    // box-sizing border-box: scrollHeight tidak menghitung border, tanpa ini muncul scrollbar kecil walau 1 baris.
+    const border = el.offsetHeight - el.clientHeight;
+    const natural = el.scrollHeight + border;
+    el.style.height = `${Math.min(natural, 192)}px`;
+    el.style.overflowY = natural > 192 ? "auto" : "hidden";
   }, [input]);
 
   function stop() {
@@ -184,11 +190,23 @@ export function TutorChat({
   }
 
   async function clearChat() {
-    if (!window.confirm(scenario ? "Mulai ulang skenario?" : "Hapus semua riwayat chat?")) return;
+    setAskClear(false);
     if (!scenario) await fetch("/api/tutor/clear", { method: "POST" });
     setMessages(scenario ? initialMessages : []);
     setError(null);
   }
+
+  const confirmClear = (
+    <ConfirmDialog
+      open={askClear}
+      danger
+      title={scenario ? "Mulai ulang skenario?" : "Hapus semua riwayat chat?"}
+      message={scenario ? undefined : "Percakapan sebelumnya dihapus dan tidak bisa dikembalikan."}
+      confirmLabel={scenario ? "Mulai ulang" : "Hapus"}
+      onConfirm={() => void clearChat()}
+      onCancel={() => setAskClear(false)}
+    />
+  );
 
   const form = (
     <form
@@ -224,9 +242,7 @@ export function TutorChat({
             disabled={streaming}
             aria-label="Bersihkan riwayat"
             title={streaming ? "Tunggu jawaban selesai" : "Bersihkan riwayat"}
-            onClick={() => {
-              void clearChat();
-            }}
+            onClick={() => setAskClear(true)}
           >
             <Trash2 className="size-4" aria-hidden />
           </Button>
@@ -261,6 +277,7 @@ export function TutorChat({
           className,
         )}
       >
+        {confirmClear}
         <header className="flex flex-wrap items-center gap-3 border-b-2 border-hairline-soft px-[18px] py-3.5">
           <span className="flex size-12 shrink-0 items-end justify-center overflow-hidden rounded-full bg-primary-soft">
             <Lori mood={streaming ? "talk" : "wave"} size={56} className="-mb-2.5" />
@@ -276,7 +293,7 @@ export function TutorChat({
               type="button"
               aria-label={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
               title={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
-              onClick={() => void clearChat()}
+              onClick={() => setAskClear(true)}
               className="flex size-10 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle hover:border-brick-line hover:text-brick"
             >
               <Trash2 className="size-4" aria-hidden />
@@ -389,6 +406,7 @@ export function TutorChat({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {confirmClear}
       <div role="log" aria-label="Transkrip percakapan" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-plate bg-surface-muted p-3">
         {messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
@@ -398,14 +416,15 @@ export function TutorChat({
             <p className="max-w-sm text-[0.9375rem] text-ink-subtle">
               Mulai percakapan. Tanyakan grammar, kosakata, atau minta latihan soal.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {suggestions.map((suggestion) => (
+            <div className="flex w-full max-w-sm flex-col gap-2">
+              {suggestions.map((suggestion, i) => (
                 <button
                   key={suggestion}
                   type="button"
                   disabled={streaming}
                   onClick={() => send(suggestion)}
-                  className="cursor-pointer rounded-full border-2 border-hairline bg-surface px-4 py-2 text-[0.8125rem] font-semibold text-ink-subtle transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+                  style={{ "--i": i } as React.CSSProperties}
+                  className="rise min-h-11 w-full cursor-pointer rounded-[14px] border-2 border-hairline bg-surface px-4 py-2.5 text-left text-[0.875rem] font-semibold text-ink-muted transition-[color,border-color,transform] duration-150 hover:border-primary-line hover:text-primary-deep active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none"
                 >
                   {suggestion}
                 </button>

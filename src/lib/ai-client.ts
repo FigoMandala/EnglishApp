@@ -101,51 +101,6 @@ export async function chatCompletionDetailed(
   };
 }
 
-export async function chatCompletion(config: AiConfig, messages: ProviderMessage[]) {
-  const result = await chatCompletionDetailed(config, messages);
-  return result.content;
-}
-
-/**
- * JSON mode: paksa model mengembalikan JSON valid, lalu validasi + 1x retry
- * perbaikan kalau hasilnya malformed. Mengurangi kegagalan parsing drastis.
- */
-export async function chatJson<T>(
-  config: AiConfig,
-  messages: ProviderMessage[],
-  validate: (value: unknown) => T | null,
-): Promise<{ data: T; usage: TokenUsage; latencyMs: number }> {
-  const withMode: ProviderMessage[] = [
-    ...messages,
-    { role: "system", content: "Balas HANYA dengan JSON valid, tanpa teks lain, tanpa markdown fence." },
-  ];
-
-  let usage: TokenUsage = EMPTY_USAGE;
-  let latencyMs = 0;
-  let lastRaw = "";
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = await chatCompletionRaw(config, withMode, true);
-    usage = result.usage;
-    latencyMs += result.latencyMs;
-    lastRaw = result.content;
-
-    const parsed = extractJson(result.content);
-    if (parsed !== null) {
-      const valid = validate(parsed);
-      if (valid !== null) return { data: valid, usage, latencyMs };
-    }
-
-    withMode.push({
-      role: "user",
-      content: "Output sebelumnya bukan JSON valid atau tidak sesuai skema. Perbaiki dan kirim ulang JSON yang benar saja.",
-    });
-  }
-
-  console.error(`[ai] JSON tidak valid setelah 2 percobaan: ${lastRaw.slice(0, 200)}`);
-  throw new AiError("Model AI tidak mengembalikan data yang bisa dibaca. Coba lagi.");
-}
-
 /** Ambil objek/array JSON pertama dari string (toleran markdown fence). */
 export function extractJson(raw: string): unknown | null {
   const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -359,19 +314,3 @@ export async function chatCompletionStream(
 }
 
 export { EMPTY_USAGE };
-
-/** Daftar model dari endpoint /models (kompatibel OpenAI). Kosong kalau tidak tersedia. */
-export async function listModels(config: AiConfig): Promise<string[]> {
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/+$/, "")}/models`, {
-      headers: { Authorization: `Bearer ${config.apiKey}` },
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return [];
-    const data = (await response.json()) as { data?: { id?: unknown }[] };
-    return [...new Set((data.data ?? []).map((item) => String(item.id ?? "")).filter(Boolean))].sort();
-  } catch {
-    return [];
-  }
-}

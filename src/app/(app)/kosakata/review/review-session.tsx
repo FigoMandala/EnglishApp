@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Confetti } from "@/components/fx/confetti";
 import { Lori } from "@/components/mascot";
 import { sfx } from "@/lib/sfx";
@@ -65,6 +66,7 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [askExit, setAskExit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSchedule, setLastSchedule] = useState<string | null>(null);
   const swapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,6 +146,15 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
 
   const header = (
     <header className="border-b-2 border-hairline">
+      <ConfirmDialog
+        open={askExit}
+        title="Keluar dari sesi?"
+        message="Kartu yang sudah dijawab tetap tersimpan."
+        confirmLabel="Keluar"
+        cancelLabel="Lanjut belajar"
+        onConfirm={() => router.push("/kosakata")}
+        onCancel={() => setAskExit(false)}
+      />
       <div className="mx-auto flex w-full max-w-[1040px] items-center gap-[18px] px-6 py-4">
         <button
           type="button"
@@ -151,7 +162,7 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
           onClick={() => {
             // Sesi sudah berjalan (ada kartu dijawab): konfirmasi dulu supaya
             // keluar tidak tak sengaja. Belum mulai / sudah selesai: langsung.
-            if (index > 0 && !finished && !window.confirm("Keluar dari sesi? Kartu yang sudah dijawab tetap tersimpan.")) return;
+            if (index > 0 && !finished) return setAskExit(true);
             router.push("/kosakata");
           }}
           className="grid size-11 shrink-0 place-items-center rounded-[12px] text-ink-subtle hover:bg-surface"

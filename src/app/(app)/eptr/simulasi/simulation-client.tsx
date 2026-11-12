@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Play, Zap } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition, useState } from "react";
 
@@ -8,7 +8,7 @@ import { PendingOverlay } from "@/components/pending-overlay";
 import { Button } from "@/components/ui/button";
 import { partBatches, SIM_PARTS } from "@/lib/eprt-simulation";
 
-import { createFastSimulationAction, startSimulationAction } from "./actions";
+import { startSimulationAction } from "./actions";
 
 export function StartSimulationButton({
   disabled,
@@ -41,114 +41,6 @@ export function StartSimulationButton({
         {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
         {label}
       </Button>
-      {error ? (
-        <p role="alert" className="text-[0.8125rem] font-medium text-negative">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** Jumlah bagian yang disiapkan bersamaan di mode cepat. */
-const PARALLEL_PARTS = 3;
-
-/**
- * Mode cepat: siapkan seluruh 140 soal lewat permintaan kecil, satu batch per
- * permintaan, beberapa bagian sekaligus. Tiap permintaan selesai di bawah batas durasi Vercel,
- * jadi tetap jalan walau server action tidak boleh lama. Tampilan bagian tidak
- * berubah, hasil tiap batch digabung jadi satu bagian utuh.
- */
-export function StartFastButton({
-  disabled,
-  className,
-  label = "Siapkan semua soal (140)",
-}: {
-  disabled?: boolean;
-  className?: string;
-  label?: string;
-}) {
-  const router = useRouter();
-  const [progress, setProgress] = useState<{ done: number; total: number; part: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const pending = progress !== null;
-
-  async function prepare(payload: { id: number; index: number; batch?: number }) {
-    const response = await fetch("/api/eprt-simulation/prepare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (response.ok) return null;
-    const data = (await response.json().catch(() => ({}))) as { message?: string };
-    return data.message ?? "Gagal menyiapkan sebagian soal.";
-  }
-
-  async function run() {
-    setError(null);
-    const total = SIM_PARTS.reduce((sum, part) => sum + partBatches(part).length, 0);
-    setProgress({ done: 0, total, part: 1 });
-
-    const created = await createFastSimulationAction();
-    if (created.status === "error" || !created.id) {
-      setProgress(null);
-      setError(created.message ?? "Gagal memulai simulasi.");
-      return;
-    }
-    const id = created.id;
-
-    // Bagian berbeda disiapkan paralel (masing-masing sesi sendiri); batch di
-    // dalam satu bagian tetap berurutan karena digabung ke sesi yang sama.
-    let done = 0;
-    let next = 0;
-    let failure: string | null = null;
-    async function worker() {
-      while (!failure && next < SIM_PARTS.length) {
-        const index = next;
-        next += 1;
-        for (const batch of partBatches(SIM_PARTS[index])) {
-          if (failure) return;
-          const result = await prepare({ id, index, batch: batch.index });
-          if (result) {
-            failure = result;
-            return;
-          }
-          done += 1;
-          setProgress({ done, total, part: index + 1 });
-        }
-      }
-    }
-    try {
-      await Promise.all(Array.from({ length: PARALLEL_PARTS }, worker));
-    } catch {
-      failure = "Koneksi terputus saat menyiapkan soal.";
-    }
-    if (failure) {
-      setProgress(null);
-      setError(failure);
-      return;
-    }
-
-    router.push(`/eptr/simulasi?id=${id}`);
-    router.refresh();
-  }
-
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <Button
-        variant="secondary"
-        className={`${className ?? ""} ${pending ? "disabled:opacity-100" : ""}`}
-        disabled={disabled || pending}
-        onClick={run}
-      >
-        {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Zap className="size-3.5" aria-hidden />}
-        {pending ? "Menyiapkan soal..." : label}
-      </Button>
-      {progress ? (
-        <PendingOverlay
-          detail={`${progress.done} dari ${progress.total} paket soal siap (bagian ${progress.part} dari ${SIM_PARTS.length})`}
-        />
-      ) : null}
       {error ? (
         <p role="alert" className="text-[0.8125rem] font-medium text-negative">
           {error}

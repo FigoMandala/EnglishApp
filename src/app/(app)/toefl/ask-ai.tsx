@@ -19,7 +19,7 @@ const STRUCTURE_TIPS = [
 ];
 
 /**
- * Asisten AI di samping soal. Layar lebar: panel di kolom kanan yang mendorong soal.
+ * Asisten AI di samping soal. Layar lebar: panel penuh tinggi di sisi kanan yang menyisakan ruang untuk soal.
  * Layar kecil: panel menutupi layar. `children` menerima `trigger` (tombol "Tanya AI")
  * supaya pemanggil bisa menaruhnya di header.
  */
@@ -85,12 +85,9 @@ export function AskAi({
   );
 
   return (
-    <div
-      className={cn(
-        open &&
-          "lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6",
-      )}
-    >
+    // Layar lebar: panel menempel penuh di sisi kanan (fixed); konten, termasuk header dan
+    // footer sticky milik pemanggil, disisakan ruang 24rem di kanan.
+    <div className={cn(open && "lg:pr-[24rem]")}>
       {/* Layar kecil saat dialog terbuka: konten di belakang dibuat inert supaya
           tidak bisa difokus/diklik dan Tab tetap berpindah di dalam dialog. */}
       <div className="min-w-0" inert={mobileDialog}>
@@ -102,7 +99,7 @@ export function AskAi({
           role="dialog"
           aria-modal={isDesktop ? undefined : true}
           aria-label="Asisten AI"
-          className="fixed inset-0 z-40 flex flex-col gap-3 bg-surface p-4 lg:sticky lg:inset-auto lg:top-[80px] lg:z-auto lg:mr-4 lg:mt-4 lg:h-[calc(100dvh-6rem)] lg:rounded-plate lg:border-2 lg:border-hairline"
+          className="fixed inset-0 z-40 flex flex-col gap-3 bg-surface p-4 lg:left-auto lg:w-[24rem] lg:border-l-2 lg:border-hairline"
         >
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 font-bold">

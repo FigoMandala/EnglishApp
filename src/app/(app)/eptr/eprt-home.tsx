@@ -18,7 +18,7 @@ import { saveToeflTarget, startToeflBlock, type ToeflState } from "../toefl/acti
 import { PendingOverlay } from "@/components/pending-overlay";
 
 import { SectionCountdown } from "./eprt-widgets";
-import { StartFastButton, StartSimulationButton } from "./simulasi/simulation-client";
+import { StartSimulationButton } from "./simulasi/simulation-client";
 
 const initialState: ToeflState = { status: "idle" };
 
@@ -155,9 +155,12 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
     <div ref={root} className="relative" onKeyDown={onKeyDown}>
       <button
         type="button"
+        role="combobox"
+        aria-label="Topik latihan"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls="topic-listbox"
+        aria-activedescendant={open ? `topic-opt-${value.skill}` : undefined}
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex min-h-[60px] w-full cursor-pointer items-center justify-between gap-3 rounded-[16px] border-2 bg-surface px-4 text-left transition-colors",
@@ -192,6 +195,7 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
                     return (
                       <li
                         key={topic.skill}
+                        id={`topic-opt-${topic.skill}`}
                         role="option"
                         aria-selected={selected}
                         onClick={() => {
@@ -427,11 +431,6 @@ export function EprtHome(props: EprtHomeProps) {
                 label={activeSim ? "Simulasi baru" : "Mulai simulasi"}
                 className="h-12 rounded-[14px] bg-mango px-5 text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] hover:bg-mango"
               />
-              <StartFastButton
-                disabled={!props.configured}
-                label="Siapkan dulu 140 soal"
-                className="h-11 rounded-[14px] border-2 border-charcoal-line bg-charcoal-raised px-4 text-[0.875rem] text-charcoal-ink shadow-[0_4px_0_#000] hover:bg-charcoal-line"
-              />
             </div>
           </div>
           {MINI_TESTS.map((test) => (
@@ -458,12 +457,7 @@ export function EprtHome(props: EprtHomeProps) {
         </div>
         {!props.configured ? (
           <p className="text-[0.9375rem] font-bold text-brick-deep">Pembuatan soal belum aktif. Hubungi admin.</p>
-        ) : (
-          <p className="text-[0.8125rem] text-ink-subtle">
-            <strong className="text-ink">Simulasi</strong>: soal dibuat per bagian sambil kamu mengerjakan.{" "}
-            <strong className="text-ink">Siapkan dulu</strong>: tunggu semua soal jadi, lalu kerjakan tanpa jeda.
-          </p>
-        )}
+        ) : null}
       </section>
 
       {state.status === "error" ? (

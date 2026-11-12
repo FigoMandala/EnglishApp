@@ -7,3 +7,8 @@ node_modules/
 tsconfig.tsbuildinfo
 *.pdf
 .commandcode/
+
+# Alat desain dan arsip lokal, tidak dipakai build
+.opencode/
+mockups/
+assets/

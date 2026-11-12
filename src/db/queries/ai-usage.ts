@@ -31,21 +31,6 @@ export async function logAiUsage(values: {
   });
 }
 
-/** Jumlah panggilan AI pembuat soal (TOEFL + EPrT) milik pengguna hari ini. */
-export async function countQuestionCallsToday(userId: number, date: string = todayISO()) {
-  const [row] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(aiUsage)
-    .where(
-      and(
-        eq(aiUsage.userId, userId),
-        eq(aiUsage.date, date),
-        sql`${aiUsage.feature} in ('toefl', 'eptr')`,
-      ),
-    );
-  return Number(row?.n ?? 0);
-}
-
 export type UsageTotals = {
   requests: number;
   promptTokens: number;

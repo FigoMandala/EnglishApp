@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { formatDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
@@ -23,9 +24,17 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const [askId, setAskId] = useState<number | null>(null);
+
   function remove(id: number) {
     if (deleting !== null || pending) return;
-    if (!window.confirm("Hapus esai ini beserta nilainya? Tindakan ini tidak bisa dibatalkan.")) return;
+    setAskId(id);
+  }
+
+  function confirmRemove() {
+    const id = askId;
+    setAskId(null);
+    if (id === null || deleting !== null || pending) return;
     setDeleting(id);
     startTransition(async () => {
       try {
@@ -38,6 +47,16 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={askId !== null}
+      danger
+      title="Hapus esai ini?"
+      message="Esai beserta nilainya dihapus. Tindakan ini tidak bisa dibatalkan."
+      confirmLabel="Hapus"
+      onConfirm={confirmRemove}
+      onCancel={() => setAskId(null)}
+    />
     <ul className="flex flex-col">
       {rows.map((row) => (
         <li key={row.id} className="group relative border-b-2 border-hairline-soft last:border-b-0">
@@ -78,5 +97,6 @@ export function EssayHistory({ rows }: { rows: EssayRow[] }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }

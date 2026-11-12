@@ -2,6 +2,7 @@
 
 import { ArrowRight, Check, GraduationCap, Loader2, Pause, Timer, Volume2, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useActionState,
   useEffect,
@@ -9,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Kaka } from "@/components/mascot";
 import { PendingOverlay } from "@/components/pending-overlay";
 import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
@@ -243,6 +245,8 @@ export function ToeflRunner({
   const [silent, setSilent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [played, setPlayed] = useState<Set<number>>(() => new Set());
+  const router = useRouter();
+  const [askExit, setAskExit] = useState(false);
   const [finished, setFinished] = useState(Boolean(session.completedAt));
   const [deadline] = useState(() =>
     timeLeftMs === undefined ? null : Date.now() + timeLeftMs,
@@ -544,6 +548,15 @@ export function ToeflRunner({
 
   const header = (trigger?: React.ReactNode) => (
     <header className="sticky top-0 z-30 bg-charcoal pt-[env(safe-area-inset-top)] text-charcoal-ink">
+      <ConfirmDialog
+        open={askExit}
+        title="Keluar sekarang?"
+        message="Timer section tetap berjalan walau kamu keluar."
+        confirmLabel="Keluar"
+        cancelLabel="Lanjut mengerjakan"
+        onConfirm={() => router.push(basePath)}
+        onCancel={() => setAskExit(false)}
+      />
       <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <span className="flex items-center gap-2 text-[0.8125rem] font-extrabold tracking-[0.06em] text-charcoal-muted">
           <GraduationCap className="size-[18px] text-mango" strokeWidth={2.2} aria-hidden />
@@ -591,12 +604,9 @@ export function ToeflRunner({
           onClick={(event) => {
             // Timer section jalan di server walau browser ditutup; pastikan keluar
             // memang disengaja selagi waktu masih berjalan.
-            if (
-              deadline !== null &&
-              !finished &&
-              !window.confirm("Timer section tetap berjalan walau keluar. Keluar sekarang?")
-            ) {
+            if (deadline !== null && !finished) {
               event.preventDefault();
+              setAskExit(true);
             }
           }}
           className="flex h-10 items-center gap-1.5 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"

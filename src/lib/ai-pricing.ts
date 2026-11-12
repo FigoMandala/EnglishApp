@@ -46,9 +46,3 @@ export function estimateCostUsd(model: string, usage: TokenUsage) {
     (usage.completionTokens / 1_000_000) * rate.output;
   return cost;
 }
-
-export function formatUsd(value: number) {
-  if (value <= 0) return "$0.00";
-  if (value < 0.01) return `$${value.toFixed(4)}`;
-  return `$${value.toFixed(2)}`;
-}

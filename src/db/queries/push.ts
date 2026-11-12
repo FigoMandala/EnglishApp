@@ -30,13 +30,6 @@ export async function deletePushSubscription(userId: number, endpoint: string) {
     .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)));
 }
 
-export async function listPushSubscriptions(userId: number) {
-  return db
-    .select()
-    .from(pushSubscriptions)
-    .where(eq(pushSubscriptions.userId, userId));
-}
-
 /**
  * Ambil langganan milik sekumpulan pengguna (untuk pengiriman massal),
  * dibatasi beberapa langganan per pengguna supaya akun dengan ribuan
