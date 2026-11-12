@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured, getAiConfig } from "@/lib/ai-config";
+import { priceFor } from "@/lib/ai-pricing";
 import { requireAdmin } from "@/lib/session";
 
 import { generateWordsAction, saveAiConfigAction } from "../actions";
@@ -31,6 +32,7 @@ export default async function AdminGeneratePage({ searchParams }: { searchParams
   const params = await searchParams;
   const config = await getAiConfig();
   const ready = aiConfigured(config);
+  const rate = priceFor(config.model);
 
   return (
     <div className="flex flex-col gap-5">
@@ -48,7 +50,7 @@ export default async function AdminGeneratePage({ searchParams }: { searchParams
         </p>
         <form action={saveAiConfigAction} className="grid gap-3 sm:grid-cols-2">
           <Field label="Base URL" name="baseUrl" defaultValue={config.baseUrl} />
-          <Field label="Model" name="model" defaultValue={config.model} />
+          <Field label="Model" name="model" defaultValue={config.model} hint={`Harga per juta token: $${rate.input} masuk / $${rate.output} keluar.`} />
           <Field label="Model pemeriksa soal (opsional)" name="verifyModel" defaultValue={config.verifyModel} placeholder="kosong = sama dengan Model" hint="Pakai model berbeda dari pembuat soal supaya kesalahan yang konsisten tertangkap." />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="reasoningEffort">Mode berpikir (reasoning)</Label>

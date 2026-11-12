@@ -11,6 +11,7 @@ type Rate = { input: number; output: number };
 const PER_MILLION: Rate = { input: 0.1, output: 0.4 };
 
 const PRICES: { match: RegExp; rate: Rate }[] = [
+  { match: /gpt-6-luna/i, rate: { input: 0.011, output: 0.055 } }, // Rp 200 / Rp 998 per juta token; cache (Rp 50) tidak dihitung
   { match: /gemini.*flash/i, rate: { input: 0.059, output: 0.295 } },
   { match: /gemini.*pro/i, rate: { input: 1.25, output: 5 } },
   { match: /gpt-4o-mini/i, rate: { input: 0.15, output: 0.6 } },

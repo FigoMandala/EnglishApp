@@ -6,7 +6,7 @@ import { appConfig } from "@/db/schema";
 const AI_CONFIG_KEY = "ai_config";
 
 const DEFAULT_BASE_URL = "https://api.kryptonlab.id/v1";
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gpt-6-luna";
 
 export type AiConfig = {
   baseUrl: string;
