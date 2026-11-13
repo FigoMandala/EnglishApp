@@ -235,7 +235,7 @@ export default async function UnitPage({ params }: { params: Promise<{ slug: str
                       </span>
                       <span
                         className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-extrabold",
+                          "shrink-0 rounded-full px-2 py-0.5 text-[0.75rem] font-extrabold",
                           status.kind === "new" && "bg-mango text-mango-on",
                           status.kind === "due" && "bg-mango-soft text-mango-ink",
                           status.kind === "mastered" && "bg-primary-soft text-primary-deep",

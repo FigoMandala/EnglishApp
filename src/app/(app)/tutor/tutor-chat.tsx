@@ -294,7 +294,7 @@ export function TutorChat({
               aria-label={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
               title={scenario ? "Mulai ulang skenario" : "Bersihkan riwayat"}
               onClick={() => setAskClear(true)}
-              className="flex size-10 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle hover:border-brick-line hover:text-brick"
+              className="flex size-11 cursor-pointer items-center justify-center rounded-[12px] border-2 border-hairline bg-surface text-ink-subtle hover:border-brick-line hover:text-brick"
             >
               <Trash2 className="size-4" aria-hidden />
             </button>
@@ -348,7 +348,7 @@ export function TutorChat({
                 type="button"
                 disabled={streaming}
                 onClick={() => send(suggestion)}
-                className="min-h-10 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-muted hover:border-primary-line hover:text-primary-deep disabled:opacity-50"
+                className="min-h-11 cursor-pointer rounded-full border-2 border-hairline bg-surface px-3 text-[0.8125rem] font-bold text-ink-muted hover:border-primary-line hover:text-primary-deep disabled:opacity-50"
               >
                 {suggestion}
               </button>
@@ -434,7 +434,7 @@ export function TutorChat({
         ) : (
           messages.map((entry, index) => (
             <div key={index} className={cn("flex flex-col gap-1", entry.role === "user" ? "items-end" : "items-start")}>
-              <span className="px-1 text-[0.6875rem] font-bold uppercase tracking-wide text-ink-faint">
+              <span className="px-1 text-[0.75rem] font-bold uppercase tracking-wide text-ink-faint">
                 {entry.role === "user" ? "Kamu" : "Tutor"}
               </span>
               <div

@@ -84,7 +84,7 @@ const ledge =
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  if (user) redirect("/belajar");
+  if (user) redirect("/eptr");
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-canvas text-ink">

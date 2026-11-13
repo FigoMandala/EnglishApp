@@ -75,7 +75,18 @@ export async function placementKeyTexts(id: number): Promise<string[]> {
  * jawaban yang cocok dengan soal di bank.
  */
 export async function gradePlacementResponses(responses: PlacementResponse[]) {
-  const ids = [...new Set(responses.map((r) => r.id))].slice(0, 20);
+  // Satu soal dihitung sekali (kemunculan pertama yang dipakai): id soal yang
+  // sama dikirim ulang dengan jawaban benar tidak boleh menggembungkan skor
+  // maupun total per level.
+  const seen = new Set<number>();
+  const unique = responses
+    .filter((response) => {
+      if (seen.has(response.id)) return false;
+      seen.add(response.id);
+      return true;
+    })
+    .slice(0, 20);
+  const ids = unique.map((response) => response.id);
   if (ids.length === 0) return null;
   const rows = await db
     .select({ id: grammarExercises.id, answers: grammarExercises.answers, level: grammarLessons.level })
@@ -87,7 +98,7 @@ export async function gradePlacementResponses(responses: PlacementResponse[]) {
   const byLevel: Record<WordLevel, [number, number]> = { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] };
   let score = 0;
   let total = 0;
-  for (const response of responses) {
+  for (const response of unique) {
     const row = byId.get(response.id);
     if (!row) continue;
     total += 1;

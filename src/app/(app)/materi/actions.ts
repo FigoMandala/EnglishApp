@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { addCappedXp } from "@/db/queries/learning";
 import { getExerciseById, recordAttempt } from "@/db/queries/grammar-exercises";
+import { getGrammarLessonById } from "@/db/queries/grammar";
 import { checkSentence } from "@/lib/api/sentence";
 import { checkAnswer, parseAnswers, validateAnswerText } from "@/lib/grammar-exercise";
 import { logActivity } from "@/db/queries/activity";
@@ -42,6 +43,13 @@ export async function submitExerciseAction(
 
   const exercise = await getExerciseById(exerciseId);
   if (!exercise) return { status: "error", message: "Soal tidak ditemukan." };
+  // Soal milik materi yang disembunyikan diperlakukan tidak ada: tanpa ini,
+  // pemanggilan action langsung dengan id soal draft tetap bisa dicatat dan
+  // dipanen XP-nya (gate published, konsisten dengan lessonReadyToComplete).
+  const lesson = await getGrammarLessonById(exercise.lessonId);
+  if (!lesson || !lesson.published) {
+    return { status: "error", message: "Soal tidak ditemukan." };
+  }
 
   const keys = parseAnswers(exercise.answers);
   let correct = false;

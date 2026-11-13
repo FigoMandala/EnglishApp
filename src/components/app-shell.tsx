@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowRight,
   BookOpen,
+  ChevronDown,
   Dumbbell,
   Flame,
   GraduationCap,
@@ -11,6 +11,8 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
   PenLine,
   ShieldCheck,
   SpellCheck,
@@ -26,7 +28,6 @@ import { SoundToggle } from "@/components/fx/sound-toggle";
 import { Logo } from "@/components/logo";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import type { ShellSummary } from "@/db/queries/shell";
-import { buttonVariants } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,16 @@ type NavGroup = { title: string; items: NavLink[] };
 
 const GROUPS: NavGroup[] = [
   {
-    title: "Belajar",
+    title: "Tes & motivasi",
+    items: [
+      { href: "/eptr", label: "EPrT", short: "EPrT", icon: GraduationCap },
+      { href: "/liga", label: "Liga mingguan", short: "Liga", icon: Trophy },
+      { href: "/streak", label: "Streak", short: "Streak", icon: Flame },
+    ],
+  },
+  // Menu yang dikunci dilipat supaya tidak memenuhi sidebar; kuncinya tetap, tinggal diaktifkan lagi.
+  {
+    title: "Segera hadir",
     items: [
       { href: "/belajar", label: "Jalur Belajar", short: "Jalur", icon: Layers, locked: true },
       { href: "/kosakata", label: "Kosakata", short: "Kosa", icon: SpellCheck, locked: true },
@@ -49,18 +59,10 @@ const GROUPS: NavGroup[] = [
       { href: "/tutor", label: "Tutor AI", short: "Tutor", icon: MessageCircle, locked: true },
     ],
   },
-  {
-    title: "Tes & motivasi",
-    items: [
-      { href: "/eptr", label: "EPrT", short: "EPrT", icon: GraduationCap },
-      { href: "/liga", label: "Liga mingguan", short: "Liga", icon: Trophy },
-      { href: "/streak", label: "Streak", short: "Streak", icon: Flame },
-    ],
-  },
 ];
 
 /** Tujuan utama di tab bar bawah (mobile). Sisanya lewat tombol Lainnya. */
-const TAB_HREFS = ["/belajar", "/latihan", "/kosakata", "/eptr"];
+const TAB_HREFS = ["/eptr", "/liga", "/streak"];
 
 /**
  * Mode fokus: saat mengerjakan soal atau mengulang kartu, tab bar bawah disembunyikan
@@ -100,7 +102,7 @@ function NavBadge({
         className={cn(
           "flex items-center justify-center rounded-full bg-mango font-extrabold text-mango-on",
           tab
-            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] px-1 text-[0.6875rem]"
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] px-1 text-[0.75rem]"
             : "h-[22px] min-w-[26px] px-[7px] text-[0.75rem]",
         )}
       >
@@ -115,7 +117,7 @@ function NavBadge({
         className={cn(
           "flex items-center justify-center rounded-full bg-brick-soft font-extrabold text-brick-deep",
           tab
-            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] border border-brick-line px-1 text-[0.6875rem]"
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] min-w-[18px] border border-brick-line px-1 text-[0.75rem]"
             : "h-[22px] min-w-[26px] border-2 border-brick-line px-1.5 text-[0.75rem]",
         )}
       >
@@ -130,7 +132,7 @@ function NavBadge({
         className={cn(
           "flex items-center rounded-full bg-charcoal font-extrabold text-mango-line",
           tab
-            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] px-1 text-[0.6875rem]"
+            ? "absolute right-[calc(50%-26px)] top-2 h-[18px] px-1 text-[0.75rem]"
             : "h-[22px] px-2 text-[0.75rem]",
         )}
       >
@@ -164,6 +166,20 @@ export function AppShell({
   const focus = isFocusMode(pathname, new URLSearchParams(searchParams.toString()));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerClosing, setDrawerClosing] = useState(false);
+  // Sidebar desktop yang diciutkan; pilihan per-browser, jadi cukup localStorage.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebar-collapsed") === "1");
+    } catch {}
+  }, []);
+  function toggleSidebar() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+    } catch {}
+  }
   // Pemicu drawer yang terakhir (tombol menu di header atau tab "Lainnya" di
   // tab bar): fokus dikembalikan ke sini saat drawer ditutup, bukan selalu ke
   // tombol menu header.
@@ -236,111 +252,98 @@ export function AppShell({
     return <div className="min-h-screen bg-canvas">{children}</div>;
   }
 
+  const statCell =
+    "flex h-11 items-center justify-center gap-1.5 font-round text-[0.9375rem] font-extrabold text-ink transition-colors hover:bg-canvas first:rounded-l-[12px] last:rounded-r-[12px]";
   const statStrip = (
-    <div className="grid grid-cols-3 gap-1.5">
-      <Link
-        href="/streak"
-        aria-label={`Streak ${summary.streak} hari`}
-        className="flex h-10 items-center justify-center gap-1 rounded-[12px] border-2 border-mango-line bg-mango-soft font-round text-[1.0625rem] font-extrabold text-mango-ink"
-      >
+    <div className="grid grid-cols-3 divide-x-2 divide-hairline-soft rounded-[14px] border-2 border-hairline bg-surface">
+      <Link href="/streak" aria-label={`Streak ${summary.streak} hari`} className={statCell}>
         <Flame className={cn("size-[18px] fill-mango text-mango-deep", summary.streak > 0 && "flick")} strokeWidth={2} aria-hidden />
         {summary.streak}
       </Link>
-      <Link
-        href="/progres"
-        aria-label={`${nf.format(summary.xp)} XP total`}
-        className="flex h-10 items-center justify-center gap-1 rounded-[12px] border-2 border-primary-line bg-primary-soft font-round text-[1.0625rem] font-extrabold text-primary-deep"
-      >
+      <Link href="/progres" aria-label={`${nf.format(summary.xp)} XP total`} className={statCell}>
         <Zap className="size-4 fill-primary-bright text-primary-deep" strokeWidth={2} aria-hidden />
         {nf.format(summary.xp)}
       </Link>
-      <Link
-        href="/liga"
-        aria-label={`Level ${summary.level}`}
-        className="flex h-10 items-center justify-center gap-1 rounded-[12px] border-2 border-sky-line bg-sky-soft font-round text-[1.0625rem] font-extrabold text-sky-deep"
-      >
-        <Trophy className="size-4" strokeWidth={2.4} aria-hidden />
+      <Link href="/liga" aria-label={`Level ${summary.level}`} className={statCell}>
+        <Trophy className="size-4 text-sky-deep" strokeWidth={2.4} aria-hidden />
         Lv {summary.level}
       </Link>
     </div>
   );
 
-  const continueCard = summary.current ? (
-    <div className="flex flex-col gap-2.5 rounded-[16px] border-2 border-hairline bg-surface p-3.5 shadow-[0_3px_0_var(--color-hairline)]">
-      <div className="flex items-center justify-between">
-        <span className="eyebrow text-ink-subtle">Lanjutkan</span>
-        {summary.current.total > 0 ? (
-          <span className="text-[0.75rem] font-extrabold text-primary-deep">
-            {summary.current.done}/{summary.current.total}
-          </span>
-        ) : null}
-      </div>
-      <strong className="font-display text-[0.9375rem] font-extrabold leading-tight">
-        Unit {summary.current.order} · {summary.current.title}
-      </strong>
-      {summary.current.total > 0 ? (
-        <div className="h-2 overflow-hidden rounded-full bg-canvas-deep">
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${(summary.current.done / summary.current.total) * 100}%` }}
-          />
+  const renderNavItem = (link: NavLink) => {
+    const active = isActive(pathname, link.href);
+    if (collapsed)
+      return (
+        <Link
+          key={link.href}
+          href={link.href}
+          aria-label={link.label}
+          title={link.label}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            "flex size-11 items-center justify-center rounded-control transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-90",
+            active ? "bg-primary-soft text-primary" : "text-ink-faint hover:bg-hairline-soft hover:text-ink",
+          )}
+        >
+          <link.icon className="size-5" strokeWidth={2.2} aria-hidden />
+        </Link>
+      );
+    if (link.locked)
+      return (
+        <div
+          key={link.href}
+          aria-disabled="true"
+          title={LOCKED_HINT}
+          className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-control px-3 text-[0.9375rem] font-bold text-ink-faint"
+        >
+          <link.icon className="size-5 shrink-0" strokeWidth={2.2} aria-hidden />
+          <span className="flex-1">{link.label}</span>
+          <Lock className="size-4 shrink-0" aria-label={LOCKED_HINT} />
         </div>
-      ) : null}
+      );
+    return (
       <Link
-        href={`/belajar/${summary.current.slug}`}
-        className={buttonVariants({ variant: "primary", size: "sm", className: "justify-center gap-1.5" })}
+        key={link.href}
+        href={link.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "group relative flex min-h-11 items-center gap-3 rounded-control px-3 text-[0.9375rem] transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97]",
+          active
+            ? "bg-primary-soft font-extrabold text-primary-deep before:absolute before:inset-y-2.5 before:left-0 before:w-1 before:rounded-full before:bg-primary"
+            : "font-bold text-ink-muted hover:bg-hairline-soft hover:text-ink",
+        )}
       >
-        Lanjut belajar
-        <ArrowRight className="size-4" strokeWidth={2.6} aria-hidden />
+        <link.icon
+          className={cn("size-5 shrink-0", active ? "text-primary" : "text-ink-faint group-hover:text-ink-subtle")}
+          strokeWidth={2.2}
+          aria-hidden
+        />
+        <span className="flex-1">{link.label}</span>
+        <NavBadge href={link.href} summary={summary} />
       </Link>
-    </div>
-  ) : null;
+    );
+  };
 
   const navList = () =>
-    GROUPS.map((group, index) => (
-      <div key={group.title} className={cn(index > 0 && "mt-[18px]")}>
-        <p className="eyebrow px-3 pb-1.5 text-ink-faint">{group.title}</p>
-        <div className="flex flex-col gap-0.5">
-          {group.items.map((link) => {
-            const active = isActive(pathname, link.href);
-            if (link.locked)
-              return (
-                <div
-                  key={link.href}
-                  aria-disabled="true"
-                  title={LOCKED_HINT}
-                  className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-control border-2 border-transparent px-3 text-[0.9375rem] font-bold text-ink-faint"
-                >
-                  <link.icon className="size-5 shrink-0" strokeWidth={2.2} aria-hidden />
-                  <span className="flex-1">{link.label}</span>
-                  <Lock className="size-4 shrink-0" aria-label={LOCKED_HINT} />
-                </div>
-              );
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "group flex min-h-11 items-center gap-3 rounded-control border-2 px-3 text-[0.9375rem] transition-colors",
-                  active
-                    ? "border-primary-line bg-primary-soft font-extrabold text-primary-deep"
-                    : "border-transparent font-bold text-ink-muted hover:bg-[#efe8da]",
-                )}
-              >
-                <link.icon
-                  className={cn("size-5 shrink-0", active ? "text-primary" : "text-ink-faint group-hover:text-ink-subtle")}
-                  strokeWidth={2.2}
-                  aria-hidden
-                />
-                <span className="flex-1">{link.label}</span>
-                <NavBadge href={link.href} summary={summary} />
-              </Link>
-            );
-          })}
+    GROUPS.map((group, index) =>
+      group.items.every((link) => link.locked) ? (
+        <details key={group.title} className="group/soon mt-[18px]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-control px-3 text-ink-faint hover:bg-hairline-soft [&::-webkit-details-marker]:hidden">
+            <span className="eyebrow">
+              {group.title} · {group.items.length}
+            </span>
+            <ChevronDown className="size-4 transition-transform group-open/soon:rotate-180" aria-hidden />
+          </summary>
+          <div className="mt-1 flex flex-col gap-0.5">{group.items.map(renderNavItem)}</div>
+        </details>
+      ) : (
+        <div key={group.title} className={cn(index > 0 && "mt-[18px]")}>
+          <p className="eyebrow px-3 pb-1.5 text-ink-faint">{group.title}</p>
+          <div className="flex flex-col gap-0.5">{group.items.map(renderNavItem)}</div>
         </div>
-      </div>
-    ));
+      ),
+    );
 
   const avatar = (
     <span
@@ -356,9 +359,9 @@ export function AppShell({
       {isAdmin ? (
         <Link
           href="/admin"
-          className="flex min-h-11 items-center gap-2.5 rounded-control bg-charcoal px-3 text-[0.875rem] font-bold text-white shadow-[0_4px_0_#000] transition-transform active:translate-y-1 active:shadow-none"
+          className="flex min-h-11 items-center gap-2.5 rounded-control border-2 border-hairline bg-surface px-3 text-[0.875rem] font-bold text-ink-muted transition-colors hover:border-hairline-strong hover:text-ink"
         >
-          <ShieldCheck className="size-4 text-mango" aria-hidden />
+          <ShieldCheck className="size-4 text-mango-deep" aria-hidden />
           Mode Admin
         </Link>
       ) : null}
@@ -405,27 +408,83 @@ export function AppShell({
       </a>
 
       {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col border-r-2 border-hairline bg-surface-muted lg:flex">
-        <div className="flex h-[68px] shrink-0 items-center border-b-2 border-hairline px-[18px]">
-          <Logo href="/belajar" size={36} />
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-dvh shrink-0 overflow-hidden border-r-2 border-hairline bg-surface-muted transition-[width] duration-300 ease-[var(--ease-drawer)] lg:block",
+          collapsed ? "w-[76px]" : "w-[264px]",
+        )}
+      >
+        {/* Lebar isi tetap (bukan mengikuti aside) supaya tidak "terperas" selagi lebar beranimasi. */}
+        <div className={cn("flex h-full flex-col", collapsed ? "w-[72px]" : "w-[260px]")}>
+        <div
+          className={cn(
+            "flex h-[68px] shrink-0 items-center border-b-2 border-hairline",
+            collapsed ? "justify-center" : "justify-between pl-[18px] pr-3",
+          )}
+        >
+          {collapsed ? null : <Logo href="/eptr" size={36} />}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Buka sidebar" : "Tutup sidebar"}
+            title={collapsed ? "Buka sidebar" : "Tutup sidebar"}
+            className="flex size-11 cursor-pointer items-center justify-center rounded-control text-ink-subtle transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-hairline-soft hover:text-ink active:scale-90"
+          >
+            {collapsed ? <PanelLeftOpen className="size-5" aria-hidden /> : <PanelLeftClose className="size-5" aria-hidden />}
+          </button>
         </div>
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-col gap-3.5 px-3.5 pt-3.5">
-            {statStrip}
-            {continueCard}
+        <div key={String(collapsed)} className="side-fade scroll-quiet flex flex-1 flex-col overflow-y-auto">
+          {collapsed ? (
+            <nav className="flex flex-col items-center gap-1 py-[18px]" aria-label="Navigasi utama">
+              {allLinks.filter((link) => !link.locked).map(renderNavItem)}
+            </nav>
+          ) : (
+            <>
+              <div className="px-3.5 pt-3.5">{statStrip}</div>
+              <nav className="flex-1 px-3 py-[18px]" aria-label="Navigasi utama">
+                {navList()}
+              </nav>
+            </>
+          )}
+        </div>
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-2 border-t-2 border-hairline py-3">
+            {isAdmin ? (
+              <Link
+                href="/admin"
+                aria-label="Mode Admin"
+                title="Mode Admin"
+                className="flex size-11 items-center justify-center rounded-control text-mango-deep hover:bg-hairline-soft"
+              >
+                <ShieldCheck className="size-5" aria-hidden />
+              </Link>
+            ) : null}
+            <Link href="/progres" aria-label="Profil dan progres" title={displayName || `@${username}`}>
+              {avatar}
+            </Link>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                aria-label="Keluar"
+                title="Keluar"
+                className="flex size-11 cursor-pointer items-center justify-center rounded-control text-ink-subtle hover:bg-hairline-soft hover:text-brick-deep"
+              >
+                <LogOut className="size-[18px]" aria-hidden />
+              </button>
+            </form>
           </div>
-          <nav className="flex-1 px-3 py-[18px]" aria-label="Navigasi utama">
-            {navList()}
-          </nav>
+        ) : (
+          <div className="border-t-2 border-hairline p-3">{userCard}</div>
+        )}
         </div>
-        <div className="border-t-2 border-hairline p-3">{userCard}</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header mobile */}
         <header className="sticky top-0 z-30 border-b-2 border-hairline bg-canvas/95 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:hidden">
           <div className="flex h-[60px] items-center gap-2 px-4 sm:px-6">
-            <Logo href="/belajar" size={34} showText={false} />
+            <Logo href="/eptr" size={34} showText={false} />
             <span className="flex-1" />
             {!focus && (
               <>
@@ -499,7 +558,7 @@ export function AppShell({
                   <X className="size-5" aria-hidden />
                 </button>
               </div>
-              <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-4">
+              <div className="scroll-quiet flex flex-1 flex-col gap-3.5 overflow-y-auto p-4">
                 <Link
                   href="/progres"
                   className="flex items-center gap-3 rounded-plate border-2 border-hairline bg-surface p-3.5 shadow-card"
@@ -513,43 +572,51 @@ export function AppShell({
                   </span>
                 </Link>
                 {statStrip}
-                {continueCard}
                 <nav aria-label="Navigasi" className="grid grid-cols-2 gap-2.5">
-                  {allLinks.map((link) => {
-                    const active = isActive(pathname, link.href);
-                    if (link.locked)
+                  {allLinks
+                    .filter((link) => !link.locked)
+                    .map((link) => {
+                      const active = isActive(pathname, link.href);
                       return (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-[84px] flex-col justify-between gap-2 rounded-[18px] border-2 p-3.5",
+                            active ? "border-primary-line bg-primary-soft text-primary-deep" : "border-hairline bg-surface",
+                          )}
+                        >
+                          <span className="flex items-center justify-between">
+                            <link.icon className="size-[22px] text-primary" strokeWidth={2.2} aria-hidden />
+                            <NavBadge href={link.href} summary={summary} />
+                          </span>
+                          <strong className="text-[0.9375rem] leading-tight">{link.label}</strong>
+                        </Link>
+                      );
+                    })}
+                </nav>
+                <details className="group/soon rounded-[18px] border-2 border-hairline bg-surface-muted">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-3.5 text-ink-faint [&::-webkit-details-marker]:hidden">
+                    <span className="eyebrow">Segera hadir · {allLinks.filter((link) => link.locked).length}</span>
+                    <ChevronDown className="size-4 transition-transform group-open/soon:rotate-180" aria-hidden />
+                  </summary>
+                  <div className="grid grid-cols-2 gap-2 p-2.5 pt-0">
+                    {allLinks
+                      .filter((link) => link.locked)
+                      .map((link) => (
                         <div
                           key={link.href}
                           aria-disabled="true"
-                          className="flex min-h-[84px] cursor-not-allowed flex-col justify-between gap-2 rounded-[18px] border-2 border-hairline bg-surface-muted p-3.5 text-ink-faint"
+                          className="flex min-h-[64px] cursor-not-allowed items-center gap-2 rounded-[14px] border-2 border-hairline bg-surface px-3 text-ink-faint"
                         >
-                          <span className="flex items-center justify-between">
-                            <link.icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
-                            <Lock className="size-4" aria-label={LOCKED_HINT} />
-                          </span>
-                          <strong className="text-[0.9375rem] leading-tight">{link.label}</strong>
+                          <link.icon className="size-5 shrink-0" strokeWidth={2.2} aria-hidden />
+                          <strong className="flex-1 text-[0.8125rem] leading-tight">{link.label}</strong>
+                          <Lock className="size-3.5 shrink-0" aria-label={LOCKED_HINT} />
                         </div>
-                      );
-                    return (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "flex min-h-[84px] flex-col justify-between gap-2 rounded-[18px] border-2 p-3.5",
-                          active ? "border-primary-line bg-primary-soft text-primary-deep" : "border-hairline bg-surface",
-                        )}
-                      >
-                        <span className="flex items-center justify-between">
-                          <link.icon className="size-[22px] text-primary" strokeWidth={2.2} aria-hidden />
-                          <NavBadge href={link.href} summary={summary} />
-                        </span>
-                        <strong className="text-[0.9375rem] leading-tight">{link.label}</strong>
-                      </Link>
-                    );
-                  })}
-                </nav>
+                      ))}
+                  </div>
+                </details>
               </div>
               <div className="border-t-2 border-hairline p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{userCard}</div>
             </div>
@@ -573,7 +640,7 @@ export function AppShell({
           aria-label="Navigasi cepat"
           className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-hairline bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
         >
-          <div className="mx-auto grid max-w-lg grid-cols-5">
+          <div className="mx-auto grid max-w-lg grid-cols-4">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href);
               if (tab.locked)

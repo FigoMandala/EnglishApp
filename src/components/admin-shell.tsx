@@ -38,7 +38,7 @@ export function AdminShell({ username, children }: { username: string; children:
         <div className="flex items-center gap-2.5 px-2 pb-3">
           <LoriIconBadge size={28} />
           <span className="font-display text-lg font-extrabold text-white">EnglishApp</span>
-          <span className="rounded-md bg-mango px-2 py-0.5 text-[0.6875rem] font-black tracking-[0.08em] text-mango-on">
+          <span className="rounded-md bg-mango px-2 py-0.5 text-[0.75rem] font-black tracking-[0.08em] text-mango-on">
             ADMIN
           </span>
         </div>

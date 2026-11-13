@@ -213,7 +213,7 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           {pct !== null && pct < 60 ? (
-                            <span className="rounded-full bg-brick-soft px-2 py-0.5 text-[0.6875rem] font-extrabold text-brick-deep">Prioritas</span>
+                            <span className="rounded-full bg-brick-soft px-2 py-0.5 text-[0.75rem] font-extrabold text-brick-deep">Prioritas</span>
                           ) : null}
                           <span className={cn("w-14 text-right text-[0.8125rem] font-extrabold", tone.text)}>{pct !== null ? `${pct}%` : "baru"}</span>
                           {selected ? <Check aria-hidden className="size-4 text-primary" /> : <span className="size-4" />}
@@ -230,6 +230,13 @@ function TopicDropdown({ groups, value, onChange }: { groups: { title: string; t
     </div>
   );
 }
+
+type Tab = "latihan" | "simulasi" | "riwayat";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "latihan", label: "Latihan" },
+  { id: "simulasi", label: "Simulasi" },
+  { id: "riwayat", label: "Riwayat & target" },
+];
 
 const MINI_TESTS = [
   { section: "listening", title: "Listening", Icon: Headphones, tone: "bg-sky-soft text-sky", note: "audio sekali putar" },
@@ -249,6 +256,7 @@ export function EprtHome(props: EprtHomeProps) {
   );
   const [pickedSkill, setPickedSkill] = useState<SkillKey | null>(null);
   const { activeSim, target } = props;
+  const [tab, setTab] = useState<Tab>(activeSim ? "simulasi" : "latihan");
   const progress = activeSim ? Math.round((activeSim.doneQuestions / activeSim.totalQuestions) * 100) : 0;
 
   function blockButton(kind: string, title: string, detail: string, tone: "plain" | "warning" = "plain") {
@@ -294,6 +302,8 @@ export function EprtHome(props: EprtHomeProps) {
     .filter((topic) => topic.answered >= 3 && topic.pct !== null)
     .sort((a, b) => (a.pct ?? 101) - (b.pct ?? 101))[0];
   const picked = allTopics.find((topic) => topic.skill === pickedSkill) ?? weakestTopic ?? allTopics[0];
+  const weakestKind = weakestTopic?.section === "structure" ? format : "reading";
+  const weakestKey = weakestTopic ? `${weakestKind}:${weakestTopic.skill}` : "";
   const pickedKind = picked?.section === "structure" ? format : "reading";
   const pickedKey = picked ? `${pickedKind}:${picked.skill}` : "";
   const pickedBusy = pending && startedRef.current === pickedKey;
@@ -329,6 +339,28 @@ export function EprtHome(props: EprtHomeProps) {
                 ? `Dari ${props.weakest.answered} soal yang kamu jawab, di sinilah kebocoran terbesar. Latihan per topik di bawah bisa menolong.`
                 : "Listening 50, Structure 40, Reading 50 dengan timer tiap section. Skor dan pembahasan muncul di akhir."}
             </p>
+            {!activeSim && weakestTopic ? (
+              <form
+                action={formAction}
+                onSubmit={() => {
+                  startedRef.current = weakestKey;
+                }}
+                className="mt-2 self-start"
+              >
+                <input type="hidden" name="kind" value={weakestKind} />
+                <input type="hidden" name="skill" value={weakestTopic.skill} />
+                <input type="hidden" name="track" value="eptr" />
+                <button
+                  type="submit"
+                  disabled={pending || !props.configured}
+                  className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-[14px] bg-mango px-5 text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] transition-transform active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {pending && startedRef.current === weakestKey ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                  Latih {weakestTopic.label} · 10 soal
+                  <ArrowRight className="size-4" aria-hidden />
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
         <div className="grid min-w-0 flex-[1_1_320px] grid-cols-2 gap-3">
@@ -342,9 +374,16 @@ export function EprtHome(props: EprtHomeProps) {
                 </span>
               </>
             ) : (
-              <a href="#target" className="mt-2 text-[0.9375rem] font-extrabold text-mango-line hover:underline">
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("riwayat");
+                  requestAnimationFrame(() => document.getElementById("target")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+                }}
+                className="mt-2 min-h-11 cursor-pointer text-left text-[0.9375rem] font-extrabold text-mango-line hover:underline"
+              >
                 {props.daysToTest !== null ? "Tanggal tes sudah lewat · perbarui" : "Atur tanggal tes"}
-              </a>
+              </button>
             )}
           </div>
           <div className="flex flex-col gap-1 rounded-[20px] bg-charcoal-raised p-[18px]">
@@ -415,275 +454,313 @@ export function EprtHome(props: EprtHomeProps) {
         </section>
       ) : null}
 
-      {/* Mulai tes baru */}
-      <section aria-labelledby="mini-title" className="rise flex flex-col gap-3.5 [--i:2]">
-        <h2 id="mini-title" className="font-display text-[1.375rem] font-extrabold">
-          Mulai tes baru
-        </h2>
-        <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
-          <div className="flex flex-col gap-2.5 rounded-[24px] bg-charcoal p-[22px] text-charcoal-ink shadow-[0_4px_0_#000]">
-            <span className="eyebrow text-mango-line">Simulasi penuh · 115 mnt</span>
-            <strong className="font-display text-[1.25rem] leading-tight">Listening 50, Structure 40, Reading 50</strong>
-            <span className="text-[0.875rem] text-charcoal-muted">Timer per section. Skor &amp; pembahasan di akhir.</span>
-            <div className="mt-auto flex flex-col gap-2 pt-1">
-              <StartSimulationButton
-                disabled={!props.configured}
-                label={activeSim ? "Simulasi baru" : "Mulai simulasi"}
-                className="h-12 rounded-[14px] bg-mango px-5 text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] hover:bg-mango"
-              />
-            </div>
-          </div>
-          {MINI_TESTS.map((test) => (
-            <div key={test.section} className="flex flex-col gap-2.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] shadow-card transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary-line motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-              <span className="flex items-center gap-2.5">
-                <span className={cn("grid size-11 place-items-center rounded-[12px]", test.tone)}>
-                  <test.Icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
-                </span>
-                <span className="eyebrow text-ink-subtle">Mini-test</span>
-              </span>
-              <strong className="font-display text-[1.25rem]">{test.title}</strong>
-              <span className="flex items-center gap-1.5 text-[0.875rem] text-ink-subtle">
-                <Clock className="size-3.5" aria-hidden />
-                {scopeQuestionTotal(test.section)} soal · {SECTION_MINUTES[test.section]} mnt · {test.note}
-              </span>
-              <StartSimulationButton
-                section={test.section}
-                disabled={!props.configured}
-                label="Mulai"
-                className="mt-auto h-11 rounded-[14px] px-5 text-[0.9375rem]"
-              />
-            </div>
-          ))}
-        </div>
-        {!props.configured ? (
-          <p className="text-[0.9375rem] font-bold text-brick-deep">Pembuatan soal belum aktif. Hubungi admin.</p>
-        ) : null}
-      </section>
-
       {state.status === "error" ? (
         <p role="alert" className="rounded-[14px] bg-brick-soft px-4 py-3 text-[0.9375rem] font-bold text-brick-deep">
           {state.message}
         </p>
       ) : null}
 
-      {/* Latihan per topik */}
-      <section aria-labelledby="topic-title" className="rise flex flex-col gap-3.5 [--i:3]">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="topic-title" className="font-display text-[1.375rem] font-extrabold">
-              Latihan per topik
-            </h2>
-            <p className="text-[0.875rem] text-ink-subtle">10 soal · fokus satu topik · di bawah 60% ditandai prioritas</p>
+      <div
+        role="tablist"
+        aria-label="Bagian halaman EPrT"
+        className="sticky top-[calc(64px+env(safe-area-inset-top))] z-30 grid grid-cols-3 gap-1 rounded-control bg-canvas-deep p-1 shadow-[0_6px_0_var(--color-canvas)] lg:top-3"
+      >
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls={`panel-${item.id}`}
+            onClick={() => setTab(item.id)}
+            className={cn(
+              "min-h-11 cursor-pointer rounded-[10px] px-2 text-[0.875rem] transition-[background-color,box-shadow,color] duration-150 motion-reduce:transition-none",
+              tab === item.id
+                ? "bg-surface font-extrabold text-ink shadow-[0_2px_0_var(--color-hairline-strong)]"
+                : "font-bold text-ink-muted hover:text-ink",
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "latihan" ? (
+        <div role="tabpanel" id="panel-latihan" aria-labelledby="tab-latihan" className="flex flex-col gap-6">
+        {/* Latihan per topik */}
+        <section aria-labelledby="topic-title" className="rise relative z-20 flex flex-col gap-3.5 [--i:3]">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="topic-title" className="font-display text-[1.375rem] font-extrabold">
+                Latihan per topik
+              </h2>
+              <p className="text-[0.875rem] text-ink-subtle">10 soal · fokus satu topik · di bawah 60% ditandai prioritas</p>
+            </div>
+            <div role="radiogroup" aria-label="Bentuk soal Structure" className="relative flex gap-1 rounded-control bg-canvas-deep p-1">
+              <span
+                aria-hidden
+                className="absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-out"
+                style={{ transform: `translateX(calc(${format === "written" ? 1 : 0} * (100% + 4px)))` }}
+              />
+              {(
+                [
+                  ["drill", "Sentence Completion"],
+                  ["written", "Error Recognition"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={format === value}
+                  onClick={() => setFormat(value)}
+                  className={cn(
+                    "h-11 flex-1 cursor-pointer rounded-[10px] px-3.5 text-[0.875rem]",
+                    format === value ? "relative z-10 font-extrabold text-ink transition-colors duration-200" : "relative z-10 font-bold text-ink-muted transition-colors duration-200",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div role="radiogroup" aria-label="Bentuk soal Structure" className="relative flex gap-1 rounded-control bg-canvas-deep p-1">
-            <span
-              aria-hidden
-              className="absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-[10px] bg-surface shadow-[0_2px_0_var(--color-hairline-strong)] transition-transform duration-200 ease-out"
-              style={{ transform: `translateX(calc(${format === "written" ? 1 : 0} * (100% + 4px)))` }}
-            />
-            {(
-              [
-                ["drill", "Sentence Completion"],
-                ["written", "Error Recognition"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={format === value}
-                onClick={() => setFormat(value)}
-                className={cn(
-                  "h-10 flex-1 cursor-pointer rounded-[10px] px-3.5 text-[0.875rem]",
-                  format === value ? "relative z-10 font-extrabold text-ink transition-colors duration-200" : "relative z-10 font-bold text-ink-muted transition-colors duration-200",
-                )}
-              >
-                {label}
-              </button>
+          {picked ? (
+            <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5">
+              <div className="flex flex-col gap-1.5">
+                <Label>Pilih topik</Label>
+                <TopicDropdown
+                  groups={[
+                    { title: "Structure", topics: structureTopics },
+                    { title: "Reading", topics: readingTopics },
+                  ]}
+                  value={picked}
+                  onChange={(topic) => setPickedSkill(topic.skill)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="min-w-[200px] flex-1">
+                  <p className="mb-1.5 text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">Akurasi kamu</p>
+                  {pickedPct !== null ? (
+                    <span className="flex items-center gap-2.5">
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
+                        <span key={picked.skill} className={cn("grow-x block h-full", pctTone(pickedPct).bar)} style={{ width: `${pickedPct}%` }} />
+                      </span>
+                      <strong className={cn("w-10 text-[0.875rem]", pctTone(pickedPct).text)}>{pickedPct}%</strong>
+                    </span>
+                  ) : (
+                    <span className="text-[0.875rem] text-ink-subtle">belum cukup data ({picked.answered} soal dijawab)</span>
+                  )}
+                </div>
+                <form
+                  action={formAction}
+                  onSubmit={() => {
+                    startedRef.current = pickedKey;
+                  }}
+                >
+                  <input type="hidden" name="kind" value={pickedKind} />
+                  <input type="hidden" name="skill" value={picked.skill} />
+                  <input type="hidden" name="track" value="eptr" />
+                  <button
+                    type="submit"
+                    disabled={pending || !props.configured}
+                    className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-[14px] bg-primary px-6 text-[1rem] font-extrabold text-white shadow-[0_4px_0_var(--color-primary-deep)] transition-transform active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {pickedBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                    Latih 10 soal
+                  </button>
+                </form>
+              </div>
+              {picked.section === "reading" ? (
+                <p className="text-[0.8125rem] text-ink-subtle">Reading per tipe soal membuat teks baru, tunggu sekitar 30 detik.</p>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        {/* Latihan per bagian */}
+        <section aria-labelledby="practice-title" className="rise flex flex-col gap-3.5 [--i:4]">
+          <h2 id="practice-title" className="font-display text-[1.375rem] font-extrabold">
+            Latihan per bagian
+          </h2>
+          <div className="grid gap-3.5 md:grid-cols-3">
+            {GROUPS.map((group) => (
+              <div key={group.title} className="flex flex-col gap-2.5 rounded-plate border-2 border-hairline bg-surface p-5">
+                <p className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold">
+                  <group.icon className="size-5 text-primary" aria-hidden />
+                  {group.title}
+                </p>
+                {group.blocks.map((block) => blockButton(block.kind, block.title, block.detail))}
+                {group.title === "Reading"
+                  ? blockButton(
+                      "review",
+                      "Ulang kesalahan",
+                      props.reviewsDue > 0 ? `${props.reviewsDue} jatuh tempo` : "belum ada",
+                      props.reviewsDue > 0 ? "warning" : "plain",
+                    )
+                  : null}
+              </div>
             ))}
           </div>
-        </div>
-        {picked ? (
-          <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5">
-            <div className="flex flex-col gap-1.5">
-              <Label>Pilih topik</Label>
-              <TopicDropdown
-                groups={[
-                  { title: "Structure", topics: structureTopics },
-                  { title: "Reading", topics: readingTopics },
-                ]}
-                value={picked}
-                onChange={(topic) => setPickedSkill(topic.skill)}
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <div className="min-w-[200px] flex-1">
-                <p className="mb-1.5 text-[0.75rem] font-extrabold uppercase tracking-[0.06em] text-ink-subtle">Akurasi kamu</p>
-                {pickedPct !== null ? (
-                  <span className="flex items-center gap-2.5">
-                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
-                      <span key={picked.skill} className={cn("grow-x block h-full", pctTone(pickedPct).bar)} style={{ width: `${pickedPct}%` }} />
-                    </span>
-                    <strong className={cn("w-10 text-[0.875rem]", pctTone(pickedPct).text)}>{pickedPct}%</strong>
-                  </span>
-                ) : (
-                  <span className="text-[0.875rem] text-ink-subtle">belum cukup data ({picked.answered} soal dijawab)</span>
-                )}
-              </div>
-              <form
-                action={formAction}
-                onSubmit={() => {
-                  startedRef.current = pickedKey;
-                }}
-              >
-                <input type="hidden" name="kind" value={pickedKind} />
-                <input type="hidden" name="skill" value={picked.skill} />
-                <input type="hidden" name="track" value="eptr" />
-                <button
-                  type="submit"
-                  disabled={pending || !props.configured}
-                  className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-[14px] bg-primary px-6 text-[1rem] font-extrabold text-white shadow-[0_4px_0_var(--color-primary-deep)] transition-transform active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {pickedBusy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-                  Latih 10 soal
-                </button>
-              </form>
-            </div>
-            {picked.section === "reading" ? (
-              <p className="text-[0.8125rem] text-ink-subtle">Reading per tipe soal membuat teks baru, tunggu sekitar 30 detik.</p>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
-      {/* Latihan per bagian */}
-      <section aria-labelledby="practice-title" className="rise flex flex-col gap-3.5 [--i:4]">
-        <h2 id="practice-title" className="font-display text-[1.375rem] font-extrabold">
-          Latihan per bagian
-        </h2>
-        <div className="grid gap-3.5 md:grid-cols-3">
-          {GROUPS.map((group) => (
-            <div key={group.title} className="flex flex-col gap-2.5 rounded-plate border-2 border-hairline bg-surface p-5">
-              <p className="flex items-center gap-2 font-display text-[1.125rem] font-extrabold">
-                <group.icon className="size-5 text-primary" aria-hidden />
-                {group.title}
-              </p>
-              {group.blocks.map((block) => blockButton(block.kind, block.title, block.detail))}
-              {group.title === "Reading"
-                ? blockButton(
-                    "review",
-                    "Ulang kesalahan",
-                    props.reviewsDue > 0 ? `${props.reviewsDue} jatuh tempo` : "belum ada",
-                    props.reviewsDue > 0 ? "warning" : "plain",
-                  )
-                : null}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div className="flex flex-wrap items-start gap-6">
-        <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-6">
-          {/* Riwayat */}
-          <section aria-labelledby="history-title" className="flex flex-col gap-3.5">
-            <h2 id="history-title" className="font-display text-[1.375rem] font-extrabold">
-              Riwayat simulasi
-            </h2>
-            {props.simulations.length ? (
-              <ol className="overflow-hidden rounded-[24px] border-2 border-hairline bg-surface">
-                {props.simulations.map((sim, i) => (
-                  <li key={sim.id} className={cn(i > 0 && "border-t-2 border-hairline-soft")}>
-                    <Link href={`/eptr/simulasi?id=${sim.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-muted">
-                      <span className="w-14 text-center font-round text-[1.625rem] font-extrabold leading-none">
-                        {sim.completed ? sim.total : "…"}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <strong className="block">{sim.scope ? `Mini-test ${sim.sections ?? ""}`.trim() : "Simulasi penuh"}</strong>
-                        <span className="text-[0.8125rem] text-ink-subtle">
-                          {formatDate(sim.createdAt)} ·{" "}
-                          {sim.completed ? (sim.scope ? "skor section (31–68)" : sim.sections) : `${sim.started} dari ${sim.partTotal} bagian dibuka`}
-                        </span>
-                      </span>
-                      <span className="text-[0.875rem] font-extrabold text-primary-deep">{sim.completed ? "Pembahasan" : "Lanjutkan"}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className="flex items-center gap-4 rounded-[20px] border-2 border-dashed border-hairline-strong p-6">
-                <Kaka mood="sleep" size={88} />
-                <span>
-                  <strong className="block font-display text-[1.125rem]">Belum ada simulasi</strong>
-                  <span className="text-[0.875rem] text-ink-subtle">Kaka masih tidur. Bangunkan dengan satu mini-test.</span>
-                </span>
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="practice-history" className="flex flex-col gap-3.5">
-            <h2 id="practice-history" className="font-display text-[1.375rem] font-extrabold">
-              Latihan terakhir
-            </h2>
-            {props.practice.length === 0 ? (
-              <p className="text-[0.9375rem] text-ink-subtle">Belum ada. Mulai dari salah satu latihan di atas.</p>
-            ) : (
-              <ul className="overflow-hidden rounded-[24px] border-2 border-hairline bg-surface">
-                {props.practice.slice(0, 6).map((item, i) => (
-                  <li key={item.id} className={cn(i > 0 && "border-t-2 border-hairline-soft")}>
-                    <Link href={`/eptr?s=${item.id}`} className="flex min-h-12 items-center justify-between gap-3 px-5 py-3 hover:bg-surface-muted">
-                      <span className="min-w-0 truncate text-[0.9375rem]">{item.label}</span>
-                      <span className={cn("shrink-0 text-[0.875rem] font-extrabold", item.completed ? "text-primary-deep" : "text-mango-ink")}>
-                        {item.completed ? (item.score ?? "selesai") : "lanjutkan"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <section
-          id="target"
-          aria-labelledby="target-title"
-          className="flex w-full flex-col gap-3.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] lg:w-[340px] lg:shrink-0"
-        >
-          <div>
-            <h2 id="target-title" className="font-display text-[1.25rem] font-extrabold">
-              Target tesmu
-            </h2>
-            <p className="text-[0.875rem] text-ink-subtle">Dipakai untuk level soal dan hitung mundur.</p>
-          </div>
-          <form action={targetAction} className="flex flex-col gap-3.5">
-            <input type="hidden" name="track" value="eptr" />
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="score">Skor target (310–677)</Label>
-              <Input id="score" name="score" type="number" min={310} max={677} defaultValue={target?.score ?? 500} className="tnum font-round text-[1.25rem] font-extrabold" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="testDate">Tanggal tes</Label>
-              <Input id="testDate" name="testDate" type="date" defaultValue={target?.testDate ?? ""} className="font-bold" />
-            </div>
-            <Button type="submit" variant="secondary" size="sm" disabled={targetPending}>
-              {targetPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              Simpan target
-            </Button>
-          </form>
-          <FieldError>{targetState.status === "error" ? targetState.message : undefined}</FieldError>
-          <div className="grid grid-cols-2 gap-2.5 border-t-2 border-hairline-soft pt-3.5 text-[0.8125rem]">
-            <span>
-              <span className="block font-round text-[1.375rem] font-extrabold leading-tight">{props.streak}</span>
-              <span className="text-ink-subtle">hari streak</span>
-            </span>
-            <span>
-              <span className={cn("block font-round text-[1.375rem] font-extrabold leading-tight", props.reviewsDue > 0 && "text-mango-deep")}>
-                {props.reviewsDue}
-              </span>
-              <span className="text-ink-subtle">soal ulang jatuh tempo</span>
-            </span>
-          </div>
         </section>
-      </div>
+        </div>
+      ) : null}
+
+      {tab === "simulasi" ? (
+        <div role="tabpanel" id="panel-simulasi" aria-labelledby="tab-simulasi" className="flex flex-col gap-6">
+        {/* Mulai tes baru */}
+        <section aria-labelledby="mini-title" className="rise flex flex-col gap-3.5 [--i:2]">
+          <h2 id="mini-title" className="font-display text-[1.375rem] font-extrabold">
+            Mulai tes baru
+          </h2>
+          <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+            <div className="flex flex-col gap-2.5 rounded-[24px] bg-charcoal p-[22px] text-charcoal-ink shadow-[0_4px_0_#000]">
+              <span className="eyebrow text-mango-line">Simulasi penuh · 115 mnt</span>
+              <strong className="font-display text-[1.25rem] leading-tight">Listening 50, Structure 40, Reading 50</strong>
+              <span className="text-[0.875rem] text-charcoal-muted">Timer per section. Skor &amp; pembahasan di akhir.</span>
+              <div className="mt-auto flex flex-col gap-2 pt-1">
+                <StartSimulationButton
+                  disabled={!props.configured}
+                  label={activeSim ? "Simulasi baru" : "Mulai simulasi"}
+                  className="h-12 rounded-[14px] bg-mango px-5 text-[0.9375rem] font-extrabold text-mango-on shadow-[0_5px_0_var(--color-mango-deep)] hover:bg-mango"
+                />
+              </div>
+            </div>
+            {MINI_TESTS.map((test) => (
+              <div key={test.section} className="flex flex-col gap-2.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] shadow-card transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary-line motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                <span className="flex items-center gap-2.5">
+                  <span className={cn("grid size-11 place-items-center rounded-[12px]", test.tone)}>
+                    <test.Icon className="size-[22px]" strokeWidth={2.2} aria-hidden />
+                  </span>
+                  <span className="eyebrow text-ink-subtle">Mini-test</span>
+                </span>
+                <strong className="font-display text-[1.25rem]">{test.title}</strong>
+                <span className="flex items-center gap-1.5 text-[0.875rem] text-ink-subtle">
+                  <Clock className="size-3.5" aria-hidden />
+                  {scopeQuestionTotal(test.section)} soal · {SECTION_MINUTES[test.section]} mnt · {test.note}
+                </span>
+                <StartSimulationButton
+                  section={test.section}
+                  disabled={!props.configured}
+                  label="Mulai"
+                  className="mt-auto h-11 rounded-[14px] px-5 text-[0.9375rem]"
+                />
+              </div>
+            ))}
+          </div>
+          {!props.configured ? (
+            <p className="text-[0.9375rem] font-bold text-brick-deep">Pembuatan soal belum aktif. Hubungi admin.</p>
+          ) : null}
+        </section>
+        </div>
+      ) : null}
+
+      {tab === "riwayat" ? (
+        <div role="tabpanel" id="panel-riwayat" aria-labelledby="tab-riwayat" className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-6">
+            {/* Riwayat */}
+            <section aria-labelledby="history-title" className="flex flex-col gap-3.5">
+              <h2 id="history-title" className="font-display text-[1.375rem] font-extrabold">
+                Riwayat simulasi
+              </h2>
+              {props.simulations.length ? (
+                <ol className="overflow-hidden rounded-[24px] border-2 border-hairline bg-surface">
+                  {props.simulations.map((sim, i) => (
+                    <li key={sim.id} className={cn(i > 0 && "border-t-2 border-hairline-soft")}>
+                      <Link href={`/eptr/simulasi?id=${sim.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-muted">
+                        <span className="w-14 text-center font-round text-[1.625rem] font-extrabold leading-none">
+                          {sim.completed ? sim.total : "…"}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <strong className="block">{sim.scope ? `Mini-test ${sim.sections ?? ""}`.trim() : "Simulasi penuh"}</strong>
+                          <span className="text-[0.8125rem] text-ink-subtle">
+                            {formatDate(sim.createdAt)} ·{" "}
+                            {sim.completed ? (sim.scope ? "skor section (31–68)" : sim.sections) : `${sim.started} dari ${sim.partTotal} bagian dibuka`}
+                          </span>
+                        </span>
+                        <span className="text-[0.875rem] font-extrabold text-primary-deep">{sim.completed ? "Pembahasan" : "Lanjutkan"}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="flex items-center gap-4 rounded-[20px] border-2 border-dashed border-hairline-strong p-6">
+                  <Kaka mood="sleep" size={88} />
+                  <span>
+                    <strong className="block font-display text-[1.125rem]">Belum ada simulasi</strong>
+                    <span className="text-[0.875rem] text-ink-subtle">Kaka masih tidur. Bangunkan dengan satu mini-test.</span>
+                  </span>
+                </div>
+              )}
+            </section>
+
+            <section aria-labelledby="practice-history" className="flex flex-col gap-3.5">
+              <h2 id="practice-history" className="font-display text-[1.375rem] font-extrabold">
+                Latihan terakhir
+              </h2>
+              {props.practice.length === 0 ? (
+                <p className="text-[0.9375rem] text-ink-subtle">Belum ada. Mulai dari salah satu latihan di atas.</p>
+              ) : (
+                <ul className="overflow-hidden rounded-[24px] border-2 border-hairline bg-surface">
+                  {props.practice.slice(0, 6).map((item, i) => (
+                    <li key={item.id} className={cn(i > 0 && "border-t-2 border-hairline-soft")}>
+                      <Link href={`/eptr?s=${item.id}`} className="flex min-h-12 items-center justify-between gap-3 px-5 py-3 hover:bg-surface-muted">
+                        <span className="min-w-0 truncate text-[0.9375rem]">{item.label}</span>
+                        <span className={cn("shrink-0 text-[0.875rem] font-extrabold", item.completed ? "text-primary-deep" : "text-mango-ink")}>
+                          {item.completed ? (item.score ?? "selesai") : "lanjutkan"}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          <section
+            id="target"
+            aria-labelledby="target-title"
+            className="flex w-full flex-col gap-3.5 rounded-[24px] border-2 border-hairline bg-surface p-[22px] lg:w-[340px] lg:shrink-0"
+          >
+            <div>
+              <h2 id="target-title" className="font-display text-[1.25rem] font-extrabold">
+                Target tesmu
+              </h2>
+              <p className="text-[0.875rem] text-ink-subtle">Dipakai untuk level soal dan hitung mundur.</p>
+            </div>
+            <form action={targetAction} className="flex flex-col gap-3.5">
+              <input type="hidden" name="track" value="eptr" />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="score">Skor target (310–677)</Label>
+                <Input id="score" name="score" type="number" min={310} max={677} defaultValue={target?.score ?? 500} className="tnum font-round text-[1.25rem] font-extrabold" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="testDate">Tanggal tes</Label>
+                <Input id="testDate" name="testDate" type="date" defaultValue={target?.testDate ?? ""} className="font-bold" />
+              </div>
+              <Button type="submit" variant="secondary" size="sm" disabled={targetPending}>
+                {targetPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                Simpan target
+              </Button>
+            </form>
+            <FieldError>{targetState.status === "error" ? targetState.message : undefined}</FieldError>
+            <div className="grid grid-cols-2 gap-2.5 border-t-2 border-hairline-soft pt-3.5 text-[0.8125rem]">
+              <span>
+                <span className="block font-round text-[1.375rem] font-extrabold leading-tight">{props.streak}</span>
+                <span className="text-ink-subtle">hari streak</span>
+              </span>
+              <span>
+                <span className={cn("block font-round text-[1.375rem] font-extrabold leading-tight", props.reviewsDue > 0 && "text-mango-deep")}>
+                  {props.reviewsDue}
+                </span>
+                <span className="text-ink-subtle">soal ulang jatuh tempo</span>
+              </span>
+            </div>
+          </section>
+        </div>
+        </div>
+      ) : null}
     </div>
   );
 }

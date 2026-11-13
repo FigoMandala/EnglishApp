@@ -122,7 +122,7 @@ export function LeagueView({
                 />
                 <span
                   title={t.name}
-                  className={cn("w-full max-w-full truncate px-0.5 text-[0.625rem] leading-tight tracking-tight sm:text-[0.8125rem] sm:tracking-normal", cur ? "font-black" : "font-extrabold")}
+                  className={cn("w-full max-w-full truncate px-0.5 text-[0.75rem] leading-tight tracking-tight sm:text-[0.8125rem] sm:tracking-normal", cur ? "font-black" : "font-extrabold")}
                 >
                   {t.name}
                   {cur ? <span className="hidden sm:inline"> · kamu</span> : null}

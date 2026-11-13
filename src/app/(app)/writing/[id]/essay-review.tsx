@@ -237,7 +237,7 @@ export function EssayReview({
                       </strong>
                     </span>
                     {!matched.has(i) ? (
-                      <span className="self-start rounded-[6px] bg-mango-soft px-1.5 py-0.5 text-[0.6875rem] font-bold text-mango-ink">
+                      <span className="self-start rounded-[6px] bg-mango-soft px-1.5 py-0.5 text-[0.75rem] font-bold text-mango-ink">
                         kutipan tidak persis ada di teks
                       </span>
                     ) : null}

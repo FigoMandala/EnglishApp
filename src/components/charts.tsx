@@ -25,7 +25,7 @@ export function ActivityBars({
               {point.value > 0 ? point.value : ""}
             </span>
             <div className="bar" style={{ height: `${Math.max(4, (point.value / max) * 100)}%` }} />
-            <span className="whitespace-nowrap text-[0.6875rem] font-semibold text-ink-faint">{point.label}</span>
+            <span className="whitespace-nowrap text-[0.75rem] font-semibold text-ink-faint">{point.label}</span>
           </div>
         );
       })}
@@ -92,7 +92,7 @@ export function GaugeRing({
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-round text-[1.5rem] font-extrabold leading-none text-ink">{display ?? `${clamped}%`}</span>
         {caption ? (
-          <span className="mt-0.5 text-[0.6875rem] font-bold text-ink-subtle">{caption}</span>
+          <span className="mt-0.5 text-[0.75rem] font-bold text-ink-subtle">{caption}</span>
         ) : null}
       </div>
     </div>

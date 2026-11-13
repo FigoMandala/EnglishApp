@@ -197,7 +197,7 @@ export function ListeningDrill({ items }: { items: ListeningItem[] }) {
                     aria-checked={slow === s.slow}
                     onClick={() => setSlow(s.slow)}
                     className={cn(
-                      "h-10 min-w-[52px] cursor-pointer rounded-[9px] px-3 text-[0.875rem] font-extrabold",
+                      "h-11 min-w-[52px] cursor-pointer rounded-[9px] px-3 text-[0.875rem] font-extrabold",
                       slow === s.slow ? "bg-surface shadow-[0_2px_0_var(--color-hairline-strong)]" : "text-ink-muted",
                     )}
                   >

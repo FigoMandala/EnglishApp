@@ -13,7 +13,6 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Kaka } from "@/components/mascot";
 import { PendingOverlay } from "@/components/pending-overlay";
-import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
 import { SkillChip } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -131,9 +130,12 @@ function formatClock(ms: number) {
 function Sentence({
   question,
   revealed,
+  filled,
 }: {
   question: ToeflQuestion;
   revealed: boolean;
+  /** Rumpang structure diisi jawaban benar hanya bila murid menjawab benar; kalau salah, pembahasan di bawah yang menunjukkan. */
+  filled: boolean;
 }) {
   if (question.type === "structure") {
     const [before, ...rest] = question.q.split(/_{2,}/);
@@ -141,7 +143,7 @@ function Sentence({
       <>
         {before}
         {rest.length ? (
-          revealed ? (
+          filled ? (
             <span className="rounded-[8px] border-b-4 border-primary bg-primary-soft px-1.5 font-bold text-primary-deep">
               {question.options[question.answer]}
             </span>
@@ -589,7 +591,7 @@ export function ToeflRunner({
                 type="button"
                 aria-pressed={hideTimer}
                 onClick={toggleTimer}
-                className="h-10 cursor-pointer rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
+                className="h-11 cursor-pointer rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
               >
                 {hideTimer ? "Tampilkan timer" : "Sembunyikan timer"}
               </button>
@@ -599,8 +601,8 @@ export function ToeflRunner({
         {trigger}
         <Link
           href={basePath}
-          aria-label="Simpan dan keluar"
-          title="Simpan & keluar"
+          aria-label={index === null ? "Keluar" : "Simpan dan keluar"}
+          title={index === null ? "Keluar" : "Simpan & keluar"}
           onClick={(event) => {
             // Timer section jalan di server walau browser ditutup; pastikan keluar
             // memang disengaja selagi waktu masih berjalan.
@@ -611,8 +613,8 @@ export function ToeflRunner({
           }}
           className="flex h-10 items-center gap-1.5 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.8125rem] font-bold hover:bg-charcoal-raised"
         >
-          <Pause className="size-4" aria-hidden />
-          <span className="hidden sm:inline">Simpan &amp; keluar</span>
+          {index === null ? <X className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+          <span className="hidden sm:inline">{index === null ? "Keluar" : "Simpan & keluar"}</span>
         </Link>
       </div>
       <div
@@ -688,6 +690,21 @@ export function ToeflRunner({
       });
     });
     const pct = questions.length ? Math.round((correct / questions.length) * 100) : 0;
+    // Satu soal belum cukup untuk menilai pola; yang terlemah naik ke atas, data sedikit di bawah.
+    const skillRows = [...bySkill]
+      .map(([label, entry]) => {
+        const share = Math.round((entry.correct / entry.total) * 100);
+        const level =
+          entry.total < 2
+            ? { text: "Data sedikit", share, bar: "bg-ink-faint", badge: "bg-surface-muted text-ink-subtle" }
+            : share < 50
+              ? { text: "Perlu latihan", share, bar: "bg-brick", badge: "bg-brick-soft text-brick-deep" }
+              : share >= 80
+                ? { text: "Kuat", share, bar: "bg-primary", badge: "bg-primary-soft text-primary-deep" }
+                : { text: "Cukup", share, bar: "bg-mango", badge: "bg-mango-soft text-mango-ink" };
+        return { label, entry, level, rank: entry.total < 2 ? 2 : share / 100 };
+      })
+      .sort((a, b) => a.rank - b.rank);
     // Urutan soal salah/tidak dijawab, untuk pembahasan di bawah rekap.
     const wrong = questions
       .map((item, i) => ({ item, i, answer: answers[i] }))
@@ -739,6 +756,26 @@ export function ToeflRunner({
             <p className="text-charcoal-muted">
               {pct >= 70 ? "Bagus. Pertahankan ritme ini." : "Masih bocor di beberapa pola. Pembahasan di bawah, lalu latih ulang."}
             </p>
+          <div className="mt-3 flex flex-wrap items-start gap-3">
+            {repeatState.status === "error" ? (
+              <p role="alert" className="w-full text-[0.9375rem] font-bold text-mango-line">
+                {repeatState.message}
+              </p>
+            ) : null}
+            {repeatPending ? <PendingOverlay hint="Soal diambil dari bank, biasanya hanya beberapa detik." /> : null}
+            <form action={repeatAction}>
+              <input type="hidden" name="kind" value={repeatKind} />
+              {repeatSkill ? <input type="hidden" name="skill" value={repeatSkill} /> : null}
+              <input type="hidden" name="track" value="eptr" />
+              <Button type="submit" size="lg" disabled={repeatPending}>
+                {repeatPending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
+                {repeatSkill ? `Latihan ulang: ${SKILLS[repeatSkill].label}` : "Latihan ulang"}
+              </Button>
+            </form>
+            <Link href={basePath} className={buttonVariants({ variant: "secondary", size: "lg" })}>
+              Kembali ke EPrT
+            </Link>
+          </div>
           </div>
           {session.score !== null ? (
             <div className="rounded-[20px] bg-charcoal-raised px-5 py-4">
@@ -748,30 +785,27 @@ export function ToeflRunner({
           ) : null}
         </section>
 
-        <section aria-label="Per skill" className="flex flex-col gap-2 rounded-[24px] border-2 border-hairline bg-surface p-5">
-          {[...bySkill].map(([label, entry], i) => {
-            const share = entry.total ? Math.round((entry.correct / entry.total) * 100) : 0;
-            const weak = entry.correct * 2 < entry.total;
-            return (
-              <div key={label} className={cn("flex flex-wrap items-center gap-3 py-2", i > 0 && "border-t-2 border-hairline-soft")}>
-                <span className="min-w-[160px] flex-1 font-bold">{label}</span>
-                <span className="h-2.5 w-full max-w-[220px] overflow-hidden rounded-full bg-canvas-deep">
-                  <span className={cn("block h-full", weak ? "bg-brick" : share >= 75 ? "bg-primary" : "bg-mango")} style={{ width: `${share}%` }} />
-                </span>
-                <span className="tnum w-12 text-right text-[0.875rem] font-extrabold">
-                  {entry.correct}/{entry.total}
-                </span>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[0.75rem] font-extrabold",
-                    weak ? "bg-brick-soft text-brick-deep" : "bg-primary-soft text-primary-deep",
-                  )}
-                >
-                  {weak ? "Perlu latihan" : "Cukup"}
-                </span>
-              </div>
-            );
-          })}
+        <section aria-label="Per skill" className="flex flex-col rounded-[24px] border-2 border-hairline bg-surface px-5 py-2">
+          {skillRows.map(({ label, entry, level }, i) => (
+            <div
+              key={label}
+              className={cn(
+                "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 py-3 sm:grid-cols-[minmax(0,1fr)_200px_3rem_7.5rem]",
+                i > 0 && "border-t-2 border-hairline-soft",
+              )}
+            >
+              <span className="font-bold">{label}</span>
+              <span className="tnum order-4 text-right text-[0.875rem] font-extrabold sm:order-none">
+                {entry.correct}/{entry.total}
+              </span>
+              <span className="order-3 h-2.5 overflow-hidden rounded-full bg-canvas-deep sm:order-none sm:col-start-2 sm:row-start-1">
+                <span className={cn("block h-full", level.bar)} style={{ width: `${level.share}%` }} />
+              </span>
+              <span className={cn("order-2 w-[7.5rem] rounded-full px-2.5 py-0.5 text-center text-[0.75rem] font-extrabold sm:order-none", level.badge)}>
+                {level.text}
+              </span>
+            </div>
+          ))}
         </section>
 
         {wrong.length ? (
@@ -815,26 +849,6 @@ export function ToeflRunner({
           </section>
         ) : null}
 
-        <div className="flex flex-wrap items-start justify-end gap-3">
-          {repeatState.status === "error" ? (
-            <p role="alert" className="w-full text-right text-[0.9375rem] font-bold text-brick-deep">
-              {repeatState.message}
-            </p>
-          ) : null}
-          <Link href={basePath} className={buttonVariants({ variant: "secondary", size: "lg" })}>
-            Kembali ke EPrT
-          </Link>
-          {repeatPending ? <PendingOverlay hint="Soal diambil dari bank, biasanya hanya beberapa detik." /> : null}
-          <form action={repeatAction}>
-            <input type="hidden" name="kind" value={repeatKind} />
-            {repeatSkill ? <input type="hidden" name="skill" value={repeatSkill} /> : null}
-            <input type="hidden" name="track" value="eptr" />
-            <Button type="submit" size="lg" disabled={repeatPending}>
-              {repeatPending ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
-              {repeatSkill ? `Latihan ulang: ${SKILLS[repeatSkill].label}` : "Latihan ulang"}
-            </Button>
-          </form>
-        </div>
       </main>,
     );
   }
@@ -882,23 +896,22 @@ export function ToeflRunner({
                 revealed && isWrongPick && "border-0 bg-brick text-white",
               )}
             >
-              {revealed && isAnswer ? (
-                <Check className="size-4" strokeWidth={3} />
-              ) : revealed && isWrongPick ? (
-                <X className="size-4" strokeWidth={3} />
-              ) : (
-                LETTERS[i]
-              )}
+              {LETTERS[i]}
             </span>
-            <span className="min-w-0">{option}</span>
+            <span className="min-w-0 flex-1">{option}</span>
+            {revealed && isAnswer ? <Check aria-hidden className="size-5 shrink-0" strokeWidth={3} /> : null}
+            {revealed && isWrongPick ? <X aria-hidden className="size-5 shrink-0" strokeWidth={3} /> : null}
           </button>
         );
       })}
     </div>
   );
 
-  const hint =
-    pending !== null
+  const hint = revealed
+    ? right
+      ? "Benar. Lanjut kalau sudah paham."
+      : "Baca pembahasan di atas, lalu lanjut."
+    : pending !== null
       ? exam
         ? "Pilihan masih bisa diganti sebelum lanjut."
         : "Pilihan masih bisa diganti sebelum diperiksa."
@@ -906,14 +919,26 @@ export function ToeflRunner({
         ? "Semua soal sudah dijawab."
         : "Pilih salah satu jawaban.";
   // Versi ringkas hint untuk footer di layar sempit (md ke bawah).
-  const shortHint =
-    pending !== null
+  const shortHint = revealed
+    ? hint
+    : pending !== null
       ? exam
         ? "bisa diganti sebelum lanjut."
         : "bisa diganti sebelum diperiksa."
       : hint;
 
-  const primaryAction =
+  const primaryAction = revealed ? (
+    <Button
+      autoFocus
+      size="lg"
+      onClick={next}
+      disabled={busy}
+      className="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-deep"
+    >
+      {last ? "Lihat hasil" : "Soal berikutnya"}
+      <ArrowRight className="size-5" aria-hidden />
+    </Button>
+  ) : (
     pending !== null ? (
       !exam ? (
         <Button size="lg" onClick={() => commit()}>
@@ -943,7 +968,8 @@ export function ToeflRunner({
         {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : null}
         Selesai
       </Button>
-    ) : null;
+    ) : null
+  );
 
   const numberNav =
     questions.length <= 60 ? (
@@ -954,7 +980,7 @@ export function ToeflRunner({
           // Mode ujian non-audio: nomor soal terjawab tetap bisa diklik untuk koreksi.
           const canJump = !audioSession && !current && (!done || canRevisit);
           const cls = cn(
-            "flex h-[26px] items-center justify-center rounded-[6px] border-2 text-[0.6875rem] font-extrabold",
+            "flex h-[26px] items-center justify-center rounded-[6px] border-2 text-[0.75rem] font-extrabold",
             current && "border-sky bg-sky text-white",
             !current && done && "border-ink-muted bg-ink-muted text-white",
             !current && !done && "border-hairline-strong bg-surface text-ink-subtle",
@@ -978,7 +1004,7 @@ export function ToeflRunner({
 
   const actionBar = (
     <footer className="sticky bottom-0 z-20 border-t-2 border-hairline bg-surface">
-      <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+      <div className={cn("mx-auto flex flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6", isListening || session.passage ? "max-w-[1360px]" : "max-w-[892px]")}>
         {numberNav}
         <span className="hidden text-[0.8125rem] font-bold text-ink-subtle md:inline">{hint}</span>
         <span className="text-[0.8125rem] font-bold text-ink-subtle md:hidden">{shortHint}</span>
@@ -992,9 +1018,14 @@ export function ToeflRunner({
     </footer>
   );
 
-  const structureParts =
-    revealed && question.type === "structure" && chosen !== null
-      ? blankAnatomy(question.q, right ? null : question.options[chosen], question.options[question.answer])
+  // Pembahasan structure salah: kalimat utuh dua baris, jawabanmu vs yang benar.
+  const [blankBefore, ...blankAfter] = question.q.split(/_{2,}/);
+  const diffRows =
+    revealed && question.type === "structure" && !right && chosen !== null && blankAfter.length
+      ? [
+          { label: "Jawabanmu", fill: question.options[chosen], tone: "text-brick-deep", chip: "bg-brick-soft", strike: true },
+          { label: "Benar", fill: question.options[question.answer], tone: "text-primary-deep", chip: "bg-primary-soft", strike: false },
+        ]
       : null;
 
   const feedback = revealed ? (
@@ -1014,23 +1045,22 @@ export function ToeflRunner({
         </span>
         <div className={cn("min-w-0 flex-1", right ? "text-primary-deep" : "text-brick-deep")}>
           <p className="font-display text-[1.375rem] font-black">{right ? "Benar!" : "Belum tepat"}</p>
-          {!right ? (
-            <p className="text-[0.9375rem]">
-              Jawaban benar:{" "}
-              <strong>
-                {LETTERS[question.answer]}. {question.options[question.answer]}
-              </strong>
-            </p>
-          ) : null}
         </div>
-        <Button autoFocus size="lg" onClick={next} disabled={busy} className={right ? undefined : "bg-brick shadow-[0_5px_0_var(--color-brick-deep)] hover:bg-brick-bright"}>
-          {last ? "Lihat hasil" : "Soal berikutnya"}
-          <ArrowRight className="size-5" aria-hidden />
-        </Button>
       </div>
-      {structureParts && !right ? (
-        <div className="rounded-[18px] bg-surface p-4">
-          <Anatomy parts={structureParts} size="sm" />
+      {diffRows ? (
+        <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-4 text-[1.0625rem] leading-relaxed">
+          {diffRows.map((row) => (
+            <p key={row.label} className="grid grid-cols-[6.5rem_1fr] items-baseline gap-3">
+              <span className={cn("justify-self-start rounded-full px-2.5 py-0.5 text-[0.75rem] font-extrabold uppercase tracking-[0.06em]", row.chip, row.tone)}>
+                {row.label}
+              </span>
+              <span>
+                {blankBefore}
+                <strong className={cn("rounded-md px-1.5", row.chip, row.tone, row.strike && "line-through decoration-2")}>{row.fill}</strong>
+                {blankAfter.join("___")}
+              </span>
+            </p>
+          ))}
         </div>
       ) : null}
       {question.explain_id ? (
@@ -1064,7 +1094,7 @@ export function ToeflRunner({
         isWritten || question.type === "structure" ? "text-[1.375rem] sm:text-[1.625rem]" : "text-[1.25rem] sm:text-[1.375rem]",
       )}
     >
-      {isListening ? question.q : <Sentence question={question} revealed={revealed} />}
+      {isListening ? question.q : <Sentence question={question} revealed={revealed} filled={revealed && right} />}
     </h1>
   );
 
@@ -1152,7 +1182,7 @@ export function ToeflRunner({
                       aria-label="Perkecil teks bacaan"
                       disabled={textSize === 0}
                       onClick={() => changeTextSize(-1)}
-                      className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[0.875rem] font-extrabold disabled:opacity-40"
+                      className="size-11 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[0.875rem] font-extrabold disabled:opacity-40"
                     >
                       A−
                     </button>
@@ -1161,7 +1191,7 @@ export function ToeflRunner({
                       aria-label="Perbesar teks bacaan"
                       disabled={textSize === TEXT_SIZES.length - 1}
                       onClick={() => changeTextSize(1)}
-                      className="size-10 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[1rem] font-extrabold disabled:opacity-40"
+                      className="size-11 cursor-pointer rounded-[10px] border-2 border-hairline bg-surface font-display text-[1rem] font-extrabold disabled:opacity-40"
                     >
                       A+
                     </button>
@@ -1197,12 +1227,9 @@ export function ToeflRunner({
               )}
             >
               <div className="flex flex-col gap-4 rounded-[24px] border-2 border-hairline bg-surface p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-round text-[1.375rem] font-extrabold text-sky-deep">{index + 1}</span>
-                  <span className="eyebrow text-ink-subtle">
-                    {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
-                  </span>
-                </div>
+                <span className="eyebrow text-ink-subtle">
+                  {isListening ? "Pertanyaan narator" : (TYPE_LABEL[question.type] ?? "Soal")}
+                </span>
                 {questionHeading}
                 {options}
               </div>
@@ -1215,12 +1242,7 @@ export function ToeflRunner({
             </section>
           </div>
         </main>
-        <div
-          aria-hidden={revealed}
-          className={cn("sticky bottom-0", revealed && "invisible pointer-events-none")}
-        >
-          {actionBar}
-        </div>
+        <div className="sticky bottom-0">{actionBar}</div>
       </>,
       trigger,
     );

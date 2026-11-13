@@ -108,7 +108,10 @@ export async function saveBankItemAction(_prev: FormState, formData: FormData): 
   // Jepit sebelum alokasi: count raksasa mencoba mengalokasikan miliaran
   // elemen sebelum validasi struktural jalan (self-DoS admin, audit P3).
   const questions: QuestionEdit[] = Array.from({ length: Math.min(50, Math.max(0, count)) }, (_, i) => {
-    const optionCount = Number(formData.get(`optcount-${i}`)) || 0;
+    // Jepit jumlah pilihan juga: optcount raksasa dialokasikan sebelum validasi
+    // struktural editBankItem jalan (self-DoS admin, pola sama dengan clamp
+    // count di atas). Soal bank maksimal 4 opsi, jadi 10 sudah longgar.
+    const optionCount = Math.min(10, Math.max(0, Number(formData.get(`optcount-${i}`)) || 0));
     return {
       q: String(formData.get(`q-${i}`) ?? ""),
       options: Array.from({ length: optionCount }, (_, j) => String(formData.get(`opt-${i}-${j}`) ?? "")),

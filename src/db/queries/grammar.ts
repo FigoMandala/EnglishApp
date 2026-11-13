@@ -16,6 +16,8 @@ export type GrammarLessonWithProgress = GrammarLesson & {
 };
 
 export async function listGrammarLessons(userId: number): Promise<GrammarLessonWithProgress[]> {
+  // Hanya materi terbit yang tampil ke pelajar — sama seperti daftar unit
+  // (listUnitsWithItems); kolom published adalah "sembunyikan dari pelajar".
   const rows = await db
     .select({ lesson: grammarLessons, progress: grammarLessonProgress })
     .from(grammarLessons)
@@ -26,6 +28,7 @@ export async function listGrammarLessons(userId: number): Promise<GrammarLessonW
         eq(grammarLessonProgress.userId, userId),
       ),
     )
+    .where(eq(grammarLessons.published, true))
     .orderBy(asc(grammarLessons.orderIndex), asc(grammarLessons.id));
 
   return rows.map(({ lesson, progress }) => ({
@@ -36,6 +39,8 @@ export async function listGrammarLessons(userId: number): Promise<GrammarLessonW
 }
 
 export async function getGrammarLesson(slug: string, userId: number) {
+  // Materi yang disembunyikan diperlakukan tidak ada: URL langsung ke draft
+  // tidak boleh membukanya (gate published, sama seperti lessonReadyToComplete).
   const [row] = await db
     .select({ lesson: grammarLessons, progress: grammarLessonProgress })
     .from(grammarLessons)
@@ -46,7 +51,7 @@ export async function getGrammarLesson(slug: string, userId: number) {
         eq(grammarLessonProgress.userId, userId),
       ),
     )
-    .where(eq(grammarLessons.slug, slug))
+    .where(and(eq(grammarLessons.slug, slug), eq(grammarLessons.published, true)))
     .limit(1);
   if (!row) return null;
   return {

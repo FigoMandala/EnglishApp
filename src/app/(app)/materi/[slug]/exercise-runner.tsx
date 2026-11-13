@@ -295,7 +295,7 @@ export function ExerciseRunner({
                           type="button"
                           aria-expanded={hintOpen}
                           onClick={() => setHintOpen((v) => !v)}
-                          className={`${PRESS} flex min-h-10 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-mango-line bg-mango-soft px-3.5 text-[0.875rem] font-extrabold text-mango-ink shadow-[0_3px_0_var(--color-mango-line)]`}
+                          className={`${PRESS} flex min-h-11 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-mango-line bg-mango-soft px-3.5 text-[0.875rem] font-extrabold text-mango-ink shadow-[0_3px_0_var(--color-mango-line)]`}
                         >
                           <Lightbulb className="size-4" aria-hidden />
                           Petunjuk

@@ -15,6 +15,7 @@ export async function listLessonExercises(lessonId: number, userId: number) {
   const rows = await db
     .select({ exercise: grammarExercises, attempt: grammarAttempts })
     .from(grammarExercises)
+    .innerJoin(grammarLessons, eq(grammarLessons.id, grammarExercises.lessonId))
     .leftJoin(
       grammarAttempts,
       and(
@@ -22,7 +23,10 @@ export async function listLessonExercises(lessonId: number, userId: number) {
         eq(grammarAttempts.userId, userId),
       ),
     )
-    .where(eq(grammarExercises.lessonId, lessonId))
+    // Hanya soal dari materi terbit — soal draft tidak boleh bocor walau
+    // pemanggil lupa mem-gate lesson-nya (gate published, sama seperti
+    // listGrammarLessons/getGrammarLesson).
+    .where(and(eq(grammarExercises.lessonId, lessonId), eq(grammarLessons.published, true)))
     .orderBy(asc(grammarExercises.orderIndex), asc(grammarExercises.id));
 
   return rows.map(({ exercise, attempt }) => ({
@@ -96,11 +100,18 @@ export async function resetAttempts(userId: number, lessonId: number) {
     .from(grammarExercises)
     .where(eq(grammarExercises.lessonId, lessonId));
   if (ids.length === 0) return;
-  for (const { id } of ids) {
-    await db
-      .delete(grammarAttempts)
-      .where(and(eq(grammarAttempts.userId, userId), eq(grammarAttempts.exerciseId, id)));
-  }
+  // Satu transaksi: kalau gagal di tengah, jangan menyisakan reset parsial.
+  // Catatan: baris grammar_attempts menyimpan lastCorrectAt — bukti kerja XP
+  // lesson (lessonReadyToComplete). Setelah reset, soal bisa dijawab "pertama
+  // kali benar" lagi sehingga XP dapat dipanen ulang; pemanggil harus sadar
+  // efek itu. (Saat ini belum ada pemanggil fungsi ini di aplikasi.)
+  await db.transaction(async (tx) => {
+    for (const { id } of ids) {
+      await tx
+        .delete(grammarAttempts)
+        .where(and(eq(grammarAttempts.userId, userId), eq(grammarAttempts.exerciseId, id)));
+    }
+  });
 }
 
 /** Jumlah soal & jawaban benar per lesson untuk halaman daftar. */
@@ -187,6 +198,10 @@ export async function pickPracticeExercises(
           ? eq(grammarExercises.type, "choice")
           : notInArray(grammarExercises.type, ["compose"]),
         options.level ? eq(grammarLessons.level, options.level) : undefined,
+        // Latihan bebas hanya mengambil soal materi terbit — tanpa ini soal
+        // draft ikut tampil di sini karena halaman pemanggil tidak mem-gate
+        // lesson-nya (gate published, sama seperti listGrammarLessons).
+        eq(grammarLessons.published, true),
       ),
     )
     .orderBy(sql`random()`)

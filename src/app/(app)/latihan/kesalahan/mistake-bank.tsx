@@ -158,13 +158,13 @@ export function MistakeBank({
                     <div className="flex flex-wrap gap-2.5 text-[0.875rem] font-bold">
                       {it.yours ? (
                         <span className="rounded-[12px] bg-brick-soft px-3 py-1.5 text-brick-deep">
-                          <span className="block text-[0.6875rem] font-extrabold tracking-[0.06em]">JAWABANMU</span>
+                          <span className="block text-[0.75rem] font-extrabold tracking-[0.06em]">JAWABANMU</span>
                           <s>{it.yours}</s>
                         </span>
                       ) : null}
                       {it.key ? (
                         <span className="rounded-[12px] bg-primary-soft px-3 py-1.5 text-primary-deep">
-                          <span className="block text-[0.6875rem] font-extrabold tracking-[0.06em]">YANG BENAR</span>
+                          <span className="block text-[0.75rem] font-extrabold tracking-[0.06em]">YANG BENAR</span>
                           {it.key}
                         </span>
                       ) : null}

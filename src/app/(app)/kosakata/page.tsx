@@ -282,7 +282,7 @@ export default async function KosakataPage({
                     </td>
                     <td className="px-3 py-3.5">
                       {s.kind === "new" ? (
-                        <span className="rounded-full bg-mango px-2 py-0.5 text-[0.6875rem] font-extrabold text-mango-on">BARU</span>
+                        <span className="rounded-full bg-mango px-2 py-0.5 text-[0.75rem] font-extrabold text-mango-on">BARU</span>
                       ) : (
                         <span aria-label={`Ingatan ${filled} dari 4`} role="img" className="inline-flex gap-[3px]">
                           {[0, 1, 2, 3].map((i) => (

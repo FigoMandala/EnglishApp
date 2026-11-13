@@ -94,9 +94,9 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/belajar", { timeout: WAIT });
-  check("register -> masuk halaman Jalur Belajar", page.url().includes("/belajar"));
-  check("halaman belajar menyapa user", (await page.textContent("body")).includes(user));
+  await page.waitForURL("**/eptr", { timeout: WAIT });
+  check("register -> masuk halaman EPrT", page.url().includes("/eptr"));
+  check("beranda menampilkan user", (await page.textContent("body")).includes(user));
 
   const session = (await page.context().cookies()).find((c) => c.name === "english_session");
   check("cookie sesi dibuat", Boolean(session));
@@ -117,8 +117,8 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/belajar", { timeout: WAIT });
-  check("login ulang dengan password benar", page.url().includes("/belajar"));
+  await page.waitForURL("**/eptr", { timeout: WAIT });
+  check("login ulang dengan password benar", page.url().includes("/eptr"));
 
   await logout(page);
   await page.waitForURL("**/login", { timeout: WAIT });
@@ -138,8 +138,8 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/belajar", { timeout: WAIT });
-  check("login terakhir masih bisa", page.url().includes("/belajar"));
+  await page.waitForURL("**/eptr", { timeout: WAIT });
+  check("login terakhir masih bisa", page.url().includes("/eptr"));
 } finally {
   await browser.close();
   await cleanupTestUsers().catch((error) => {

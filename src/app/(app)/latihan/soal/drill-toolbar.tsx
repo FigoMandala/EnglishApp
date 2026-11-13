@@ -57,7 +57,7 @@ export function DrillToolbar({ level, choiceOnly }: { level: string; choiceOnly:
         aria-pressed={choiceOnly}
         onClick={() => startTransition(() => router.push(href(level, !choiceOnly)))}
         className={cn(
-          "flex h-10 cursor-pointer items-center rounded-control border-2 px-4 text-[0.875rem] font-extrabold transition-colors",
+          "flex h-11 cursor-pointer items-center rounded-control border-2 px-4 text-[0.875rem] font-extrabold transition-colors",
           choiceOnly ? "border-primary bg-primary-soft text-primary-deep" : "border-hairline text-ink-muted hover:text-ink",
         )}
       >

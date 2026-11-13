@@ -42,7 +42,7 @@ export function SpeakingTopicPicker({
             aria-pressed={level === option}
             onClick={() => setLevel(option)}
             className={cn(
-              "h-10 cursor-pointer rounded-full border-2 px-4 text-[0.875rem] font-extrabold",
+              "h-11 cursor-pointer rounded-full border-2 px-4 text-[0.875rem] font-extrabold",
               level === option
                 ? "border-primary-line bg-primary-soft text-primary-deep"
                 : "border-hairline bg-surface text-ink-subtle hover:border-hairline-strong hover:text-ink",
@@ -58,7 +58,7 @@ export function SpeakingTopicPicker({
           const score = best[prompt.id];
           const body = (
             <>
-              <span className="flex flex-wrap items-center gap-1.5 text-[0.6875rem] font-extrabold text-ink-subtle">
+              <span className="flex flex-wrap items-center gap-1.5 text-[0.75rem] font-extrabold text-ink-subtle">
                 <span className="rounded-full bg-primary-soft px-2 py-0.5 text-primary-deep">
                   {PROMPT_LEVEL_LABEL[prompt.level]}
                 </span>

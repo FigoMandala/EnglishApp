@@ -46,7 +46,7 @@ export function Anatomy({
         part.label ? (
           <span key={i} className="inline-flex flex-col items-center gap-1">
             <span className={LINE[part.tone ?? "plain"]}>{part.text}</span>
-            <span className={cn("text-[0.6875rem] font-extrabold uppercase tracking-[0.06em]", LABEL[part.tone ?? "plain"])}>
+            <span className={cn("text-[0.75rem] font-extrabold uppercase tracking-[0.06em]", LABEL[part.tone ?? "plain"])}>
               {part.label}
             </span>
           </span>

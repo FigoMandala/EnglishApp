@@ -259,7 +259,7 @@ export function StreakView({
                     key={m.n}
                     title={m.reward}
                     className={cn(
-                      "flex flex-col items-center gap-1 text-[0.6875rem] font-extrabold",
+                      "flex flex-col items-center gap-1 text-[0.75rem] font-extrabold",
                       isNext ? "text-mango-ink" : !reached && "text-ink-subtle",
                     )}
                   >

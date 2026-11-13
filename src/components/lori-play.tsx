@@ -195,7 +195,7 @@ export function LoriPlay({
       {!touched && (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 right-0 inline-flex items-center gap-1 rounded-full bg-charcoal px-2 py-0.5 text-[0.625rem] font-extrabold tracking-wide text-white/90"
+          className="pointer-events-none absolute bottom-0 right-0 inline-flex items-center gap-1 rounded-full bg-charcoal px-2 py-0.5 text-[0.75rem] font-extrabold tracking-wide text-white/90"
         >
           Klik aku!
         </span>

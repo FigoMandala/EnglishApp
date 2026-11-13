@@ -102,7 +102,7 @@ export function PracticeHub({
               aria-checked={skill === s.id}
               onClick={() => setSkill(s.id)}
               className={cn(
-                "h-10 cursor-pointer rounded-full border-2 px-3.5 text-[0.875rem] transition-colors",
+                "h-11 cursor-pointer rounded-full border-2 px-3.5 text-[0.875rem] transition-colors",
                 skill === s.id ? "border-ink bg-ink font-extrabold text-white" : "border-hairline bg-surface font-bold text-ink-muted hover:border-hairline-strong",
               )}
             >
@@ -183,7 +183,7 @@ export function PracticeHub({
                 style={{ "--i": i } as React.CSSProperties}
               >
                 {m.isNew ? (
-                  <span className="absolute -top-2.5 right-4 rounded-full bg-mango px-2.5 py-0.5 text-[0.6875rem] font-extrabold text-mango-on">
+                  <span className="absolute -top-2.5 right-4 rounded-full bg-mango px-2.5 py-0.5 text-[0.75rem] font-extrabold text-mango-on">
                     BARU
                   </span>
                 ) : null}

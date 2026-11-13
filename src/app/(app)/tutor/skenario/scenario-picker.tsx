@@ -111,7 +111,7 @@ export function ScenarioPicker({ scenarios }: { scenarios: Scenario[] }) {
                   aria-pressed={correction === c.id}
                   onClick={() => setCorrection(c.id)}
                   className={cn(
-                    "relative z-10 h-10 flex-1 cursor-pointer rounded-[10px] text-[0.875rem] font-extrabold transition-colors duration-200",
+                    "relative z-10 h-11 flex-1 cursor-pointer rounded-[10px] text-[0.875rem] font-extrabold transition-colors duration-200",
                     correction === c.id ? "text-ink" : "text-ink-muted",
                   )}
                 >

@@ -75,7 +75,7 @@ export function PromptBank({ daily, used, selected, onSelect }: Props) {
           aria-expanded={open}
           aria-controls="bank-prompt"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border-2 border-hairline bg-surface px-3.5 text-[0.875rem] font-extrabold text-ink-muted hover:border-primary-line hover:text-primary-deep"
+          className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full border-2 border-hairline bg-surface px-3.5 text-[0.875rem] font-extrabold text-ink-muted hover:border-primary-line hover:text-primary-deep"
         >
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
           Bank prompt
@@ -85,7 +85,7 @@ export function PromptBank({ daily, used, selected, onSelect }: Props) {
           <button
             type="button"
             onClick={() => onSelect(null)}
-            className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full px-2 text-[0.8125rem] font-bold text-ink-subtle hover:text-brick-deep"
+            className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full px-2 text-[0.8125rem] font-bold text-ink-subtle hover:text-brick-deep"
           >
             <X className="size-3.5" aria-hidden />
             Lepas prompt
@@ -120,7 +120,7 @@ export function PromptBank({ daily, used, selected, onSelect }: Props) {
                 aria-pressed={level === option}
                 onClick={() => setLevel(option)}
                 className={cn(
-                  "h-9 cursor-pointer rounded-full border-2 px-3 text-[0.8125rem] font-extrabold",
+                  "h-11 cursor-pointer rounded-full border-2 px-3 text-[0.8125rem] font-extrabold",
                   level === option
                     ? "border-primary-line bg-primary-soft text-primary-deep"
                     : "border-hairline bg-surface text-ink-subtle hover:border-hairline-strong hover:text-ink",
@@ -152,7 +152,7 @@ export function PromptBank({ daily, used, selected, onSelect }: Props) {
                       <Badge>{PROMPT_LEVEL_LABEL[prompt.level]}</Badge>
                       <Badge>{PROMPT_KIND_LABEL[prompt.kind]}</Badge>
                       {isUsed(prompt) ? (
-                        <span className="ml-auto inline-flex items-center gap-1 text-[0.6875rem] font-extrabold text-primary-deep">
+                        <span className="ml-auto inline-flex items-center gap-1 text-[0.75rem] font-extrabold text-primary-deep">
                           <Check className="size-3" aria-hidden />
                           sudah ditulis
                         </span>
@@ -173,6 +173,6 @@ export function PromptBank({ daily, used, selected, onSelect }: Props) {
 
 function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full bg-surface px-2 py-0.5 text-[0.6875rem] font-extrabold text-ink-subtle">{children}</span>
+    <span className="rounded-full bg-surface px-2 py-0.5 text-[0.75rem] font-extrabold text-ink-subtle">{children}</span>
   );
 }

@@ -77,7 +77,7 @@ export function AskAi({
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className="flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.875rem] font-bold text-charcoal-ink transition-colors hover:bg-charcoal-raised"
+      className="flex h-11 cursor-pointer items-center gap-2 rounded-[12px] border-2 border-charcoal-line px-3 text-[0.875rem] font-bold text-charcoal-ink transition-colors hover:bg-charcoal-raised"
     >
       <Sparkles className="size-4 text-mango" aria-hidden />
       Tanya AI

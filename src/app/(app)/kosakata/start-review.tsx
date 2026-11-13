@@ -60,10 +60,10 @@ export function StartReviewButton({ dueCount, newWaiting = 0 }: { dueCount: numb
               type="button"
               onClick={() => start(count)}
               disabled={loading !== null}
-              className="flex h-10 min-w-12 cursor-pointer items-center justify-center rounded-[10px] border-2 border-hairline bg-surface-muted px-3 text-[0.875rem] font-extrabold text-ink hover:border-mango disabled:opacity-60"
+              className="flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-[10px] border-2 border-hairline bg-surface-muted px-3 text-[0.875rem] font-extrabold text-ink hover:border-mango disabled:opacity-60"
             >
               {loading === count ? <Loader2 className="size-4 animate-spin" aria-hidden /> : count}
-              <span className="ml-1 text-[0.6875rem] font-bold text-ink-subtle">kartu</span>
+              <span className="ml-1 text-[0.75rem] font-bold text-ink-subtle">kartu</span>
             </button>
           ))}
         </div>

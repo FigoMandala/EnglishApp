@@ -382,7 +382,7 @@ export function ReviewSession({ cards, forecast }: { cards: ReviewCard[]; foreca
                       className={cn("grow-y w-full rounded-[5px_5px_2px_2px]", k === 0 ? "bg-mango" : "bg-canvas-deep")}
                       style={{ height: `${Math.max(4, Math.round((d.count / maxForecast) * 64))}px`, "--i": k } as React.CSSProperties}
                     />
-                    <span className="text-[0.6875rem] font-bold text-ink-subtle">
+                    <span className="text-[0.75rem] font-bold text-ink-subtle">
                       {k === 0 ? "Ini" : DAY[new Date(`${d.date}T00:00:00Z`).getUTCDay()]}
                     </span>
                   </span>

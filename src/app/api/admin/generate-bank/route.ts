@@ -40,7 +40,18 @@ export async function POST(request: Request) {
   const startedAt = Date.now();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (value: object) => controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
+      // Admin bisa menutup tab di tengah stream; enqueue ke stream yang sudah
+      // dibatalkan melempar error. Kalau dibiarkan, error itu tertangkap blok
+      // catch batch (done terhitung dobel) lalu melempar lagi sehingga
+      // logAiUsage/logAudit di akhir tidak pernah jalan — belanja AI batch ini
+      // tidak tercatat di dashboard biaya. Jadi kirim progres best-effort saja.
+      const send = (value: object) => {
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`));
+        } catch {
+          // Stream sudah ditutup/dibatalkan klien; abaikan.
+        }
+      };
       let done = 0;
       let added = 0;
       let dropped = 0;
@@ -71,7 +82,11 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
       await logAudit({ actorId: user.id, action: "question.generate", detail: `eptr ${kinds.join("+")}/${band}: +${added}, ${dropped} dibuang` });
       send({ type: "end", added, dropped });
-      controller.close();
+      try {
+        controller.close();
+      } catch {
+        // Klien sudah pergi; log di atas sudah aman tercatat.
+      }
     },
   });
   return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } });

@@ -53,12 +53,12 @@ export function isAdmin(user: Pick<User, "role">) {
 }
 
 export function homePath() {
-  return "/belajar";
+  return "/eptr";
 }
 
-/** Untuk halaman dan aksi di luar EPrT. Non-admin diarahkan ke Jalur Belajar. */
+/** Untuk halaman dan aksi di luar EPrT. Non-admin diarahkan ke beranda (EPrT). */
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
-  if (!isAdmin(user)) redirect("/belajar");
+  if (!isAdmin(user)) redirect(homePath());
   return user;
 }

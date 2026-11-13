@@ -45,8 +45,9 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
       const res = await checkPlacementAnswerAction(q.id, choice);
       ok = res.ok;
       keys = res.keys;
-    } catch {
+    } catch (error) {
       // Koneksi gagal: anggap belum tepat, biar aliran tes tetap jalan.
+      console.error("[penempatan] gagal memeriksa jawaban", error);
       ok = false;
     }
     setSkipped(skip);
@@ -118,7 +119,7 @@ export function PlacementTest({ questions }: { questions: PlacementQuestion[] })
                   type="button"
                   role="radio"
                   aria-checked={sel}
-                  disabled={checked}
+                  disabled={checked || checking}
                   onClick={() => {
                     setPicked(option);
                     sfx.tap();
