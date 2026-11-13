@@ -19,11 +19,19 @@ export function SoundToggle() {
       onClick={() => {
         setSfxEnabled(!on);
         setOn(!on);
-        if (!on) sfx.tap();
+        if (!on) sfx.correct(); // bunyi konfirmasi: kalau terdengar, berarti hidup
       }}
-      className="flex size-11 cursor-pointer items-center justify-center rounded-control border-2 border-hairline bg-surface text-ink-subtle transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:border-primary hover:text-primary active:scale-95"
+      className={`relative flex size-11 cursor-pointer items-center justify-center rounded-control border-2 transition-[background-color,color,border-color,transform] duration-150 ease-[var(--ease-out)] active:scale-95 ${
+        on
+          ? "border-primary-line bg-primary-soft text-primary hover:border-primary"
+          : "border-hairline bg-surface-muted text-ink-faint hover:border-ink-faint"
+      }`}
     >
       <Icon className="size-4" aria-hidden />
+      <span
+        aria-hidden
+        className={`absolute -right-1 -top-1 size-3 rounded-full border-2 border-surface ${on ? "bg-primary-bright" : "bg-ink-faint"}`}
+      />
     </button>
   );
 }

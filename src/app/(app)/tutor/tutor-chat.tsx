@@ -210,7 +210,7 @@ export function TutorChat({
 
   const form = (
     <form
-      className="flex items-end gap-2"
+      className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         send(input);
@@ -219,7 +219,7 @@ export function TutorChat({
       <Textarea
         ref={textareaRef}
         value={input}
-        rows={1}
+        rows={2}
         maxLength={2000}
         enterKeyHint="send"
         placeholder="Tulis pertanyaanmu…"
@@ -230,10 +230,10 @@ export function TutorChat({
             send(input);
           }
         }}
-        className="min-h-[54px] resize-none rounded-[16px] bg-surface-muted py-3.5"
+        className="min-h-[76px] w-full resize-none rounded-[16px] bg-surface-muted py-3.5"
         aria-label="Pesan untuk tutor"
       />
-      <div className="flex gap-2">
+      <div className="flex items-center justify-end gap-2">
         {messages.length > 0 ? (
           <Button
             type="button"

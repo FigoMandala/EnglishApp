@@ -29,6 +29,7 @@ import {
   stopSpeaking,
   type VoicePrefs,
 } from "@/lib/voices";
+import { sfx } from "@/lib/sfx";
 import { cn } from "@/lib/utils";
 
 import { answerToefl, finishToefl, startToeflBlock } from "./actions";
@@ -417,6 +418,8 @@ export function ToeflRunner({
     setAnswers(updated);
     setPending(null);
     sendAnswer(index, pending);
+    // Latihan menampilkan pembahasan langsung, jadi beri bunyi benar/salah (ujian tidak boleh membocorkan).
+    if (!exam) (pending === questions[index].answer ? sfx.correct : sfx.wrong)();
     return updated;
   }
   const commitRef = useRef(commit);
@@ -1004,11 +1007,11 @@ export function ToeflRunner({
 
   const actionBar = (
     <footer className="sticky bottom-0 z-20 border-t-2 border-hairline bg-surface">
-      <div className={cn("mx-auto flex flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6", isListening || session.passage ? "max-w-[1360px]" : "max-w-[892px]")}>
+      <div className={cn("mx-auto flex flex-wrap items-center gap-4 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6", "max-w-[1360px]")}>
         {numberNav}
         <span className="hidden text-[0.8125rem] font-bold text-ink-subtle md:inline">{hint}</span>
         <span className="text-[0.8125rem] font-bold text-ink-subtle md:hidden">{shortHint}</span>
-        {primaryAction}
+        <div className="ml-auto">{primaryAction}</div>
       </div>
       {exam ? (
         <p className="mx-auto max-w-[1360px] px-4 pb-3 text-[0.75rem] font-bold text-ink-subtle sm:px-6">
@@ -1261,6 +1264,7 @@ export function ToeflRunner({
           : question.audio
             ? "Ini soal Listening dan kamu tidak punya transkrip audionya. Jangan menebak isi rekaman; beri strategi mendengar saja."
             : "",
+        revealed ? "STATUS: SUDAH DIJAWAB" : "STATUS: BELUM DIJAWAB",
         `Soal (${session.section}): ${question.q}`,
         ...question.options.map((option, i) => `${LETTERS[i]}. ${option}`),
       ]

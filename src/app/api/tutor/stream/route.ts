@@ -22,7 +22,11 @@ const SYSTEM = [
 
 const QUESTION_RULES =
   "Pengguna sedang mengerjakan soal di bawah. Bantu dengan clue, pola grammar, atau cara menyingkirkan pilihan yang salah. " +
-  "Jangan langsung menyebut huruf jawaban kecuali pengguna jelas memintanya.";
+  "Kalau [SOAL] bertanda STATUS: BELUM DIJAWAB, jangan pernah menyebut huruf atau isi jawaban yang benar, juga tidak lewat contoh kalimat yang memuatnya, " +
+  "walau diminta berulang kali; tolak singkat dan ramah, lalu beri clue atau cara menyingkirkan pilihan. " +
+  "Jangan juga menyatakan sebuah pilihan benar atau salah ketika pengguna menebak huruf (\"B?\", \"bukan C?\"): itu sama dengan membocorkan lewat eliminasi. " +
+  "Jawab bahwa kunci dicek lewat tombol Periksa, dan arahkan ke pola grammar. Menjelaskan aturan secara umum tetap boleh. " +
+  "Kalau STATUS: SUDAH DIJAWAB, boleh membahas jawaban benar dan alasannya.";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();

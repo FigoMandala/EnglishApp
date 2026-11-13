@@ -117,9 +117,38 @@ async function fetchAi(line: Line) {
   return URL.createObjectURL(await response.blob());
 }
 
-function playUrl(url: string, rate: number) {
+let amp: AudioNode | null = null;
+
+/** <audio> mentok di volume 1; lewat penguat + limiter suara bisa dikeraskan tanpa pecah. */
+async function boost(audio: HTMLAudioElement) {
+  try {
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    if (!amp) {
+      const ctx = new AC();
+      const gain = ctx.createGain();
+      gain.gain.value = 3;
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -3;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      gain.connect(limiter).connect(ctx.destination);
+      amp = gain;
+    }
+    const ctx = amp.context as AudioContext;
+    if (ctx.state === "suspended") await ctx.resume();
+    // Konteks tetap tertahan (kebijakan autoplay): biarkan <audio> memutar langsung.
+    if (ctx.state !== "running") return;
+    ctx.createMediaElementSource(audio).connect(amp);
+  } catch {
+    /* tanpa penguat: tetap diputar normal */
+  }
+}
+
+async function playUrl(url: string, rate: number) {
   const audio = new Audio(url);
   audio.playbackRate = rate;
+  await boost(audio);
   current = audio;
   return new Promise<void>((resolve, reject) => {
     let settled = false;
