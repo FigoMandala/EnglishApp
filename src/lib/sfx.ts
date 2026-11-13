@@ -28,7 +28,7 @@ let ctx: AudioContext | null = null;
 /** [frekuensi Hz, mulai (detik), durasi (detik)] */
 type Note = [number, number, number];
 
-function play(notes: Note[], type: OscillatorType = "sine", volume = 0.16) {
+function play(notes: Note[], type: OscillatorType = "sine", volume = 0.5) {
   if (typeof window === "undefined" || !sfxEnabled()) return;
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return;
@@ -50,8 +50,8 @@ function play(notes: Note[], type: OscillatorType = "sine", volume = 0.16) {
 }
 
 export const sfx = {
-  tap: () => play([[520, 0, 0.06]], "triangle", 0.08),
+  tap: () => play([[520, 0, 0.06]], "triangle", 0.3),
   correct: () => play([[660, 0, 0.12], [880, 0.1, 0.2]]),
-  wrong: () => play([[220, 0, 0.18], [165, 0.14, 0.26]], "sawtooth", 0.07),
-  levelUp: () => play([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1047, 0.36, 0.4]], "triangle", 0.14),
+  wrong: () => play([[220, 0, 0.18], [165, 0.14, 0.26]], "sawtooth", 0.22),
+  levelUp: () => play([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1047, 0.36, 0.4]], "triangle", 0.45),
 };
