@@ -364,10 +364,9 @@ function kindOfQuestion(question: ToeflQuestion): BuildKind {
 
 /** Riwayat soal pengguna dari kedua track, untuk menyaring soal yang mirip. */
 async function questionHistory(userId: number) {
-  const rows = [
-    ...(await listToeflSessions(userId, 40, "toefl")),
-    ...(await listToeflSessions(userId, 40, "eptr")),
-  ];
+  const rows = (
+    await Promise.all([listToeflSessions(userId, 40, "toefl"), listToeflSessions(userId, 40, "eptr")])
+  ).flat();
   const questions = new SimilarityIndex();
   const passages = new SimilarityIndex([], PASSAGE_SIMILAR);
   const stems = new Map<BuildKind, string[]>();
@@ -410,17 +409,14 @@ type Request = {
 
 type Served = { block: Item; prints: string[] };
 
-async function serveFromBank(request: Request, band: LevelBand, history: History): Promise<Served | null> {
+async function serveFromBank(request: Request, band: LevelBand, historyPromise: Promise<History>): Promise<Served | null> {
   const { userId, track, kind, count, focus } = request;
   const single = kind !== "reading" && !GROUPED.includes(kind);
-  const rows = await pickUnseenItems(
-    userId,
-    track,
-    kind,
-    band,
-    single ? count * 3 : 12,
-    request.only ? focus[0] : undefined,
-  );
+  // Riwayat dibaca bersamaan dengan pemilihan soal (dua jalur query yang saling bebas).
+  const [rows, history] = await Promise.all([
+    pickUnseenItems(userId, track, kind, band, single ? count * 3 : 12, request.only ? focus[0] : undefined),
+    historyPromise,
+  ]);
   const ordered = focus.length
     ? [...rows].sort(
         (a, b) =>
@@ -484,7 +480,7 @@ const BAND_ORDER: Record<LevelBand, LevelBand[]> = {
  * EPRT_AI_FALLBACK=1 (selagi stok bank masih tipis); matikan env itu untuk kembali bank-only.
  */
 async function produceQuestions(request: Request): Promise<Item> {
-  const history = await questionHistory(request.userId);
+  const history = questionHistory(request.userId);
   const order = BAND_ORDER[levelBand(request.level)];
   const serve = async () => {
     for (const band of order) {
@@ -621,12 +617,11 @@ export async function startBlock(
 ): Promise<number> {
   if (kind === "review") return startReview(userId, track);
 
-  const target = await getTrackTarget(userId, track);
+  const [target, sessions] = await Promise.all([getTrackTarget(userId, track), loadSessionAnswers(userId, track)]);
   const level = target?.score ?? DEFAULT_LEVEL;
   const { section, title } = BLOCK_CONFIG[kind];
 
   const topic = skill && section !== "listening" && SKILLS[skill].section === section ? skill : null;
-  const sessions = await loadSessionAnswers(userId, track);
   const focus = topic
     ? [topic]
     : section === "structure" || section === "reading"
