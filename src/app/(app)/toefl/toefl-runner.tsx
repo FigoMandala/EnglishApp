@@ -1277,7 +1277,7 @@ export function ToeflRunner({
       <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-[0.8125rem] font-semibold text-ink-muted">
         {[
           ["bg-primary border-primary", "Dijawab"],
-          ["bg-mango-line border-mango", "Ragu-ragu"],
+          ...(canRevisit ? [["bg-mango-line border-mango", "Ragu-ragu"]] : []),
           ["bg-surface border-hairline-strong", "Belum dijawab"],
           ["bg-surface border-[3px] border-charcoal", "Sekarang"],
         ].map(([swatch, text]) => (
