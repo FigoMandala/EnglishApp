@@ -2,7 +2,7 @@
  * Uji alur fitur end-to-end lewat browser sungguhan (Playwright).
  *
  * Yang diuji: alur belajar (jalur + unit + materi), review kosakata (SRS),
- * dan latihan EPrT (blok soal + hasil).
+ * dan latihan TOEFL ITP (blok soal + hasil).
  *
  * Butuh server yang sudah jalan. Cara pakai:
  *   npm run dev            (terminal lain)
@@ -59,7 +59,7 @@ async function registerAndLogin(page) {
   const user = `uji${Date.now()}`;
   const pass = "rahasia12345";
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
-  await page.getByRole("tab", { name: "Buat akun" }).click();
+  await page.getByRole("tab", { name: "Daftar" }).click();
   await page.fill("#username", user);
   await page.fill("#password", pass);
   await Promise.all([
@@ -184,16 +184,16 @@ async function main() {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // 3) ALUR LATIHAN EPrT (blok Structure 10 soal)
+    // 3) ALUR LATIHAN TOEFL ITP (blok Structure 10 soal)
     // ══════════════════════════════════════════════════════════════
-    await page.goto(`${BASE}/eptr`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/toefl`, { waitUntil: "networkidle" });
     const eprtText = (await page.textContent("body")) ?? "";
-    check("halaman EPrT dirender", eprtText.includes("Latihan per bagian"));
+    check("halaman TOEFL ITP dirender", eprtText.includes("Latihan per bagian"));
 
     const drillButton = page.getByRole("button", { name: /Sentence Completion/ }).first();
     check("tombol latihan Structure aktif (AI terkonfigurasi)", await drillButton.isEnabled());
     await Promise.all([
-      page.waitForURL("**/eptr?s=*", { timeout: AI_WAIT }),
+      page.waitForURL("**/toefl?s=*", { timeout: AI_WAIT }),
       drillButton.click(),
     ]);
     check("mulai blok latihan -> sesi soal", page.url().includes("s="));
@@ -237,12 +237,12 @@ async function main() {
       `${answered} interaksi`,
     );
 
-    // Kembali ke EPrT, pastikan riwayat latihan tercatat.
-    const back = page.locator("a:has-text('Kembali ke EPrT')").first();
+    // Kembali ke TOEFL ITP, pastikan riwayat latihan tercatat.
+    const back = page.locator("a:has-text('Kembali ke TOEFL ITP')").first();
     await back.click();
-    await page.waitForURL("**/eptr", { timeout: WAIT });
+    await page.waitForURL("**/toefl", { timeout: WAIT });
     const afterText = (await page.textContent("body")) ?? "";
-    check("riwayat latihan tampil di EPrT", afterText.includes("Latihan terakhir"));
+    check("riwayat latihan tampil di TOEFL ITP", afterText.includes("Latihan terakhir"));
   } finally {
     await browser.close();
     await cleanupTestUsers().catch((error) => {

@@ -47,16 +47,16 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-/** Pengguna biasa (role "user") hanya boleh memakai EPrT; admin boleh semuanya. */
+/** Pengguna biasa (role "user") hanya boleh memakai TOEFL ITP; admin boleh semuanya. */
 export function isAdmin(user: Pick<User, "role">) {
   return user.role === "admin";
 }
 
 export function homePath() {
-  return "/eptr";
+  return "/toefl";
 }
 
-/** Untuk halaman dan aksi di luar EPrT. Non-admin diarahkan ke beranda (EPrT). */
+/** Untuk halaman dan aksi di luar TOEFL ITP. Non-admin diarahkan ke beranda (TOEFL ITP). */
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
   if (!isAdmin(user)) redirect(homePath());

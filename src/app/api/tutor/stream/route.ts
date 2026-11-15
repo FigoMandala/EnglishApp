@@ -6,11 +6,13 @@ import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { guardUserInput } from "@/lib/moderation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/session";
+import { TUTOR_SCOPE_RULE } from "@/lib/tutor-scope";
 import { getScenario, scenarioSystemPrompt, type CorrectionMode } from "@/lib/tutor-scenarios";
 
 export const maxDuration = 60;
 
 const SYSTEM = [
+  TUTOR_SCOPE_RULE,
   "Kamu tutor Bahasa Inggris yang sabar untuk pembelajar Indonesia.",
   "Aturan utama: gunakan Bahasa Indonesia untuk menjelaskan, dan Bahasa Inggris untuk contoh.",
   "Saat pengguna membuat kesalahan grammar, tunjukkan perbaikannya dengan ringkas, jelaskan alasannya, lalu beri satu contoh serupa.",

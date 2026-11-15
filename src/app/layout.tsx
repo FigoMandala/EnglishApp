@@ -27,6 +27,13 @@ const round = localFont({
   display: "swap",
   weight: "400 800",
 });
+// Caveat — coretan tangan di landing (buku catatan).
+const hand = localFont({
+  src: "./fonts/caveat-latin-var.woff2",
+  variable: "--font-hand",
+  display: "swap",
+  weight: "500 700",
+});
 const code = localFont({
   src: "./fonts/jetbrainsmono-latin-var.woff2",
   variable: "--font-code",
@@ -36,7 +43,7 @@ const code = localFont({
 
 export const metadata: Metadata = {
   title: "EnglishApp",
-  description: "Belajar bahasa Inggris: EPrT, kosakata, grammar, dan tutor AI.",
+  description: "Belajar bahasa Inggris: TOEFL ITP, kosakata, grammar, dan tutor AI.",
 };
 
 // viewport-fit=cover: konten menggambar sampai tepi di ponsel berponi (notch),
@@ -51,7 +58,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${body.variable} ${heading.variable} ${round.variable} ${code.variable}`}>
+    <html lang="id" className={`${body.variable} ${heading.variable} ${round.variable} ${code.variable} ${hand.variable}`}>
       <body>{children}</body>
     </html>
   );

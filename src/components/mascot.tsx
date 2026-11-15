@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Karakter redesign: Lori (kukang, teman belajar) dan Kaka (enggang, pelatih EPrT).
+ * Karakter redesign: Lori (kukang, teman belajar) dan Kaka (enggang, pelatih TOEFL ITP).
  * SVG murni + kelas animasi CSS di globals.css (m-*), jadi aman dipakai di server component
  * dan otomatis diam kalau pengguna memilih "kurangi gerakan".
  */
 
-export type LoriMood = "idle" | "wave" | "talk" | "think" | "sad" | "cheer";
+export type LoriMood = "idle" | "wave" | "talk" | "think" | "sad" | "cheer" | "cover";
 export type KakaMood = "coach" | "warn" | "proud" | "sleep";
 
 type Props<M> = {
@@ -32,6 +32,7 @@ const INK = "#3A2416";
 export function Lori({ mood = "idle", size = 160, label, className, still }: Props<LoriMood>) {
   const armsUp = mood === "cheer";
   const happyEyes = mood === "cheer";
+  const covering = mood === "cover";
   return (
     <svg viewBox="0 0 200 200" width={size} height={size} className={cn(!still && mood === "cheer" && "m-hop", className)} {...a11y(label)}>
       <ellipse cx="100" cy="192" rx="56" ry="7" fill="#1B1F22" opacity=".12" />
@@ -41,7 +42,7 @@ export function Lori({ mood = "idle", size = 160, label, className, still }: Pro
             <g className={cn(!still && "m-cheer")}><ellipse cx="42" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(40 42 104)" /></g>
             <g className={cn(!still && "m-cheer")}><ellipse cx="158" cy="104" rx="12" ry="25" fill={FUR_DARK} transform="rotate(-40 158 104)" /></g>
           </>
-        ) : (
+        ) : covering ? null : (
           <g><ellipse cx="52" cy="150" rx="13" ry="24" fill={FUR_DARK} transform="rotate(18 52 150)" /></g>
         )}
         <ellipse cx="100" cy="148" rx="56" ry="44" fill={FUR} />
@@ -65,7 +66,7 @@ export function Lori({ mood = "idle", size = 160, label, className, still }: Pro
               <path d="M64 82 Q77 68 90 82" stroke="#FFFFFF" strokeWidth="6" fill="none" strokeLinecap="round" />
               <path d="M110 82 Q123 68 136 82" stroke="#FFFFFF" strokeWidth="6" fill="none" strokeLinecap="round" />
             </>
-          ) : (
+          ) : covering ? null : (
             <g className={cn(!still && "m-blink")}>
               <circle cx="77" cy="80" r="14" fill="#FFFFFF" />
               <circle cx="123" cy="80" r="14" fill="#FFFFFF" />
@@ -99,8 +100,19 @@ export function Lori({ mood = "idle", size = 160, label, className, still }: Pro
           )}
           <circle cx="63" cy="104" r="7" fill="#F08A7A" opacity=".45" />
           <circle cx="137" cy="104" r="7" fill="#F08A7A" opacity=".45" />
+          {covering ? (
+            <g className={cn(!still && "m-cover")}>
+              {/* lengan naik dari bawah, telapak menutup tiap mata; jari digambar sebagai garis, bukan bulatan */}
+              <ellipse cx="62" cy="118" rx="12" ry="30" fill={FUR_DARK} transform="rotate(28 62 118)" />
+              <ellipse cx="138" cy="118" rx="12" ry="30" fill={FUR_DARK} transform="rotate(-28 138 118)" />
+              <ellipse cx="80" cy="82" rx="19" ry="23" fill={FUR} stroke="#8A5530" strokeWidth="3" transform="rotate(14 80 82)" />
+              <ellipse cx="120" cy="82" rx="19" ry="23" fill={FUR} stroke="#8A5530" strokeWidth="3" transform="rotate(-14 120 82)" />
+              <path d="M73 68 L75 78 M81 66 L82 77 M89 68 L88 78" stroke="#8A5530" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              <path d="M127 68 L125 78 M119 66 L118 77 M111 68 L112 78" stroke="#8A5530" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+            </g>
+          ) : null}
         </g>
-        {armsUp ? null : mood === "think" ? (
+        {armsUp || covering ? null : mood === "think" ? (
           <g><ellipse cx="128" cy="124" rx="12" ry="24" fill={FUR_DARK} transform="rotate(-62 128 124)" /></g>
         ) : (
           <g className={!still && (mood === "wave" || mood === "talk") ? "m-wave" : undefined}>

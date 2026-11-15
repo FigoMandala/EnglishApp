@@ -110,7 +110,7 @@ async function main() {
 
     // ─── Register ───────────────────────────────────────────────────────────
     await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
-    await page.getByRole("tab", { name: "Buat akun" }).click();
+    await page.getByRole("tab", { name: "Daftar" }).click();
     await page.fill("#username", user);
     await page.fill("#password", passWord);
     await Promise.all([
@@ -276,15 +276,15 @@ async function main() {
     );
     await page.screenshot({ path: join(SHOT_DIR, "mobile-liga.png") });
 
-    // EPrT di 360px: halaman tidak boleh punya scroll horizontal (bug lama:
+    // TOEFL ITP di 360px: halaman tidak boleh punya scroll horizontal (bug lama:
     // span sr-only di header tabel mendorong lebar root).
-    await page.goto(`${BASE}/eptr`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/toefl`, { waitUntil: "networkidle" });
     const eprtOverflow = await page.evaluate(() => ({
       pageScroll: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     }));
     check(
-      "EPrT 360px: tanpa scroll horizontal",
+      "TOEFL ITP 360px: tanpa scroll horizontal",
       eprtOverflow.pageScroll <= eprtOverflow.innerWidth + 1,
       JSON.stringify(eprtOverflow),
     );

@@ -79,7 +79,7 @@ async function maju() {
 
 try {
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
-  await page.getByRole("tab", { name: "Buat akun" }).click();
+  await page.getByRole("tab", { name: "Daftar" }).click();
   await page.fill("#username", user);
   await page.fill("#password", "rahasia12345");
   await Promise.all([page.waitForURL("**/belajar"), page.locator('form button[type="submit"]').click()]);

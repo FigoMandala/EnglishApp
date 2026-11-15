@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { CHOICE, OnboardingStep } from "../step-layout";
 
 const GOALS: Record<GoalId, { label: string; sub: string; Icon: LucideIcon; tone: string; t: string; b: string }> = {
-  eprt: { label: "Lulus EPrT kampus", sub: "Syarat sidang, wisuda, atau beasiswa", Icon: GraduationCap, tone: "bg-mango-soft text-mango-ink", t: "EPrT? Pas banget.", b: "Kaka bakal jadi pelatih ujianmu. Dia agak galak soal waktu, tapi jago Structure." },
+  eprt: { label: "Lulus TOEFL ITP kampus", sub: "Syarat sidang, wisuda, atau beasiswa", Icon: GraduationCap, tone: "bg-mango-soft text-mango-ink", t: "TOEFL ITP? Pas banget.", b: "Kaka bakal jadi pelatih ujianmu. Dia agak galak soal waktu, tapi jago Structure." },
   toefl: { label: "TOEFL ITP / IELTS", sub: "Daftar S2 atau program exchange", Icon: FileText, tone: "bg-sky-soft text-sky-deep", t: "Siap, mode akademik.", b: "Kita banyak main di reading panjang dan grammar formal. Pelan-pelan, ya." },
   kerja: { label: "Interview & kerja", sub: "Email, meeting, presentasi", Icon: Briefcase, tone: "bg-primary-soft text-primary-deep", t: "Biar pede di kantor.", b: "Aku siapin latihan jawab interview dan nulis email yang sopan tapi nggak kaku." },
   kuliah: { label: "Baca jurnal & kuliah", sub: "Paham teks dan istilah akademik", Icon: BookOpen, tone: "bg-sky-soft text-sky-deep", t: "Jurnal nggak serem lagi.", b: "Kita bongkar kalimat panjang jadi potongan kecil yang gampang dicerna." },

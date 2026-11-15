@@ -13,7 +13,7 @@ import { CHOICE, OnboardingStep } from "../step-layout";
 const LEVELS: { cefr: Cefr; label: string; sub: string; t: string; b: string }[] = [
   { cefr: "A1", label: "Baru mulai", sub: "Tahu beberapa kata, belum bisa bikin kalimat", t: "Mulai dari nol itu keren.", b: "Kita pakai banyak gambar dan audio dulu. Grammar nyusul pelan-pelan." },
   { cefr: "A2", label: "Bisa sedikit", sub: "Paham kalimat pendek dan percakapan sederhana", t: "Fondasinya udah ada.", b: "Kita rapikan tenses dasar biar kalimatmu nggak cuma present terus." },
-  { cefr: "B1", label: "Lumayan", sub: "Bisa ngobrol topik sehari-hari, masih sering ragu", t: "Zona favoritku!", b: "Di sini biasanya skor EPrT mulai naik cepat. Kita fokus ke pola soal." },
+  { cefr: "B1", label: "Lumayan", sub: "Bisa ngobrol topik sehari-hari, masih sering ragu", t: "Zona favoritku!", b: "Di sini biasanya skor TOEFL ITP mulai naik cepat. Kita fokus ke pola soal." },
   { cefr: "B2", label: "Cukup lancar", sub: "Nonton film tanpa subtitle Indonesia, kadang miss", t: "Wah, tinggal dipoles.", b: "Kita kejar akurasi: artikel, preposisi, dan struktur kalimat kompleks." },
   { cefr: "C1", label: "Mahir", sub: "Nyaman baca jurnal dan diskusi panjang", t: "Oke, aku nggak akan bosenin.", b: "Kamu bisa lompati unit awal lewat tes cepat di tiap bagian." },
 ];

@@ -1,3 +1,5 @@
+import { TUTOR_SCOPE_RULE } from "./tutor-scope";
+
 /** Skenario role-play Tutor AI. Daftar tetap: server hanya menerima id dari sini. */
 export type Scenario = {
   id: string;
@@ -89,6 +91,7 @@ export type CorrectionMode = "live" | "end";
 
 export function scenarioSystemPrompt(scenario: Scenario, correction: CorrectionMode) {
   return [
+    TUTOR_SCOPE_RULE,
     `Kamu memerankan ${scenario.persona} dalam role-play Bahasa Inggris untuk pembelajar Indonesia. Situasi: ${scenario.setting}.`,
     "Tetap dalam peran. Balas dalam Bahasa Inggris yang natural dan singkat (1 sampai 3 kalimat), lalu ajukan satu pertanyaan atau tanggapan supaya percakapan terus berjalan.",
     `Misi pengguna: ${scenario.goals.join("; ")}.`,

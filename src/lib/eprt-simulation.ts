@@ -12,12 +12,12 @@ export type SimPart = {
   kind: SimKind;
   section: ToeflSection;
   count: number;
-  /** Nomor soal pertama di dalam section-nya, seperti di lembar soal EPrT. */
+  /** Nomor soal pertama di dalam section-nya, seperti di lembar soal TOEFL ITP. */
   first: number;
   title: string;
 };
 
-// Susunan EPrT: Listening 50 (30 + 10 + 10), Structure 40 (15 + 25), Reading 50 (5 teks x 10).
+// Susunan TOEFL ITP: Listening 50 (30 + 10 + 10), Structure 40 (15 + 25), Reading 50 (5 teks x 10).
 export const SIM_PARTS: SimPart[] = [
   { kind: "listen-short", section: "listening", count: 15, first: 1, title: "Listening: Short Dialogue 1-15" },
   { kind: "listen-short", section: "listening", count: 15, first: 16, title: "Listening: Short Dialogue 16-30" },
@@ -36,7 +36,7 @@ export const SIM_PARTS: SimPart[] = [
   ),
 ];
 
-/** Batas waktu tiap section dalam menit, mengikuti EPrT paper-based. */
+/** Batas waktu tiap section dalam menit, mengikuti TOEFL ITP paper-based. */
 export const SECTION_MINUTES: Record<ToeflSection, number> = {
   listening: 35,
   structure: 25,
@@ -179,7 +179,7 @@ export function parseScore(raw: string | null): SimulationScore | null {
   }
 }
 
-/** Skor ala TOEFL ITP/EPrT: tiap section dikonversi ke 31-68, total = rata-rata x 10. */
+/** Skor ala TOEFL ITP/TOEFL ITP: tiap section dikonversi ke 31-68, total = rata-rata x 10. */
 export function simulationScore(
   results: { section: ToeflSection; correct: number; total: number }[],
 ): SimulationScore {

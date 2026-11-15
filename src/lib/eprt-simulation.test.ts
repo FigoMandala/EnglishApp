@@ -21,7 +21,7 @@ import {
 } from "./eprt-simulation";
 
 describe("SIM_PARTS", () => {
-  it("mengikuti susunan EPrT 50/40/50", () => {
+  it("mengikuti susunan TOEFL ITP 50/40/50", () => {
     const per = (section: string) =>
       SIM_PARTS.filter((part) => part.section === section).reduce((sum, part) => sum + part.count, 0);
     assert.equal(per("listening"), 50);
@@ -109,7 +109,7 @@ describe("mini-test per section", () => {
     assert.equal(parseScope(null), null);
   });
 
-  it("jumlah soal tiap section sama dengan susunan EPrT", () => {
+  it("jumlah soal tiap section sama dengan susunan TOEFL ITP", () => {
     assert.equal(scopeQuestionTotal("listening"), 50);
     assert.equal(scopeQuestionTotal("structure"), 40);
     assert.equal(scopeQuestionTotal("reading"), 50);

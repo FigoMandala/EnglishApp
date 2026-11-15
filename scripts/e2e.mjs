@@ -79,7 +79,7 @@ try {
   await gotoSettled(page, "/kosakata");
   check("belum login -> area app diarahkan ke /login", page.url().includes("/login"));
 
-  await page.getByRole("tab", { name: "Buat akun" }).click();
+  await page.getByRole("tab", { name: "Daftar" }).click();
   await fillAuth(page, "ab", pass);
   await submitAuth(page);
   check("username terlalu pendek ditolak", (await waitForError(page)).includes("minimal"));
@@ -94,8 +94,8 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/eptr", { timeout: WAIT });
-  check("register -> masuk halaman EPrT", page.url().includes("/eptr"));
+  await page.waitForURL("**/toefl", { timeout: WAIT });
+  check("register -> masuk halaman TOEFL ITP", page.url().includes("/toefl"));
   check("beranda menampilkan user", (await page.textContent("body")).includes(user));
 
   const session = (await page.context().cookies()).find((c) => c.name === "english_session");
@@ -117,13 +117,13 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/eptr", { timeout: WAIT });
-  check("login ulang dengan password benar", page.url().includes("/eptr"));
+  await page.waitForURL("**/toefl", { timeout: WAIT });
+  check("login ulang dengan password benar", page.url().includes("/toefl"));
 
   await logout(page);
   await page.waitForURL("**/login", { timeout: WAIT });
 
-  await page.getByRole("tab", { name: "Buat akun" }).click();
+  await page.getByRole("tab", { name: "Daftar" }).click();
   await fillAuth(page, user.toUpperCase(), pass);
   await submitAuth(page);
   check(
@@ -138,8 +138,8 @@ try {
 
   await fillAuth(page, user, pass);
   await submitAuth(page);
-  await page.waitForURL("**/eptr", { timeout: WAIT });
-  check("login terakhir masih bisa", page.url().includes("/eptr"));
+  await page.waitForURL("**/toefl", { timeout: WAIT });
+  check("login terakhir masih bisa", page.url().includes("/toefl"));
 } finally {
   await browser.close();
   await cleanupTestUsers().catch((error) => {

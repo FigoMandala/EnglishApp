@@ -325,13 +325,13 @@ export default async function BelajarPage() {
         </Link>
 
         <Link
-          href="/eptr"
+          href="/toefl"
           className="rise flex items-center gap-3 rounded-plate bg-charcoal px-[18px] py-4 text-charcoal-ink shadow-[0_4px_0_#000] transition-transform [--i:4] active:translate-y-1 active:shadow-none"
         >
           <Kaka mood="coach" size={56} />
           <span className="flex-1">
             <strong className="block font-display text-[1.0625rem]">
-              {daysToTest !== null ? `EPrT · ${daysToTest} hari lagi` : "Tes EPrT"}
+              {daysToTest !== null ? `TOEFL ITP · ${daysToTest} hari lagi` : "Tes TOEFL ITP"}
             </strong>
             <span className="text-[0.875rem] text-charcoal-muted">
               {target ? `Target skor ${target.score}` : "Simulasi dan latihan per topik"}

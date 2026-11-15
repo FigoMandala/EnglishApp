@@ -14,7 +14,7 @@ import { EMPTY_ONBOARDING, loadOnboarding, placedCefr, type GoalId, type Onboard
 import { cn } from "@/lib/utils";
 
 const GOAL_LABEL: Record<GoalId, string> = {
-  eprt: "Lulus EPrT",
+  eprt: "Lulus TOEFL ITP",
   toefl: "TOEFL ITP / IELTS",
   kerja: "Interview & kerja",
   kuliah: "Baca jurnal & kuliah",

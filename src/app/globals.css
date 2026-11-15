@@ -69,6 +69,11 @@
   --color-charcoal-ink: #f4efe6;
   --color-charcoal-muted: #c9c2b4;
 
+  /* Prototipe area app: kuning penanda + arang kehijauan sidebar */
+  --color-sun: #ffd75e;
+  --color-sun-ink: #3a2e00;
+  --color-forest: #212925;
+
   /* Locked node */
   --color-locked: #e2dacb;
   --color-locked-ledge: #c9bba2;
@@ -132,6 +137,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 h1,
 h2,
 h3 {
@@ -156,8 +167,15 @@ h3 {
 }
 
 /* Ring ink tak terlihat di atas arang (header ujian, hero gelap): balik ke warna kertas. */
-:where(.bg-charcoal, .bg-night, .hero-action) :focus-visible {
+:where(.bg-charcoal, .bg-night, .bg-forest, .hero-action) :focus-visible {
   outline-color: var(--color-charcoal-ink);
+}
+
+/* Tipografi area app (route group (app)): judul & angka besar memakai Bricolage Grotesque.
+   Variabel --font-bricolage dipasang next/font di (app)/layout.tsx; halaman publik tidak terpengaruh. */
+.app-type {
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-round: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
 }
 
 .tnum {
@@ -322,6 +340,11 @@ h3 {
 .m-hop { animation: m-hop 1.1s var(--ease-spring) infinite; }
 .m-flap { animation: m-flap 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 8%; }
 .m-zz { animation: m-zz 2.4s ease-out infinite; }
+/* Lori menutup mata (kolom kata sandi): tangan naik dari bawah. */
+@keyframes m-cover {
+  from { opacity: 0; transform: translateY(60px); }
+}
+.m-cover { animation: m-cover 380ms var(--ease-spring) both; }
 
 /* ═══ Animasi UI (dipakai lintas layar). Delay berurutan lewat style="--i:N" ═══ */
 @keyframes fx-rise {
@@ -457,3 +480,10 @@ h3 {
   to { opacity: 1; transform: none; }
 }
 .side-fade { animation: side-fade 260ms var(--ease-out) 60ms both; }
+
+/* Halaman Pengaturan akun */
+.pengaturan-card {
+  border-radius: 20px;
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgba(40, 30, 10, 0.05), 0 8px 28px rgba(40, 30, 10, 0.06);
+}

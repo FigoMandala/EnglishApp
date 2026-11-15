@@ -60,10 +60,16 @@ export function TutorChat({
   suggestions = SUGGESTIONS,
   className,
   compact = false,
+  collapsed = false,
+  onSend,
   scenario,
   correction = "live",
 }: {
   compact?: boolean;
+  /** Hanya mode compact: obrolan disembunyikan, tampil chip saran + kolom tulis satu baris. */
+  collapsed?: boolean;
+  /** Dipanggil saat pesan dikirim (mis. untuk membuka kartu yang dilipat). */
+  onSend?: () => void;
   /** Mode role-play: riwayat dikirim dari klien dan tidak disimpan ke chat biasa. */
   scenario?: { id: string; title: string; persona: string };
   correction?: "live" | "end";
@@ -97,7 +103,7 @@ export function TutorChat({
     const natural = el.scrollHeight + border;
     el.style.height = `${Math.min(natural, 192)}px`;
     el.style.overflowY = natural > 192 ? "auto" : "hidden";
-  }, [input]);
+  }, [input, collapsed]);
 
   function stop() {
     abortRef.current?.abort();
@@ -108,6 +114,7 @@ export function TutorChat({
     const message = text.trim();
     if (!message || streaming) return;
 
+    onSend?.();
     setError(null);
     setInput("");
     setStreaming(true);
@@ -210,7 +217,7 @@ export function TutorChat({
 
   const form = (
     <form
-      className="flex flex-col gap-2"
+      className={cn("flex gap-2", collapsed ? "items-end" : "flex-col")}
       onSubmit={(event) => {
         event.preventDefault();
         send(input);
@@ -219,7 +226,7 @@ export function TutorChat({
       <Textarea
         ref={textareaRef}
         value={input}
-        rows={2}
+        rows={collapsed ? 1 : 2}
         maxLength={2000}
         enterKeyHint="send"
         placeholder="Tulis pertanyaanmu…"
@@ -230,11 +237,11 @@ export function TutorChat({
             send(input);
           }
         }}
-        className="min-h-[76px] w-full resize-none rounded-[16px] bg-surface-muted py-3.5"
+        className={cn("w-full resize-none rounded-[16px] bg-surface-muted py-3.5", collapsed ? "min-h-12 flex-1" : "min-h-[76px]")}
         aria-label="Pesan untuk tutor"
       />
       <div className="flex items-center justify-end gap-2">
-        {messages.length > 0 ? (
+        {messages.length > 0 && !collapsed ? (
           <Button
             type="button"
             variant="ghost"
@@ -407,16 +414,31 @@ export function TutorChat({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {confirmClear}
-      <div role="log" aria-label="Transkrip percakapan" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-plate bg-surface-muted p-3">
+      {collapsed ? (
+        <div className="flex flex-wrap gap-2">
+          {suggestions.slice(0, 3).map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              disabled={streaming}
+              onClick={() => send(suggestion)}
+              className="min-h-11 cursor-pointer rounded-full border-[1.5px] border-hairline bg-surface px-3.5 text-left text-[0.8125rem] font-bold text-ink transition-colors hover:border-hairline-strong hover:bg-surface-muted disabled:opacity-50 motion-reduce:transition-none"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div role="log" hidden={collapsed} aria-label="Transkrip percakapan" className="scroll-quiet flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
         {messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 py-6 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-primary-soft text-primary">
               <Sparkles className="size-7" aria-hidden />
             </span>
             <p className="max-w-sm text-[0.9375rem] text-ink-subtle">
               Mulai percakapan. Tanyakan grammar, kosakata, atau minta latihan soal.
             </p>
-            <div className="flex w-full max-w-sm flex-col gap-2">
+            <div className="flex w-full flex-wrap justify-center gap-2">
               {suggestions.map((suggestion, i) => (
                 <button
                   key={suggestion}
@@ -424,7 +446,7 @@ export function TutorChat({
                   disabled={streaming}
                   onClick={() => send(suggestion)}
                   style={{ "--i": i } as React.CSSProperties}
-                  className="rise min-h-11 w-full cursor-pointer rounded-[14px] border-2 border-hairline bg-surface px-4 py-2.5 text-left text-[0.875rem] font-semibold text-ink-muted transition-[color,border-color,transform] duration-150 hover:border-primary-line hover:text-primary-deep active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none"
+                  className="rise min-h-11 cursor-pointer rounded-full border-[1.5px] border-hairline bg-surface px-4 py-2 text-left text-[0.8125rem] font-bold text-ink transition-[background-color,border-color,transform] duration-150 hover:border-hairline-strong hover:bg-surface-muted active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none"
                 >
                   {suggestion}
                 </button>
@@ -439,8 +461,10 @@ export function TutorChat({
               </span>
               <div
                 className={cn(
-                  "max-w-full whitespace-pre-wrap rounded-plate px-4 py-3 text-[0.9375rem] leading-relaxed",
-                  entry.role === "user" ? "bg-primary text-white" : "bg-surface text-ink",
+                  "max-w-[92%] whitespace-pre-wrap px-4 py-3 text-[0.9375rem] leading-relaxed",
+                  entry.role === "user"
+                    ? "rounded-[18px_18px_6px_18px] bg-primary text-white"
+                    : "rounded-[18px_18px_18px_6px] bg-surface-muted text-ink",
                 )}
               >
                 {(entry.role === "assistant" ? renderAssistant(entry.content) : entry.content) ||

@@ -32,8 +32,8 @@ export default async function AdminHome() {
   }));
 
   const alerts = [
-    { n: faulty, text: "soal EPrT kemungkinan kuncinya salah (otomatis dilewati picker)", href: "/admin/soal?status=faulty", tone: "bg-brick-soft text-brick-deep" },
-    { n: tooEasy, text: "soal EPrT terlalu mudah untuk levelnya", href: "/admin/soal?status=too-easy", tone: "bg-mango-soft text-mango-ink" },
+    { n: faulty, text: "soal TOEFL ITP kemungkinan kuncinya salah (otomatis dilewati picker)", href: "/admin/soal?status=faulty", tone: "bg-brick-soft text-brick-deep" },
+    { n: tooEasy, text: "soal TOEFL ITP terlalu mudah untuk levelnya", href: "/admin/soal?status=too-easy", tone: "bg-mango-soft text-mango-ink" },
     { n: unknown, text: "soal belum cukup dijawab untuk dinilai", href: "/admin/soal?status=unknown", tone: "bg-surface-muted text-ink-subtle" },
     { n: counts.flagsOpen, text: "flag moderasi belum ditinjau", href: "/admin/moderasi", tone: "bg-sky-soft text-sky-deep" },
   ];
@@ -41,7 +41,7 @@ export default async function AdminHome() {
 
   const kpis = [
     { label: "Pengguna", value: String(counts.users), hint: `${counts.activeToday} aktif hari ini` },
-    { label: "Soal di bank", value: String(counts.bankEptr + counts.bankToefl), hint: `EPrT ${counts.bankEptr} · TOEFL ${counts.bankToefl}` },
+    { label: "Soal di bank", value: String(counts.bankEptr + counts.bankToefl), hint: `TOEFL ITP ${counts.bankEptr} · TOEFL ${counts.bankToefl}` },
     { label: "Biaya AI hari ini", value: usd(spent), hint: `batas ${usd(budget)}`, progress: Math.min(100, (spent / budget) * 100) },
     { label: "Flag belum ditinjau", value: String(counts.flagsOpen), hint: `${counts.flagsWeek} masuk 7 hari`, alert: counts.flagsOpen > 0 },
   ];

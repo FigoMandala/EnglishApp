@@ -24,7 +24,7 @@ import { NearDupIndex } from "@/lib/near-dup";
 import { pickHooks, pickModifier, pickPoints, pickRegister } from "@/lib/seed-space";
 import { dialogueKey, type QuestionType, type ToeflQuestion } from "@/lib/toefl";
 
-/** Pembuat bank soal EPrT: dipakai halaman admin dan skrip src/db/generate-eprt-bank.ts. */
+/** Pembuat bank soal TOEFL ITP: dipakai halaman admin dan skrip src/db/generate-eprt-bank.ts. */
 export type Kind = "structure" | "written" | "reading" | "listen-short" | "listen-long" | "listen-lecture";
 export const KINDS: Kind[] = ["structure", "written", "reading", "listen-short", "listen-long", "listen-lecture"];
 export const BANDS: LevelBand[] = ["low", "mid", "high"];
@@ -263,7 +263,7 @@ async function dropBadExplanations(ctx: EprtContext, kind: Kind, passage: string
 
 function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
   const level = LEVEL_SCORE[band];
-  const test = `EPrT (skala mirip TOEFL ITP) ${level}`;
+  const test = `TOEFL ITP (skala mirip TOEFL ITP) ${level}`;
   const rubric = levelRubric(level);
   const list = (items: string[]) => items.map((t, i) => `${i + 1}. ${t}`).join("; ");
 

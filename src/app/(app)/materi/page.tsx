@@ -12,7 +12,7 @@ export const metadata = { title: "Materi Grammar · EnglishApp" };
 
 const LEVELS = [
   { key: "basic", label: "Dasar", tag: "DASAR", heading: "Fondasi kalimat" },
-  { key: "intermediate", label: "Menengah", tag: "MENENGAH", heading: "Pola EPrT paling sering" },
+  { key: "intermediate", label: "Menengah", tag: "MENENGAH", heading: "Pola TOEFL ITP paling sering" },
   { key: "advanced", label: "Lanjut", tag: "LANJUT", heading: "Struktur kompleks" },
 ] as const;
 

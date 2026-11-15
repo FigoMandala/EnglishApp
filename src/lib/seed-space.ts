@@ -1,5 +1,5 @@
 /**
- * Ruang variasi untuk pembuat soal EPrT. Topik (800) saja habis terpakai ratusan kali pada ratusan ribu
+ * Ruang variasi untuk pembuat soal TOEFL ITP. Topik (800) saja habis terpakai ratusan kali pada ratusan ribu
  * soal; di sini tiap soal mendapat kombinasi konteks x pengubah x titik yang diuji (x bentuk teks /
  * pemicu skenario), sehingga ruang kombinasinya jutaan dan soal tidak berulang pola.
  */

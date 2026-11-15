@@ -5,8 +5,8 @@ export default function SimulationNotFound() {
     <NotFoundCard
       title="Simulasi tidak ditemukan"
       message="Simulasi ini tidak ada di akunmu. Mungkin sudah dihapus, atau tautannya milik akun lain."
-      primary={{ href: "/eptr", label: "Kembali ke EPrT" }}
-      secondary={{ href: "/eptr#mini-title", label: "Mulai simulasi baru" }}
+      primary={{ href: "/toefl", label: "Kembali ke TOEFL ITP" }}
+      secondary={{ href: "/toefl#mini-title", label: "Mulai simulasi baru" }}
     />
   );
 }

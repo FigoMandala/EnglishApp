@@ -16,6 +16,8 @@ type LogoProps = {
   href?: string;
   /** Subjudul kecil di bawah nama */
   subtitle?: string;
+  /** "light" untuk latar gelap (teks krem). */
+  tone?: "dark" | "light";
 };
 
 /**
@@ -165,7 +167,9 @@ export function Logo({
   subtitle,
   className,
   href,
+  tone = "dark",
 }: LogoProps) {
+  const light = tone === "light";
   const content = (
     <div
       className={cn(
@@ -178,9 +182,9 @@ export function Logo({
 
       {showText && (
         <div className="flex flex-col leading-none">
-          <div className="font-display font-black tracking-[-0.025em] text-ink">
-            <span className="text-[1.25em] font-black text-ink">English</span>
-            <span className="text-[1.25em] font-black text-primary">App</span>
+          <div className={cn("font-display font-black tracking-[-0.025em]", light ? "text-charcoal-ink" : "text-ink")}>
+            <span className={cn("text-[1.25em] font-black", light ? "text-charcoal-ink" : "text-ink")}>English</span>
+            <span className={cn("text-[1.25em] font-black", light ? "text-mango" : "text-primary")}>App</span>
           </div>
           {subtitle ? (
             <span className="mt-0.5 text-[0.72em] font-bold text-ink-subtle tracking-wide">

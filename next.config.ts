@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@libsql/client", "libsql"],
   // Jangan bocorkan framework/versi lewat header bawaan (audit keamanan P3).
   poweredByHeader: false,
+  // Alamat lama (nama sebelumnya EPrT) tetap hidup lewat redirect permanen.
+  async redirects() {
+    return [{ source: "/eptr/:path*", destination: "/toefl/:path*", permanent: true }];
+  },
   async headers() {
     return [
       {

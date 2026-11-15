@@ -11,7 +11,7 @@ import { CHOICE, OnboardingStep } from "../step-layout";
 const OPTS: Record<DailyMinutes, { label: string; flames: number; t: string; b: string }> = {
   5: { label: "Santai", flames: 1, t: "Santai juga boleh…", b: "Lima menit itu cukup buat jaga streak. Tapi jangan kaget kalau ketagihan." },
   10: { label: "Normal", flames: 2, t: "Pilihan paling pas!", b: "Satu pelajaran plus ulang kosakata. Cocok buat sela-sela kuliah." },
-  15: { label: "Serius", flames: 3, t: "Wih, semangat!", b: "Cukup buat satu pelajaran dan satu paket soal EPrT pendek tiap hari." },
+  15: { label: "Serius", flames: 3, t: "Wih, semangat!", b: "Cukup buat satu pelajaran dan satu paket soal TOEFL ITP pendek tiap hari." },
   20: { label: "Ngebut", flames: 4, t: "Gas pol!", b: "Mode persiapan ujian. Kaka udah siap jadi pelatih galakmu." },
 };
 

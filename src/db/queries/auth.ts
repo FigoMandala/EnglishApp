@@ -74,3 +74,11 @@ export async function deleteSessionsByUserId(userId: number) {
 export async function purgeExpiredSessions() {
   await db.delete(sessions).where(lt(sessions.expiresAt, stamp(new Date())));
 }
+
+export async function updateDisplayName(userId: number, displayName: string) {
+  await db.update(users).set({ displayName }).where(eq(users.id, userId));
+}
+
+export async function updatePasswordHash(userId: number, passwordHash: string) {
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}

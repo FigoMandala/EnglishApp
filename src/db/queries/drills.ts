@@ -70,7 +70,7 @@ export async function mistakeSummary(userId: number) {
           sql`${vocabularyProgress.box} = 0`,
         ),
       ),
-    // Halaman penuh mengambil maks 30 baris ulangan EPrT; ikuti batas itu.
+    // Halaman penuh mengambil maks 30 baris ulangan TOEFL ITP; ikuti batas itu.
     db
       .select({ n: sql<number>`count(*)` })
       .from(toeflReviews)
@@ -175,15 +175,15 @@ export async function mistakeGroups(userId: number) {
     groups.push({
       key: "eptr",
       kind: "eptr",
-      title: "Soal EPrT yang perlu diulang",
-      tag: "EPrT",
+      title: "Soal TOEFL ITP yang perlu diulang",
+      tag: "TOEFL ITP",
       rule: "Soal tes yang kamu jawab salah masuk antrean ulang sesuai jadwal.",
       open: reviews.length,
       total: reviews.length,
-      href: "/eptr",
-      hrefLabel: "BUKA EPrT",
+      href: "/toefl",
+      hrefLabel: "BUKA TOEFL ITP",
       items: reviews.slice(0, 8).map((r) => {
-        let prompt = "Soal EPrT";
+        let prompt = "Soal TOEFL ITP";
         try {
           const parsed = JSON.parse(r.question) as { q?: string };
           if (parsed.q) prompt = parsed.q.slice(0, 140);

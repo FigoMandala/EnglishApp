@@ -73,7 +73,7 @@ export function nextCefr(cefr: Cefr): Cefr | null {
 }
 
 /**
- * Konversi skor EPrT total (310–677) ke CEFR kasar.
+ * Konversi skor TOEFL ITP total (310–677) ke CEFR kasar.
  * Berdasarkan pemetaan umum TOEFL ITP → CEFR.
  */
 export function cefrFromEprtScore(score: number): Cefr {

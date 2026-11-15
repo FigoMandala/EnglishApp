@@ -304,7 +304,7 @@ export const WRITING_PROMPTS: WritingPrompt[] = [
     minWords: 180,
   },
 
-  // Lanjut — isu kebijakan dan abstrak ala EPrT.
+  // Lanjut — isu kebijakan dan abstrak ala TOEFL ITP.
   {
     id: "automation-jobs",
     level: "advanced",

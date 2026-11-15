@@ -45,7 +45,7 @@ function planChunks(kind: string, calls: number) {
   return chunks;
 }
 
-/** Form generate soal EPrT: permintaan besar dipecah per 5 batch, dikirim berurutan dengan progres nyata dan tombol Berhenti. */
+/** Form generate soal TOEFL ITP: permintaan besar dipecah per 5 batch, dikirim berurutan dengan progres nyata dan tombol Berhenti. */
 export function BankForm({ ready }: { ready: boolean }) {
   const [running, setRunning] = useState(false);
   const [kind, setKind] = useState("all");

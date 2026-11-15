@@ -24,30 +24,53 @@ import { cn } from "@/lib/utils";
 import { getVoiceConfig } from "@/lib/voice-config";
 
 import { ToeflRunner } from "../../toefl/toefl-runner";
+import { buildBrief } from "./brief-data";
+import { SectionBrief } from "./section-brief";
 import { OpenPartButton, PrefetchPart } from "./simulation-client";
 import { SimulationReview } from "./simulation-review";
 
-export const metadata = { title: "Simulasi EPrT · EnglishApp" };
+export const metadata = { title: "Simulasi TOEFL ITP · EnglishApp" };
 
 export const maxDuration = 300;
 
 export default async function SimulationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; p?: string; r?: string }>;
+  searchParams: Promise<{ id?: string; p?: string; r?: string; brief?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
   const id = Number(params.id);
-  if (!Number.isInteger(id) || id <= 0) redirect("/eptr");
+  if (!Number.isInteger(id) || id <= 0) redirect("/toefl");
 
   const sim = await loadSimulation(user.id, id);
   if (!sim) notFound();
-  const home = `/eptr/simulasi?id=${sim.id}`;
+  const home = `/toefl/simulasi?id=${sim.id}`;
 
   if (params.p !== undefined) {
     const position = sim.parts.findIndex((item) => item.index === Number(params.p));
     const part = sim.parts[position];
+    // Layar petunjuk: sengaja sebelum startSectionTimer di bawah, jadi membukanya
+    // tidak memulai timer. Setelah timer section jalan, petunjuk dilewati.
+    if (params.brief !== undefined && part) {
+      if (part.status === "done" || part.status === "locked") redirect(home);
+      if (sim.remaining[part.section] !== null) redirect(`${home}&p=${part.index}`);
+      const sections = SECTIONS.filter((item) => !sim.scope || item.key === sim.scope);
+      return (
+        <SectionBrief
+          simId={sim.id}
+          index={part.index}
+          backHref={home}
+          partNo={
+            sim.scope
+              ? "Mini-test satu section"
+              : `Bagian ${sections.findIndex((item) => item.key === part.section) + 1} dari ${sections.length}`
+          }
+          data={buildBrief(part.section)}
+          voice={await getVoiceConfig()}
+        />
+      );
+    }
     // "done" tetap boleh: selesai menyimpan bagian me-refresh halaman ini.
     if (!part || (part.status !== "active" && part.status !== "done") || !part.sessionId) {
       redirect(home);
@@ -117,11 +140,11 @@ const SECTION_LABEL = { listening: "Listening", structure: "Structure", reading:
 function BackLink() {
   return (
     <Link
-      href="/eptr"
+      href="/toefl"
       className="flex items-center gap-1.5 self-start py-2 text-base font-bold text-accent hover:text-accent-ink"
     >
       <ArrowLeft className="size-4" aria-hidden />
-      Kembali ke EPrT
+      Kembali ke TOEFL ITP
     </Link>
   );
 }
@@ -239,7 +262,8 @@ function Overview({ sim }: { sim: SimulationView }) {
                         <OpenPartButton
                           id={sim.id}
                           index={part.index}
-                          label={part.status === "active" ? "Lanjutkan" : "Mulai"}
+                          label={part.status === "active" && remaining !== null ? "Lanjutkan" : "Mulai"}
+                          brief={remaining === null}
                           className="h-12 bg-night-ink px-5 text-ink hover:bg-white"
                         />
                       ) : null}
@@ -292,8 +316,8 @@ function Result({
   return (
     <div className="flex flex-col gap-6">
       <nav aria-label="Remah roti" className="flex items-center gap-2 text-[0.875rem] font-bold text-ink-subtle">
-        <Link href="/eptr" className="text-ink-muted hover:text-primary">
-          EPrT
+        <Link href="/toefl" className="text-ink-muted hover:text-primary">
+          TOEFL ITP
         </Link>
         <ChevronRight className="size-3.5" strokeWidth={2.6} aria-hidden />
         <span aria-current="page">
@@ -346,7 +370,7 @@ function Result({
         </div>
         <div className="flex flex-[0_1_220px] flex-col gap-2.5">
           <Link
-            href="/eptr#practice-title"
+            href="/toefl#practice-title"
             className={buttonVariants({ variant: "reward", size: "md", className: "text-[0.9375rem]" })}
           >
             LATIH {lowest.label.toUpperCase()}
@@ -433,7 +457,7 @@ function Result({
               return (
                 <Link
                   key={stat.skill}
-                  href={`/eptr${formatParam}#topic-title`}
+                  href={`/toefl${formatParam}#topic-title`}
                   className={cn(
                     "flex items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-ink",
                     bad ? "border-brick-line bg-brick-soft" : "border-mango-line bg-mango-soft",

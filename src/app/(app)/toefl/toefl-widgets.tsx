@@ -19,7 +19,7 @@ export function SectionCountdown({ msLeft }: { msLeft: number }) {
     <p
       role="timer"
       aria-label={left > 0 ? `Sisa waktu section ${clock(left)}` : "Waktu section sudah habis"}
-      className="inline-flex items-center gap-1.5 rounded-full bg-charcoal px-3 py-1.5 font-round text-[1.125rem] font-extrabold text-mango-line"
+      className="inline-flex items-center gap-1.5 rounded-full bg-mango-soft px-3.5 py-1.5 font-round text-[1.125rem] font-extrabold text-mango-ink"
     >
       <Clock className="size-4" strokeWidth={2.6} aria-hidden />
       {left > 0 ? <span className="tnum">{clock(left)} tersisa</span> : <span className="font-sans text-[0.875rem]">Waktu section habis</span>}

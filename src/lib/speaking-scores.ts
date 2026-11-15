@@ -1,6 +1,6 @@
 /**
  * Skor terbaik per topik speaking. Disimpan sebagai JSON di `user_settings`
- * (pola yang sama dengan target/trend EPrT), jadi tidak perlu tabel baru.
+ * (pola yang sama dengan target/trend TOEFL ITP), jadi tidak perlu tabel baru.
  */
 export type SpeakingBest = Record<string, number>;
 

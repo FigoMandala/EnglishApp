@@ -26,8 +26,8 @@ export async function startSimulationAction(section?: string): Promise<Simulatio
   } catch (error) {
     return { status: "error", message: errorMessage(error) };
   }
-  revalidatePath("/eptr");
-  redirect(`/eptr/simulasi?id=${id}`);
+  revalidatePath("/toefl");
+  redirect(`/toefl/simulasi?id=${id}`);
 }
 
 

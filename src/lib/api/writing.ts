@@ -6,7 +6,7 @@ import { aiConfigured, getAiConfig } from "@/lib/ai-config";
 import { parseWritingScore, type WritingScore } from "@/lib/writing";
 
 const SYSTEM = [
-  "Kamu penilai esai Bahasa Inggris untuk pembelajar Indonesia yang menyiapkan TOEFL ITP dan EPrT.",
+  "Kamu penilai esai Bahasa Inggris untuk pembelajar Indonesia yang menyiapkan TOEFL ITP dan TOEFL ITP.",
   "Nilai esai secara jujur dan membangun. Bila tulisannya lemah, beri skor rendah tanpa ragu.",
   "Seluruh catatan, alasan koreksi, dan ringkasan WAJIB dalam Bahasa Indonesia yang ringkas dan jelas.",
   "Koreksi hanya kesalahan yang benar-benar ada di esai; jangan mengarang kalimat yang tidak ditulis pengguna.",

@@ -61,7 +61,7 @@ export default async function ProgresPage() {
     { v: streak, l: "Streak", unit: " hari" },
     { v: vocab.mastered, l: "Kata dikuasai" },
     { v: lessons.completed, l: "Materi selesai", unit: `/${lessons.total}` },
-    { v: eprtLast, l: "Perkiraan EPrT" },
+    { v: eprtLast, l: "Perkiraan TOEFL ITP" },
   ];
 
   const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
@@ -131,8 +131,8 @@ export default async function ProgresPage() {
             <strong>{dailyGoal} XP/hari</strong>
           </span>
           <span className="flex flex-wrap gap-x-4 gap-y-1 text-[0.875rem] font-extrabold">
-            <Link href="/eptr#target" className="text-primary-deep hover:underline">
-              Atur target EPrT
+            <Link href="/toefl#target" className="text-primary-deep hover:underline">
+              Atur target TOEFL ITP
             </Link>
             {/* Hak subjek data UU PDP: unduh salinan data milik sendiri. */}
             <a href="/api/ekspor-data" className="inline-flex items-center gap-1 text-ink hover:underline">

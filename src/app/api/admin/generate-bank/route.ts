@@ -13,7 +13,7 @@ export const maxDuration = 300;
 /** Batas per request (paralel, muat di 300 dtk). Total yang lebih besar dipecah oleh klien jadi beberapa request. */
 const MAX_PER_REQUEST = 5;
 
-/** Generate soal EPrT sambil melaporkan progres: satu baris JSON (NDJSON) per batch yang selesai. */
+/** Generate soal TOEFL ITP sambil melaporkan progres: satu baris JSON (NDJSON) per batch yang selesai. */
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user)) return NextResponse.json({ message: "Khusus admin." }, { status: 403 });

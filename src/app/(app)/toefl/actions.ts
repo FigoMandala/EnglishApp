@@ -12,13 +12,13 @@ import { isSkill } from "@/lib/toefl";
 
 export type ToeflState = { status: "idle" | "error"; message?: string };
 
-const BASE_PATH: Record<Track, string> = { toefl: "/eptr", eptr: "/eptr" };
+const BASE_PATH: Record<Track, string> = { toefl: "/toefl", eptr: "/toefl" };
 const TARGET_KEY: Record<Track, string> = {
   toefl: SETTING_KEYS.toeflTarget,
   eptr: SETTING_KEYS.eptrTarget,
 };
 
-// TOEFL disembunyikan sementara: semua aksi dipaksa ke EPrT. Kembalikan pembacaan form + cek admin untuk mengaktifkan lagi.
+// TOEFL disembunyikan sementara: semua aksi dipaksa ke TOEFL ITP. Kembalikan pembacaan form + cek admin untuk mengaktifkan lagi.
 const asTrack = (): Track => "eptr";
 
 function errorMessage(error: unknown) {
@@ -67,7 +67,7 @@ export async function answerToefl(
   try {
     const complete = await answerQuestion(user.id, sessionId, index, choice);
     if (complete) {
-      revalidatePath("/eptr");
+      revalidatePath("/toefl");
     }
     return { status: "idle" };
   } catch (error) {
@@ -80,7 +80,7 @@ export async function finishToefl(sessionId: number): Promise<ToeflState> {
   if (!Number.isInteger(sessionId)) return { status: "error", message: "Sesi tidak valid." };
   try {
     await finishSession(user.id, sessionId);
-    revalidatePath("/eptr");
+    revalidatePath("/toefl");
     return { status: "idle" };
   } catch (error) {
     return { status: "error", message: errorMessage(error) };

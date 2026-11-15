@@ -8,10 +8,10 @@ import { todayISO } from "@/lib/srs";
 import { SKILLS } from "@/lib/toefl";
 import { getVoiceConfig } from "@/lib/voice-config";
 
-import { ToeflRunner } from "../toefl/toefl-runner";
-import { EprtHome } from "./eprt-home";
+import { ToeflRunner } from "./toefl-runner";
+import { ToeflHome } from "./toefl-home";
 
-export const metadata = { title: "EPrT · EnglishApp" };
+export const metadata = { title: "TOEFL ITP · EnglishApp" };
 
 export const maxDuration = 300;
 
@@ -37,7 +37,13 @@ export default async function EptrPage({
   ]);
 
   if (session) {
-    return <ToeflRunner session={session} basePath="/eptr" voice={await getVoiceConfig()} />;
+    // Akurasi per skill (cukup data) untuk label topik prioritas di layar latihan.
+    const skillAcc = Object.fromEntries(
+      overview.stats
+        .filter((stat) => stat.pct !== null && stat.answered >= MIN_SKILL_ANSWERS)
+        .map((stat) => [stat.skill, stat.pct]),
+    );
+    return <ToeflRunner session={session} basePath="/toefl" voice={await getVoiceConfig()} skillAcc={skillAcc} />;
   }
 
   const running = simulations.find((sim) => !sim.completed);
@@ -47,13 +53,26 @@ export default async function EptrPage({
     .sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0))[0];
 
   return (
-    <EprtHome
+    <ToeflHome
       username={user.displayName ?? user.username}
       configured
       daysToTest={overview.target?.testDate ? daysBetween(today, overview.target.testDate) : null}
       target={overview.target}
       estimate={overview.estimate?.total ?? null}
+      sections={
+        overview.estimate
+          ? {
+              listening: overview.estimate.listening,
+              structure: overview.estimate.structure,
+              reading: overview.estimate.reading,
+              estimated: overview.estimate.estimated,
+            }
+          : null
+      }
       trend={overview.trend.slice(-10).map((point) => point.total)}
+      fullScores={simulations
+        .flatMap((sim) => (sim.completed && !sim.scope && sim.total !== null ? [{ date: sim.createdAt, total: sim.total }] : []))
+        .reverse()}
       week={overview.week}
       streak={overview.streak}
       reviewsDue={overview.reviews.due}
@@ -80,6 +99,7 @@ export default async function EptrPage({
                 0,
               ),
               totalQuestions: scopeQuestionTotal(active.scope),
+              parts: active.parts.map((part) => ({ section: part.section, done: part.status === "done" })),
             }
           : null
       }

@@ -360,7 +360,7 @@ export async function generateWordsAction(formData: FormData) {
 
   const ask = typed.length
     ? `Lengkapi data kamus untuk kata-kata ini: ${typed.join(", ")}.`
-    : `Pilih ${count} kata baru yang berguna untuk EPrT/TOEFL ITP, topik "${topic}", level ${level}.`;
+    : `Pilih ${count} kata baru yang berguna untuk TOEFL ITP/TOEFL ITP, topik "${topic}", level ${level}.`;
   let raw: string;
   let result: Awaited<ReturnType<typeof chatJsonRaw>> | null = null;
   const startedAt = Date.now();

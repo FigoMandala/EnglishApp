@@ -1,11 +1,12 @@
 "use client";
 
 import { Loader2, Play } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition, useState } from "react";
 
 import { PendingOverlay } from "@/components/pending-overlay";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { partBatches, SIM_PARTS } from "@/lib/eprt-simulation";
 
 import { startSimulationAction } from "./actions";
@@ -50,21 +51,39 @@ export function StartSimulationButton({
   );
 }
 
+/** Satu permintaan penyiapan batch; kembalikan pesan galat, atau null kalau berhasil. */
+export async function prepareBatch(id: number, index: number, batch: number) {
+  try {
+    const response = await fetch("/api/eprt-simulation/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, index, batch }),
+    });
+    if (response.ok) return null;
+    const data = (await response.json().catch(() => ({}))) as { message?: string };
+    return data.message ?? "Gagal menyiapkan soal.";
+  } catch {
+    return "Koneksi terputus saat menyiapkan soal.";
+  }
+}
+
 /**
  * Membuka satu bagian: siapkan semua batch bagian itu lewat permintaan kecil
  * berurutan (masing-masing di bawah batas durasi Vercel), lalu masuk ke soal.
- * Tampilan bagian tidak berubah.
+ * Dengan `brief`, tombol hanya membuka layar petunjuk (timer belum dimulai).
  */
 export function OpenPartButton({
   id,
   index,
   label,
   className,
+  brief = false,
 }: {
   id: number;
   index: number;
   label: string;
   className?: string;
+  brief?: boolean;
 }) {
   const router = useRouter();
   const part = SIM_PARTS[index];
@@ -79,30 +98,28 @@ export function OpenPartButton({
     setError(null);
     setRunning(true);
     setDone(0);
-    try {
-      for (const batch of batches) {
-        const response = await fetch("/api/eprt-simulation/prepare", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, index, batch: batch.index }),
-        });
-        if (!response.ok) {
-          const data = (await response.json().catch(() => ({}))) as { message?: string };
-          setError(data.message ?? "Gagal menyiapkan soal.");
-          setRunning(false);
-          return;
-        }
-        setDone(batch.index + 1);
+    for (const batch of batches) {
+      const message = await prepareBatch(id, index, batch.index);
+      if (message) {
+        setError(message);
+        setRunning(false);
+        return;
       }
-    } catch {
-      setError("Koneksi terputus saat menyiapkan soal.");
-      setRunning(false);
-      return;
+      setDone(batch.index + 1);
     }
-    router.push(`/eptr/simulasi?id=${id}&p=${index}`);
+    router.push(`/toefl/simulasi?id=${id}&p=${index}`);
     router.refresh();
     // Kalau navigasi ternyata batal, tombol tidak boleh spin selamanya.
     window.setTimeout(() => setRunning(false), 4000);
+  }
+
+  if (brief) {
+    return (
+      <Link href={`/toefl/simulasi?id=${id}&p=${index}&brief=1`} className={buttonVariants({ className })}>
+        <Play className="size-3.5" aria-hidden />
+        {label}
+      </Link>
+    );
   }
 
   return (

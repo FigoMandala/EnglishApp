@@ -149,7 +149,7 @@ async function createPartBatch(
       userId,
       track: "eptr",
       section: part.section,
-      label: `Simulasi EPrT - ${part.title}`,
+      label: `Simulasi TOEFL ITP - ${part.title}`,
       passage: null,
       questions: JSON.stringify([]),
       questionCount: part.count,

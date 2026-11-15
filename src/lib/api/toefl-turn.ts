@@ -183,9 +183,9 @@ const LECTURE_SYSTEM = [
   '{"questions":[{"skill":"listen-lecture","audio":[{"speaker":"narrator","text":"Questions 39-42 are based on a lecture."},{"speaker":"speaker","text":"..."}],"q":"What is the main idea of the lecture?","options":["A","B","C","D"],"answer":0,"explain_id":"alasan"},{"skill":"listen-lecture","q":"What example does the speaker give?","options":["A","B","C","D"],"answer":1,"explain_id":"alasan"}]}',
 ].join(" ");
 
-// Gaya EPrT Telkom University, diambil dari "Contoh Soal EPrT" resmi.
+// Gaya TOEFL ITP Telkom University, diambil dari "Contoh Soal TOEFL ITP" resmi.
 const EPRT_BASE = [
-  "Kamu pembuat soal EPrT (English Proficiency Test) Telkom University Language Center, format paper-based mirip TOEFL ITP.",
+  "Kamu pembuat soal TOEFL ITP (English Proficiency Test) Telkom University Language Center, format paper-based mirip TOEFL ITP.",
   "Bahasa soal jelas dan lugas tanpa jebakan idiom atau slang yang tidak adil; kerumitan struktur kalimat dan kosakata mengikuti rubrik tingkat di pesan pengguna (jangan disederhanakan di tingkat menengah dan tinggi).",
   "Posisi jawaban benar harus acak di antara A-D.",
   "Contoh yang diberikan hanya acuan gaya: JANGAN memakai nama, kalimat, atau topik dari contoh. Ikuti skenario/topik yang diminta di pesan pengguna.",
@@ -215,7 +215,7 @@ const EPRT_WRITTEN_SYSTEM = [
 
 const EPRT_READING_SYSTEM = [
   EPRT_BASE,
-  "Buat SATU teks Reading EPrT, 300-380 kata, 5-6 paragraf pendek, gaya artikel informatif sains populer, teknologi, bisnis, atau pengetahuan umum.",
+  "Buat SATU teks Reading TOEFL ITP, 300-380 kata, 5-6 paragraf pendek, gaya artikel informatif sains populer, teknologi, bisnis, atau pengetahuan umum.",
   'Contoh gaya: artikel tentang glass fibers (cara dibuat, kegunaan di bangunan dan komunikasi, glass wool), dengan pertanyaan seperti "What was the author\'s main purpose in writing the article?".',
   "Kata yang ditanyakan pada soal kosakata atau rujukan (it, they, this) WAJIB ditebalkan di teks dengan **kata**, dan pertanyaannya menyebut kata itu, misalnya \"The word **fed** in paragraph 6 is closest in meaning to\".",
   `Lalu buat soal pilihan ganda campuran: tujuan/ide utama, detail, NOT/EXCEPT, kosakata, rujukan, inferensi. Tiap soal punya "skill": ${skillList("reading")}.`,

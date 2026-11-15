@@ -39,7 +39,7 @@ export default async function AdminGeneratePage({ searchParams }: { searchParams
       <PageHeader
         eyebrow="Mode admin"
         title="Generate Konten"
-        description="Isi kosakata dan bank soal EPrT dengan AI. Hasil langsung masuk database; cek dan koreksi di Kosakata / Bank Soal."
+        description="Isi kosakata dan bank soal TOEFL ITP dengan AI. Hasil langsung masuk database; cek dan koreksi di Kosakata / Bank Soal."
       />
       <Notice pesan={param(params, "pesan")} galat={param(params, "galat")} />
 
@@ -97,7 +97,7 @@ export default async function AdminGeneratePage({ searchParams }: { searchParams
         </Card>
 
         <Card className="flex flex-col gap-4 p-5">
-          <h2 className="font-display text-xl font-extrabold">Soal EPrT</h2>
+          <h2 className="font-display text-xl font-extrabold">Soal TOEFL ITP</h2>
           <p className="text-[0.875rem] text-ink-subtle">
             Tiap batch membuat 6 soal (Structure, Written, Short Dialogue), 1 teks + 12 soal (Reading), atau 2 naskah ≈ 10 soal (Long Dialogue, Lecture). Progres tampil per batch. Setiap soal dijawab ulang oleh AI; yang jawabannya beda dengan kunci dibuang. Pilih Semua untuk membuat ketiga jenis sekaligus (jumlah batch berlaku per jenis). Bisa memakan 1-3 menit.
           </p>
