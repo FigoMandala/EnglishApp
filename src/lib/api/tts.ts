@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { ttsCache, ttsPregen } from "@/db/schema";
@@ -35,17 +35,23 @@ function request(key: string, text: string, voice: string) {
   });
 }
 
+const pregenKeyOf = (text: string, voice: string) =>
+  createHash("sha256").update(`${voice === "Charon" ? "man" : "woman"}\n${text}`).digest("hex");
+
+// Kunci cache memuat model dan suara supaya ganti model tidak memutar audio lama.
+const cacheKeyOf = (text: string, voice: string) =>
+  createHash("sha256").update(`fish64
+${ttsModel()}:${modelVoice(voice) ?? "default"}
+${text}`).digest("hex");
+
 /** Audio mp3 dari cache, atau dibuat lewat Fish Audio lalu disimpan. Null kalau gagal/tidak dikonfigurasi. */
 export async function getTts(text: string, voice: string): Promise<Buffer | null> {
   // Audio Listening yang dibuat di muka (tools/modal-drama3, Kokoro) menang atas cache dan Fish API.
-  const pregenKey = createHash("sha256").update(`${voice === "Charon" ? "man" : "woman"}\n${text}`).digest("hex");
+  const pregenKey = pregenKeyOf(text, voice);
   const [pregen] = await db.select().from(ttsPregen).where(eq(ttsPregen.key, pregenKey)).limit(1);
   if (pregen) return Buffer.from(pregen.audio);
   const apiKeyValue = apiKey();
-  // Kunci cache memuat model dan suara supaya ganti model tidak memutar audio lama.
-  const key = createHash("sha256").update(`fish64
-${ttsModel()}:${modelVoice(voice) ?? "default"}
-${text}`).digest("hex");
+  const key = cacheKeyOf(text, voice);
   const [hit] = await db.select().from(ttsCache).where(eq(ttsCache.key, key)).limit(1);
   if (hit) return Buffer.from(hit.audio, "base64");
   if (!apiKeyValue) return null;
@@ -91,6 +97,16 @@ ${line.text}`, { text: line.text, voice });
     }
   }
   if (!lines.size) return;
-  const work = Promise.allSettled([...lines.values()].map((line) => getTts(line.text, line.voice)));
+  // Cek keberadaan saja (kolom key, tanpa blob audio); hanya yang belum ada yang dibuat.
+  const all = [...lines.values()].map((line) => ({ ...line, pregen: pregenKeyOf(line.text, line.voice), cache: cacheKeyOf(line.text, line.voice) }));
+  const keys = all.flatMap((line) => [line.pregen, line.cache]);
+  const [pregenRows, cacheRows] = await Promise.all([
+    db.select({ key: ttsPregen.key }).from(ttsPregen).where(inArray(ttsPregen.key, keys)),
+    db.select({ key: ttsCache.key }).from(ttsCache).where(inArray(ttsCache.key, keys)),
+  ]);
+  const have = new Set([...pregenRows, ...cacheRows].map((row) => row.key));
+  const missing = all.filter((line) => !have.has(line.pregen) && !have.has(line.cache));
+  if (!missing.length) return;
+  const work = Promise.allSettled(missing.map((line) => getTts(line.text, line.voice)));
   await Promise.race([work, new Promise((resolve) => setTimeout(resolve, WARM_BUDGET_MS))]);
 }
