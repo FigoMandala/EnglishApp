@@ -44,3 +44,6 @@ tools/blender_mcp/
 
 # Cadangan otomatis Blender
 *.blend1
+
+# sampel resmi EPrT (hak cipta pihak lain)
+Contoh-Soal-EPrT*.pdf
