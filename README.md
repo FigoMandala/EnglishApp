@@ -1,7 +1,31 @@
 # EnglishApp
 
-Website belajar bahasa Inggris dengan akun per pengguna. Fondasi: autentikasi
-(username + password) dan dashboard kosong. Modul belajar menyusul.
+Website persiapan **TOEFL ITP** berbahasa Indonesia, dengan akun per pengguna. Isinya simulasi
+tes penuh (Listening 50, Structure 40, Reading 50), latihan per topik, tutor AI bernama Lori,
+dan sistem motivasi (XP, streak, level, liga).
+
+## Tampilan
+
+| Landing | Masuk / Daftar |
+| --- | --- |
+| ![Landing](docs/screenshots/landing.png) | ![Masuk](docs/screenshots/login.png) |
+
+| Beranda TOEFL ITP | Latihan bebas |
+| --- | --- |
+| ![Beranda TOEFL ITP](docs/screenshots/toefl.png) | ![Latihan](docs/screenshots/latihan.png) |
+
+| Tutor AI (Lori) |
+| --- |
+| ![Tutor](docs/screenshots/tutor.png) |
+
+## Fitur
+
+- **Simulasi TOEFL ITP penuh** dengan timer per section, skor, dan pembahasan.
+- **Latihan bebas**: Structure, Listening (audio TTS, bisa 0,75x), Speaking, Vocabulary, Reading, plus Bank Kesalahan.
+- **Tutor AI Lori**: tanya grammar, minta contoh, atau role-play skenario. Tidak membocorkan jawaban soal.
+- **Writing Coach**: esai dinilai AI per aspek, lengkap dengan koreksi kalimat.
+- **Motivasi**: target harian, XP, level, streak, liga mingguan, dan notifikasi push.
+- **Admin**: generate bank soal dan pengaturan key AI.
 
 ## Stack
 
