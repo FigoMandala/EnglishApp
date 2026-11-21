@@ -47,3 +47,16 @@ tools/blender_mcp/
 
 # sampel resmi EPrT (hak cipta pihak lain)
 Contoh-Soal-EPrT*.pdf
+
+# bukan kode aplikasi (tetap ada lokal)
+/research/
+/plans/
+/mockups/
+/.opencode/
+/assets/
+/tools/
+/.mcp.json
+/config.json
+/report.md
+/ROADMAP.md
+/docs/tes-android.md
