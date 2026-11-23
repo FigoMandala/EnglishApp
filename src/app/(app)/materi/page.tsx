@@ -6,17 +6,16 @@ import { Card } from "@/components/ui/card";
 import { listGrammarLessons } from "@/db/queries/grammar";
 import { exerciseStatsByLesson } from "@/db/queries/grammar-exercises";
 import { requireUser } from "@/lib/session";
+import { STRUCTURE_PATH } from "@/lib/structure-path";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Materi Grammar · EnglishApp" };
+export const metadata = { title: "Materi Structure · EnglishApp" };
 
-const LEVELS = [
-  { key: "basic", label: "Dasar", tag: "DASAR", heading: "Fondasi kalimat" },
-  { key: "intermediate", label: "Menengah", tag: "MENENGAH", heading: "Pola TOEFL ITP paling sering" },
-  { key: "advanced", label: "Lanjut", tag: "LANJUT", heading: "Struktur kompleks" },
-] as const;
+const LEVELS = STRUCTURE_PATH.map((lv) => ({ ...lv, label: lv.tag[0] + lv.tag.slice(1).toLowerCase() }));
 
-type LevelKey = (typeof LEVELS)[number]["key"];
+type LevelKey = (typeof STRUCTURE_PATH)[number]["key"];
+
+const slugsOf = (key: LevelKey): readonly string[] => STRUCTURE_PATH.find((lv) => lv.key === key)?.slugs ?? [];
 
 function masteryTone(pct: number) {
   if (pct >= 75) return { bar: "bg-primary", text: "text-primary-deep" };
@@ -37,7 +36,7 @@ export default async function MateriPage({
   const level = LEVELS.some((l) => l.key === params.level) ? (params.level as LevelKey) : null;
   const visible = lessons.filter(
     (lesson) =>
-      (!level || lesson.level === level) &&
+      (!level || slugsOf(level).includes(lesson.slug)) &&
       (!q || lesson.title.toLowerCase().includes(q) || (lesson.summary ?? "").toLowerCase().includes(q)),
   );
 
@@ -47,7 +46,10 @@ export default async function MateriPage({
     .filter((stat): stat is NonNullable<typeof stat> => Boolean(stat && stat.total > 0))
     .map((stat) => stat.correct / stat.total);
   const avgMastery = masteries.length ? Math.round((masteries.reduce((a, b) => a + b, 0) / masteries.length) * 100) : null;
-  const next = lessons.find((lesson) => !lesson.completed) ?? null;
+  // Berikutnya mengikuti urutan jalur Structure, bukan urutan di basis data.
+  const bySlug = new Map(lessons.map((lesson) => [lesson.slug, lesson]));
+  const next =
+    STRUCTURE_PATH.flatMap((lv) => lv.slugs).map((slug) => bySlug.get(slug)).find((lesson) => lesson && !lesson.completed) ?? null;
 
   const levelHref = (key: LevelKey | null) => {
     const sp = new URLSearchParams();
@@ -61,14 +63,20 @@ export default async function MateriPage({
     <div className="flex flex-col gap-7">
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div className="flex flex-col gap-1.5">
-          <p className="eyebrow text-ink-subtle">Perpustakaan grammar</p>
-          <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Materi Grammar</h1>
+          <p className="eyebrow text-ink-subtle">Jalur Structure</p>
+          <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Materi Structure</h1>
           <p className="text-ink-subtle">
             {lessons.length} topik · {done} selesai
             {avgMastery !== null ? ` · rata-rata penguasaan ${avgMastery}%` : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/latihan/structure"
+            className="flex h-12 items-center rounded-full bg-primary px-5 text-[0.875rem] font-extrabold text-white shadow-[0_3px_0_var(--color-primary-deep)]"
+          >
+            Latihan Structure
+          </Link>
           <form action="/materi" role="search" className="relative w-[300px] max-w-full">
             {level ? <input type="hidden" name="level" value={level} /> : null}
             <label htmlFor="materi-q" className="sr-only">
@@ -133,9 +141,11 @@ export default async function MateriPage({
         <Card className="p-6 text-[0.9375rem] text-ink-subtle">Tidak ada yang cocok. Coba kata lain.</Card>
       ) : (
         LEVELS.map((lv) => {
-          const items = visible.filter((lesson) => lesson.level === lv.key);
+          const order = (slug: string) => lv.slugs.indexOf(slug as never);
+          const inLevel = (lesson: (typeof lessons)[number]) => order(lesson.slug) >= 0;
+          const items = visible.filter(inLevel).sort((a, b) => order(a.slug) - order(b.slug));
           if (!items.length) return null;
-          const all = lessons.filter((lesson) => lesson.level === lv.key);
+          const all = lessons.filter(inLevel);
           return (
             <section key={lv.key} aria-labelledby={`level-${lv.key}`} className="flex flex-col gap-3.5">
               <div className="flex flex-wrap items-center gap-2.5">

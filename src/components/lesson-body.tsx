@@ -60,6 +60,40 @@ export function LessonBody({ body }: { body: string }) {
             </List>
           );
         }
+        if (block.kind === "table") {
+          return (
+            <div key={index} className="overflow-x-auto rounded-[16px] border-2 border-hairline">
+              <table className="w-full border-collapse text-left text-[0.875rem]" style={{ minWidth: block.header.length * 100 }}>
+                <thead>
+                  <tr className="bg-primary-soft text-primary-deep">
+                    {block.header.map((cell, cellIndex) => (
+                      <th key={cellIndex} scope="col" className="px-3 py-2.5 font-display text-[0.75rem] font-extrabold uppercase tracking-[0.04em]">
+                        <SpanText spans={cell} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex} className="border-t-2 border-hairline">
+                      {row.map((cell, cellIndex) =>
+                        cellIndex === 0 ? (
+                          <th key={cellIndex} scope="row" className="bg-canvas-deep/60 px-3 py-2.5 align-top font-extrabold text-ink">
+                            <SpanText spans={cell} />
+                          </th>
+                        ) : (
+                          <td key={cellIndex} className="px-3 py-2.5 align-top leading-snug text-ink-muted">
+                            <SpanText spans={cell} />
+                          </td>
+                        ),
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
         return (
           <p key={index} className="text-[0.9375rem] leading-relaxed text-ink-muted">
             <SpanText spans={block.spans} />

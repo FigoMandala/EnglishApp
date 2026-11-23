@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CONTEXT_MODIFIERS, SCENE_HOOKS, comboSpace, pickPoints, sample } from "./seed-space";
+import { CONTEXT_MODIFIERS, SCENE_HOOKS, comboSpace, pickKeyPositions, pickPoints, sample } from "./seed-space";
 
 test("tidak ada duplikat di daftar seed", () => {
   assert.equal(new Set(CONTEXT_MODIFIERS).size, CONTEXT_MODIFIERS.length);
@@ -30,4 +30,15 @@ test("titik per level: low tidak memuat tingkat tinggi, mid tidak memuat dasar",
 test("ruang kombinasi cukup besar untuk jutaan soal", () => {
   const space = comboSpace(800);
   assert.ok(space.structure > 100_000 && space.written > 100_000 && space.reading > 1_000_000);
+});
+
+test("pickKeyPositions menyebar rata dan hanya memakai posisi yang diizinkan", () => {
+  const all = Array.from({ length: 400 }, () => pickKeyPositions(6)).flat();
+  for (const pos of [0, 1, 2, 3]) {
+    const share = all.filter((x) => x === pos).length / all.length;
+    assert.ok(share > 0.2 && share < 0.3, `posisi ${pos}: ${share}`);
+  }
+  const some = pickKeyPositions(50, [0, 1, 3]);
+  assert.equal(some.length, 50);
+  assert.ok(some.every((x) => [0, 1, 3].includes(x)));
 });

@@ -46,6 +46,8 @@ const GROUPS: NavGroup[] = [
     title: "Tes & motivasi",
     items: [
       { href: "/toefl", label: "TOEFL ITP", short: "TOEFL ITP", icon: GraduationCap },
+      { href: "/materi", label: "Materi Structure", short: "Materi", icon: BookOpen },
+      { href: "/latihan/structure", label: "Latihan Structure", short: "Latihan", icon: Dumbbell },
     ],
   },
   // Menu yang dikunci dilipat supaya tidak memenuhi sidebar; kuncinya tetap, tinggal diaktifkan lagi.
@@ -56,7 +58,6 @@ const GROUPS: NavGroup[] = [
       { href: "/streak", label: "Streak", short: "Streak", icon: Flame, locked: true },
       { href: "/belajar", label: "Jalur Belajar", short: "Jalur", icon: Layers, locked: true },
       { href: "/kosakata", label: "Kosakata", short: "Kosa", icon: SpellCheck, locked: true },
-      { href: "/materi", label: "Materi Grammar", short: "Materi", icon: BookOpen, locked: true },
       { href: "/latihan", label: "Latihan Bebas", short: "Latihan", icon: Dumbbell, locked: true },
       { href: "/writing", label: "Writing Coach", short: "Nulis", icon: PenLine, locked: true },
       { href: "/tutor", label: "Tutor AI", short: "Tutor", icon: MessageCircle, locked: true },

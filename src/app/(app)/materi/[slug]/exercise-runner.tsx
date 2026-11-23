@@ -8,7 +8,6 @@ import { createPortal } from "react-dom";
 
 import { Confetti } from "@/components/fx/confetti";
 import { Lori } from "@/components/mascot";
-import { SpeakButton } from "@/components/speak-button";
 import { Anatomy, blankAnatomy } from "@/components/ui/anatomy";
 import { FieldError, Input, Textarea } from "@/components/ui/field";
 import type { GrammarExerciseType } from "@/db/schema";
@@ -304,13 +303,6 @@ export function ExerciseRunner({
                     </div>
 
                     <div className="rise flex items-start gap-3 [--i:1]">
-                      {current.type === "translate" || current.type === "compose" ? null : (
-                        <SpeakButton
-                          text={current.prompt.replace(/_+/g, "blank")}
-                          label="Putar audio kalimat"
-                          className="mt-1 size-11 rounded-[12px] bg-sky text-white shadow-[0_3px_0_var(--color-sky-deep)] hover:bg-sky hover:text-white"
-                        />
-                      )}
                       <p className="text-[1.5rem] font-semibold leading-[1.45] sm:text-[1.75rem]">{current.prompt}</p>
                     </div>
 

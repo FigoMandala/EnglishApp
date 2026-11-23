@@ -21,7 +21,7 @@ import {
   talkStyle,
 } from "@/lib/question-variety";
 import { NearDupIndex } from "@/lib/near-dup";
-import { pickHooks, pickModifier, pickPoints, pickRegister } from "@/lib/seed-space";
+import { pickHooks, pickKeyPositions, pickModifier, pickPoints, pickRegister } from "@/lib/seed-space";
 import { dialogueKey, type QuestionType, type ToeflQuestion } from "@/lib/toefl";
 
 /** Pembuat bank soal TOEFL ITP: dipakai halaman admin dan skrip src/db/generate-eprt-bank.ts. */
@@ -261,6 +261,14 @@ async function dropBadExplanations(ctx: EprtContext, kind: Kind, passage: string
   return questions.filter((_, i) => ok[i] !== false);
 }
 
+/**
+ * Posisi kunci yang diizinkan untuk soal Written (0=A .. 3=D). WRITTEN_KEY_POS=0,1,3 membatasi ke himpunan itu
+ * (dipakai menyeimbangkan bank lama yang kuncinya menumpuk di C); kosong = semua posisi, rata.
+ */
+const KEY_POS_ENV = process.env.WRITTEN_KEY_POS?.split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 0 && x <= 3);
+const KEY_POS = KEY_POS_ENV?.length ? KEY_POS_ENV : [0, 1, 2, 3];
+const KEY_POS_RESTRICTED = Boolean(KEY_POS_ENV?.length);
+
 function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
   const level = LEVEL_SCORE[band];
   const test = `TOEFL ITP (skala mirip TOEFL ITP) ${level}`;
@@ -279,9 +287,11 @@ function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
     ctx.seeds.scenes = rememberSeeds(ctx.seeds.scenes, scenes, 5_000);
     const hooks = pickHooks(n);
     const plans = scenes.map((scene, i) => (topic ? scene : `${scene} (dinamika: ${hooks[i]})`));
+    // Skenario dirakit acak (relasi x latar x situasi) dan sering tidak masuk akal ("perawat kampus di lab komputer"): model wajib menyesuaikan.
+    const coherence = " Skenario di atas dirakit acak, jadi anggap sebagai bahan mentah: kalau peran, tempat, dan situasinya tidak masuk akal bersama-sama, UBAH salah satunya sampai wajar. Peran tiap pembicara harus konsisten sepanjang percakapan dan cocok dengan tempatnya, dan tiap giliran bicara harus menjawab giliran sebelumnya.";
     return kind === "listen-short"
-      ? `Buat ${n} soal, tingkat setara ${test}.\n${rubric}\nSkenario tiap soal (urut, satu skenario per soal): ${list(plans)}.`
-      : `Buat ${n} dialog panjang berbeda, masing-masing dengan ${PER_TALK} soal (total ${n * PER_TALK} soal), tingkat setara ${test}.\n${rubric}\nSkenario tiap dialog (urut): ${list(plans)}.`;
+      ? `Buat ${n} soal, tingkat setara ${test}.\n${rubric}\nSkenario tiap soal (urut, satu skenario per soal): ${list(plans)}.${coherence}`
+      : `Buat ${n} dialog panjang berbeda, masing-masing dengan ${PER_TALK} soal (total ${n * PER_TALK} soal), tingkat setara ${test}.\n${rubric}\nSkenario tiap dialog (urut): ${list(plans)}.${coherence}`;
   }
   if (kind === "listen-lecture") {
     const topics = topic ? Array.from({ length: TALKS }, () => topic) : pickFresh(SUBTOPICS, ctx.seeds.topics, TALKS);
@@ -293,7 +303,11 @@ function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
   ctx.seeds.topics = rememberSeeds(ctx.seeds.topics, topics, 5_000);
   const points = pickPoints(kind as "structure" | "written", band, count);
   const label = kind === "structure" ? "titik yang diuji" : "jenis kesalahan yang disisipkan";
-  const plan = topics.map((t, i) => `${i + 1}. konteks: ${topic ? t : `${t} ${pickModifier()}`}; ${label}: ${points[i]}`);
+  const keyPos = kind === "written" ? pickKeyPositions(count, KEY_POS) : [];
+  const plan = topics.map(
+    (t, i) =>
+      `${i + 1}. konteks: ${topic ? t : `${t} ${pickModifier()}`}; ${label}: ${points[i]}${kind === "written" ? `; bagian bergaris bawah yang SALAH harus bagian ${"ABCD"[keyPos[i]]} (answer=${keyPos[i]})` : ""}`,
+  );
   return `Buat ${count} soal, tingkat setara ${test}.\n${rubric}\nRencana tiap soal (urut, satu baris per soal; ikuti persis, jangan menyalin teks rencana ke dalam soal):\n${plan.join("\n")}`;
 }
 
@@ -318,6 +332,7 @@ export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: Leve
     (q) =>
       !copiesExample(questionText(q)) &&
       q.explain_id &&
+      (kind !== "written" || !KEY_POS_RESTRICTED || KEY_POS.includes(q.answer)) &&
       (kind === "reading" || !ctx.similar[kind].has(grouped ? dialogueKey(q) : questionText(q))) &&
       lengthBalanced(ctx, kind, q),
   );

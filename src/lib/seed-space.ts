@@ -88,6 +88,16 @@ export function pickPoints(kind: "structure" | "written", band: LevelBand, n: nu
   return sample(forBand(kind === "structure" ? STRUCTURE_POINTS : WRITTEN_ERRORS, band), n, random);
 }
 
+/**
+ * Posisi bagian bergaris bawah yang SALAH (0=A .. 3=D) untuk n soal Written, dari himpunan yang diizinkan.
+ * Siklus teracak supaya kunci tersebar rata; kalau dibiarkan ke model, kunci menumpuk di C (43-46%).
+ */
+export function pickKeyPositions(n: number, allowed: readonly number[] = [0, 1, 2, 3], random = Math.random): number[] {
+  const out: number[] = [];
+  while (out.length < n) out.push(...sample(allowed, allowed.length, random));
+  return out.slice(0, n);
+}
+
 export const pickModifier = (random = Math.random) => CONTEXT_MODIFIERS[Math.floor(random() * CONTEXT_MODIFIERS.length)];
 export const pickRegister = (random = Math.random) => READING_REGISTERS[Math.floor(random() * READING_REGISTERS.length)];
 export const pickHooks = (n: number, random = Math.random) => sample(SCENE_HOOKS, n, random);

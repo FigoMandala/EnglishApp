@@ -3,12 +3,18 @@ export type Span = { text: string; tone: "plain" | "bold" | "code" };
 export type Block =
   | { kind: "heading"; level: 2 | 3; spans: Span[] }
   | { kind: "paragraph"; spans: Span[] }
-  | { kind: "list"; ordered: boolean; items: Span[][] };
+  | { kind: "list"; ordered: boolean; items: Span[][] }
+  | { kind: "table"; header: Span[][]; rows: Span[][][] };
 
 const INLINE = /(`[^`\n]+`|\*\*(?!\s)[^*\n]+?(?<!\s)\*\*)/g;
 const BULLET = /^\s*[-*]\s+/;
 const NUMBERED = /^\s*\d+[.)]\s+/;
 const HEADING = /^(#{2,3})\s+(.*)$/;
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_RULE = /^\s*\|(\s*:?-{2,}:?\s*\|)+\s*$/;
+
+const cellsOf = (line: string) =>
+  line.trim().slice(1, -1).split("|").map((cell) => parseInline(cell.trim()));
 
 export function parseInline(text: string): Span[] {
   const spans: Span[] = [];
@@ -45,6 +51,17 @@ export function parseMarkdown(source: string): Block[] {
         level: heading[1].length as 2 | 3,
         spans: parseInline(heading[2].trim()),
       });
+      continue;
+    }
+
+    // Tabel: baris header, baris pemisah |---|, lalu baris data.
+    if (TABLE_ROW.test(line) && TABLE_RULE.test(lines[i + 1] ?? "")) {
+      flush();
+      const header = cellsOf(line);
+      const rows: Span[][][] = [];
+      for (i += 2; i < lines.length && TABLE_ROW.test(lines[i]); i += 1) rows.push(cellsOf(lines[i]));
+      i -= 1;
+      blocks.push({ kind: "table", header, rows });
       continue;
     }
 
