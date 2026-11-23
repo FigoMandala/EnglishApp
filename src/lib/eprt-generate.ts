@@ -22,7 +22,7 @@ import {
 } from "@/lib/question-variety";
 import { NearDupIndex } from "@/lib/near-dup";
 import { pickHooks, pickKeyPositions, pickModifier, pickPoints, pickRegister } from "@/lib/seed-space";
-import { dialogueKey, type QuestionType, type ToeflQuestion } from "@/lib/toefl";
+import { dialogueKey, SKILLS, type QuestionType, type SkillKey, type ToeflQuestion } from "@/lib/toefl";
 
 /** Pembuat bank soal TOEFL ITP: dipakai halaman admin dan skrip src/db/generate-eprt-bank.ts. */
 export type Kind = "structure" | "written" | "reading" | "listen-short" | "listen-long" | "listen-lecture";
@@ -312,13 +312,13 @@ function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
 }
 
 /** Satu panggilan AI + verifikasi + simpan ke bank. Melempar Error kalau tidak ada yang layak. */
-export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
+export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string, skill?: SkillKey) {
   const grouped = GROUPED.includes(kind);
   const messages: ProviderMessage[] = [
     { role: "system", content: BUILD_SYSTEM.eptr[kind] },
     {
       role: "user",
-      content: `${prompt(ctx, kind, band, topic)}\n${isListening(kind) ? QUALITY_LISTENING : QUALITY_COMMON}\n${QUALITY[kind]}\nPENTING: field "answer" adalah indeks berbasis 0 (0=A, 1=B, 2=C, 3=D), bukan mulai dari 1.`,
+      content: `${prompt(ctx, kind, band, topic)}\n${isListening(kind) ? QUALITY_LISTENING : QUALITY_COMMON}\n${QUALITY[kind]}${skill ? `\nFOKUS TOPIK: SEMUA soal wajib menguji "${SKILLS[skill].label}" (${SKILLS[skill].hint}), dan field "skill" tiap soal wajib "${skill}".` : ""}\nPENTING: field "answer" adalah indeks berbasis 0 (0=A, 1=B, 2=C, 3=D), bukan mulai dari 1.`,
     },
   ];
   const result = await chatJsonRaw(ctx.config, messages, undefined, ctx.extra);
@@ -373,5 +373,5 @@ export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: Leve
       item: JSON.stringify(item),
     })),
   );
-  return { n: items.length, dropped: candidates.length - items.reduce((sum, item) => sum + item.questions.length, 0) };
+  return { n: items.length, dropped: candidates.length - items.reduce((sum, item) => sum + item.questions.length, 0), questions: items.flatMap((item) => item.questions) };
 }

@@ -490,6 +490,13 @@ async function produceQuestions(request: Request): Promise<Item> {
     return null;
   };
 
+  // Latihan satu topik Structure: soal dibuat AI saat tombol ditekan (pengguna melihat "Menyiapkan..."); gagal = jatuh ke bank.
+  if (request.only && request.track === "eptr") {
+    const fresh = (await topUpFromAi(request).catch(() => [])).filter((q) => q.skill === request.focus[0]);
+    if (fresh.length >= request.count) {
+      return { passage: null, questions: renumber(fresh.slice(0, request.count).map(reshuffle), request.first) };
+    }
+  }
   let result = await serve();
   if (!result && process.env.EPRT_AI_FALLBACK === "1" && request.track === "eptr") {
     await topUpFromAi(request);
@@ -513,7 +520,7 @@ const SOAL_PER_BATCH: Record<BuildKind, number> = { structure: 6, written: 6, re
  * dicatat ke ai_usage — tanpa ini kill-switch anggaran tidak pernah melihat biaya
  * jalur termahal ini (audit keamanan P1).
  */
-async function topUpFromAi(request: Request) {
+async function topUpFromAi(request: Request): Promise<ToeflQuestion[]> {
   const config = await getAiConfig();
   if (!aiConfigured(config)) throw new AiError("Stok soal belum tersedia dan AI belum dikonfigurasi. Hubungi admin.");
   const limit = await checkRateLimit(`eptr-topup:user:${request.userId}`, 40, 60 * 60_000);
@@ -542,7 +549,7 @@ async function topUpFromAi(request: Request) {
   const startedAt = Date.now();
   try {
     const results = await Promise.allSettled(
-      Array.from({ length: reservations.length }, () => generateEprtBatch(ctx, request.kind, band)),
+      Array.from({ length: reservations.length }, () => generateEprtBatch(ctx, request.kind, band, undefined, request.only ? request.focus[0] : undefined)),
     );
     // ctx.usage menjumlahkan seluruh panggilan provider (buat + verifikasi + saring)
     // lintas batch; dicatat sekali sebagai belanja nyata hari ini.
@@ -554,6 +561,7 @@ async function topUpFromAi(request: Request) {
       latencyMs: Date.now() - startedAt,
       ok: results.some((r) => r.status === "fulfilled"),
     });
+    return results.flatMap((r) => (r.status === "fulfilled" ? r.value.questions : []));
   } catch (error) {
     await logAiUsage({
       userId: request.userId,
