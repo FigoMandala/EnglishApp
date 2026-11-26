@@ -236,6 +236,19 @@ export function copiesExample(text: string) {
   return EXAMPLE_PHRASES.some((phrase) => plain.includes(normalize(phrase)));
 }
 
+/** Ambil maksimal `max` soal yang belum mirip isi `seen`; yang diambil ikut dicatat ke `seen`. */
+export function takeNew<T extends Pick<ToeflQuestion, "q" | "options" | "audio">>(questions: T[], seen: SimilarityIndex, max: number) {
+  const taken: T[] = [];
+  for (const question of questions) {
+    if (taken.length >= max) break;
+    const text = questionText(question);
+    if (seen.has(text)) continue;
+    seen.add(text);
+    taken.push(question);
+  }
+  return taken;
+}
+
 /** Indeks kemiripan riwayat soal pengguna. */
 export class SimilarityIndex {
   private readonly prints = new Set<string>();

@@ -7,6 +7,8 @@ import { SKILLS, type SkillKey } from "@/lib/toefl";
 import { TopicCard } from "./topic-card";
 
 export const metadata = { title: "Latihan Structure · EnglishApp" };
+// Soal dibuat AI di dalam server action halaman ini.
+export const maxDuration = 300;
 
 const TOPICS = (Object.keys(SKILLS) as SkillKey[]).filter((key) => SKILLS[key].section === "structure");
 
@@ -19,7 +21,7 @@ export default async function StructurePracticePage() {
           <p className="eyebrow text-ink-subtle">Latihan khusus</p>
           <h1 className="font-display text-[2rem] font-black leading-[1.1] tracking-[-0.02em] sm:text-[2.25rem]">Latihan Structure</h1>
           <p className="max-w-[560px] text-ink-subtle">
-            Pilih satu topik, lalu kerjakan 10 soal gaya TOEFL ITP dari bank soal. Tiap soal ada penjelasannya setelah dijawab.
+            Pilih satu topik, lalu kerjakan sampai 10 soal gaya TOEFL ITP yang dibuat AI. Menyiapkannya bisa makan waktu sekitar satu menit. Tiap soal ada penjelasannya setelah dijawab.
           </p>
         </div>
         <Link

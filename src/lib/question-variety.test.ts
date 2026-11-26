@@ -11,6 +11,7 @@ import {
   similarity,
   SimilarityIndex,
   SUBTOPICS,
+  takeNew,
   trigrams,
 } from "./question-variety";
 
@@ -79,5 +80,19 @@ describe("questionText", () => {
     const base = { q: "Pick one", options: ["alpha", "beta", "gamma", "delta"] };
     const shuffled = { ...base, options: ["gamma", "alpha", "delta", "beta"] };
     assert.equal(fingerprint(questionText(base)), fingerprint(questionText(shuffled)));
+  });
+});
+
+describe("takeNew", () => {
+  const q = (text: string) => ({ q: text, options: ["is", "are", "was", "be"] });
+  const a = q("The committee ___ the proposal after a long debate.");
+  const b = q("Rarely ___ such a bright comet been visible from the northern coast.");
+  const c = q("Neither the pilot nor the passengers ___ aware of the delay.");
+
+  it("membuang soal kembar dan yang sudah dilihat, berhenti di batas", () => {
+    const seen = new SimilarityIndex([questionText(a)]);
+    assert.deepEqual(takeNew([a, b, b, c], seen, 5), [b, c]);
+    assert.ok(seen.has(questionText(c)));
+    assert.deepEqual(takeNew([b, c], new SimilarityIndex(), 1), [b]);
   });
 });

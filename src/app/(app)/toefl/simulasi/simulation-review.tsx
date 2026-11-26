@@ -126,7 +126,7 @@ export function SimulationReview({ session }: { session: SessionView }) {
             )}
 
             {question.explain_id ? (
-              <p className="rounded-[14px] bg-surface-muted px-3.5 py-3 text-[0.9375rem] text-ink-muted">
+              <p className="rounded-[14px] bg-surface-muted px-3.5 py-3 text-[0.9375rem] text-ink-muted whitespace-pre-line">
                 <strong>Kenapa:</strong> {question.explain_id}
               </p>
             ) : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useActionState } from "react";
 
 import { startToeflBlock, type ToeflState } from "@/app/(app)/toefl/actions";
@@ -15,12 +16,13 @@ function StartButton({ kind, skill, label, primary }: { kind: "drill" | "written
       <button
         type="submit"
         disabled={pending}
-        className={`flex min-h-11 cursor-pointer items-center justify-center rounded-[12px] px-3 text-[0.8125rem] font-extrabold transition-transform active:translate-y-0.5 disabled:opacity-60 ${
+        className={`flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-[12px] px-3 text-[0.8125rem] font-extrabold transition-transform active:translate-y-0.5 disabled:opacity-60 ${
           primary
             ? "bg-primary text-white shadow-[0_3px_0_var(--color-primary-deep)]"
             : "border-2 border-hairline bg-surface text-ink shadow-[0_3px_0_var(--color-hairline)]"
         }`}
       >
+        {pending ? <Loader2 className="size-4 shrink-0 animate-spin" strokeWidth={2.6} aria-hidden /> : null}
         {pending ? "Menyiapkan..." : label}
       </button>
       {state.status === "error" ? (

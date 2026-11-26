@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CONTEXT_MODIFIERS, SCENE_HOOKS, comboSpace, pickKeyPositions, pickPoints, sample } from "./seed-space";
+import { CONTEXT_MODIFIERS, SCENE_HOOKS, comboSpace, pickKeyPositions, pickPoints, pickSkillPoints, sample } from "./seed-space";
+import { SKILLS, type SkillKey } from "./toefl";
 
 test("tidak ada duplikat di daftar seed", () => {
   assert.equal(new Set(CONTEXT_MODIFIERS).size, CONTEXT_MODIFIERS.length);
@@ -41,4 +42,10 @@ test("pickKeyPositions menyebar rata dan hanya memakai posisi yang diizinkan", (
   const some = pickKeyPositions(50, [0, 1, 3]);
   assert.equal(some.length, 50);
   assert.ok(some.every((x) => [0, 1, 3].includes(x)));
+});
+
+test("semua topik Structure punya cukup pola berbeda untuk satu batch", () => {
+  for (const key of Object.keys(SKILLS) as SkillKey[]) {
+    if (SKILLS[key].section === "structure") assert.equal(new Set(pickSkillPoints(key, 8)).size, 8, key);
+  }
 });

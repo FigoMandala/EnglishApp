@@ -4,6 +4,7 @@
  * pemicu skenario), sehingga ruang kombinasinya jutaan dan soal tidak berulang pola.
  */
 import type { LevelBand } from "@/db/queries/question-bank";
+import type { SkillKey } from "@/lib/toefl";
 
 export type Tier = "L" | "M" | "H";
 
@@ -55,6 +56,29 @@ const WRITTEN_ERRORS: [string, Tier][] = [
   ["urutan tense dengan past perfect", "H"], ["urutan kata dalam embedded question", "H"], ["kolokasi preposisi setelah adjektiva/verba", "H"],
   ["few/little/fewer/less", "H"], ["bentuk setelah prefer / would rather", "H"], ["used to vs be used to", "H"],
 ];
+
+/** Pola per topik untuk Latihan Structure satu topik, supaya 10 soal tidak memakai satu pola. Mengikuti larangan prompt kualitas. */
+const SKILL_POINTS: Partial<Record<SkillKey, string[]>> = {
+  sv: ["subjek yang hilang", "verb utama yang hilang", "subjek panjang yang disela frasa preposisi lalu butuh verb utama", "appositive yang menyela subjek dan verb", "there/it sebagai subjek semu", "klausa nomina sebagai subjek lalu butuh verb utama", "klausa relatif pada subjek lalu butuh verb utama", "subjek dan verb setelah frasa pembuka yang panjang", "verb kedua dalam kalimat majemuk setelah konjungsi koordinatif"],
+  agreement: ["subjek disela frasa preposisi berisi nomina berbeda jumlah", "each/every + nomina", "one of the + nomina jamak", "gerund sebagai subjek", "either...or / neither...nor mengikuti subjek terdekat", "verb pada klausa relatif mengikuti anteseden", "urutan terbalik setelah there atau frasa tempat", "klausa nomina sebagai subjek", "along with / as well as tidak mengubah jumlah subjek"],
+  tense: ["present perfect dengan since/for", "past perfect dengan by the time", "future perfect dengan by + waktu mendatang", "simple past dengan penanda waktu lampau", "past continuous yang disela simple past", "present tense pada klausa waktu bermakna mendatang", "bentuk verb setelah modal", "modal perfect", "bentuk verb setelah have atau be"],
+  passive: ["pasif simple past", "pasif present perfect", "pasif setelah modal", "pasif progressive", "pasif dengan reporting verb (is said to have)", "perfect passive infinitive", "get/have + objek + V3", "verb intransitif yang tidak boleh dipasifkan", "pasif dengan verb berobjek ganda"],
+  clause: ["noun clause dengan what", "noun clause dengan whether atau that", "klausa relatif who/which/whose", "preposisi + relative pronoun", "klausa kontras although/whereas", "klausa sebab because/since", "klausa waktu atau syarat (once, unless)", "so...that / such...that", "konektor klausa vs preposisi (because vs because of)"],
+  reduced: ["appositive berupa frasa nomina", "participle V3 pengganti klausa relatif pasif", "participle V-ing pengganti klausa relatif aktif", "while/when + V-ing dengan subjek yang cocok", "having + V3 di awal kalimat", "once/if/unless + V3", "frasa pembuka V3 yang menerangkan subjek", "adjective phrase pengganti klausa relatif"],
+  inversion: ["adverbia negatif di awal (rarely, seldom, never)", "hardly/scarcely ... when", "no sooner ... than", "only after / only when di awal", "not until di awal", "not only di awal", "conditional tanpa if (had, were, should)", "so + adjektiva di awal diikuti that", "frasa tempat di awal diikuti verb lalu subjek"],
+  parallel: ["daftar tiga nomina", "daftar tiga gerund", "deret infinitive", "both ... and", "either ... or / neither ... nor", "not only ... but also", "dua klausa sejajar", "perbandingan yang menuntut bentuk sejajar setelah than", "rather than dengan bentuk sejajar"],
+  comparison: ["comparative + than", "as ... as", "superlative dengan the + lingkup", "pola the + comparative, the + comparative", "kelipatan (twice as ... as)", "that of / those of dalam perbandingan", "penguat comparative (far, much)", "fewer vs less", "unlike / like pada perbandingan dua nomina"],
+  "noun-pronoun": ["nomina tak terhitung", "bentuk jamak tak beraturan", "pronomina cocok jumlah dengan rujukan", "kasus pronomina subjek/objek/kepemilikan", "its vs their", "pronomina reflexive", "those who / that of", "quantifier many/much sesuai nomina", "another/other/others"],
+  "word-form": ["adverbia penerang verb", "adverbia penerang adjektiva", "adjektiva setelah linking verb", "nomina setelah determiner", "nomina pelaku vs nomina bidang", "participial adjective -ing vs -ed", "verb vs nomina seakar", "adjektiva sebelum nomina", "nomina setelah preposisi"],
+  "article-prep": ["a vs an menurut bunyi", "the untuk rujukan spesifik atau superlatif", "tanpa artikel pada nomina umum", "preposisi waktu in/on/at", "preposisi tempat", "adjektiva + preposisi", "verb + preposisi", "nomina + preposisi (increase in, demand for)", "despite / during / by / until"],
+};
+
+/** Pola yang diuji untuk n soal satu topik, merata tanpa pengulangan selama daftarnya cukup. */
+export function pickSkillPoints(skill: SkillKey, n: number, random = Math.random) {
+  const list = SKILL_POINTS[skill];
+  if (!list) throw new Error(`topik tanpa pola: ${skill}`);
+  return sample(list, n, random);
+}
 
 /** Bentuk teks Reading, selain sudut pembahasan yang sudah ada. */
 export const READING_REGISTERS = [

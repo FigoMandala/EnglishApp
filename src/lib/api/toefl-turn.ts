@@ -50,6 +50,7 @@ import {
 PASSAGE_SIMILAR,
   questionText,
   SimilarityIndex,
+  takeNew,
 } from "@/lib/question-variety";
 import { MAX_REVIEW_BOX, nextReview, shiftDate, streakDays, todayISO } from "@/lib/srs";
 import {
@@ -317,7 +318,7 @@ export function sanitizeQuestions(value: unknown, type: QuestionType, grouped = 
         q,
         options: order.map((i) => options[i]),
         answer: order.indexOf(answer),
-        explain_id: String(record.explain_id ?? "").slice(0, 600),
+        explain_id: String(record.explain_id ?? "").slice(0, 1200),
         ...(type === "listening" && lines ? { audio: lines } : {}),
       },
     ];
@@ -490,12 +491,13 @@ async function produceQuestions(request: Request): Promise<Item> {
     return null;
   };
 
-  // Latihan satu topik Structure: soal dibuat AI saat tombol ditekan (pengguna melihat "Menyiapkan..."); gagal = jatuh ke bank.
+  // Latihan satu topik Structure: seluruh soal dibuat AI saat tombol ditekan, tanpa bank. Boleh kurang dari target.
   if (request.only && request.track === "eptr") {
-    const fresh = (await topUpFromAi(request).catch(() => [])).filter((q) => q.skill === request.focus[0]);
-    if (fresh.length >= request.count) {
-      return { passage: null, questions: renumber(fresh.slice(0, request.count).map(reshuffle), request.first) };
-    }
+    const made = await topUpFromAi(request);
+    const fresh = takeNew(made.filter((q) => q.skill === request.focus[0]), (await history).questions, request.count);
+    if (!fresh.length) throw new AiError("AI belum berhasil membuat soal yang layak. Coba lagi.");
+    await markSeen(request.userId, fresh.map((q) => fingerprint(questionText(q))));
+    return { passage: null, questions: renumber(fresh.map(reshuffle), request.first) };
   }
   let result = await serve();
   if (!result && process.env.EPRT_AI_FALLBACK === "1" && request.track === "eptr") {
@@ -523,7 +525,7 @@ const SOAL_PER_BATCH: Record<BuildKind, number> = { structure: 6, written: 6, re
 async function topUpFromAi(request: Request): Promise<ToeflQuestion[]> {
   const config = await getAiConfig();
   if (!aiConfigured(config)) throw new AiError("Stok soal belum tersedia dan AI belum dikonfigurasi. Hubungi admin.");
-  const limit = await checkRateLimit(`eptr-topup:user:${request.userId}`, 40, 60 * 60_000);
+  const limit = await checkRateLimit(`eptr-topup:user:${request.userId}`, request.only ? 10 : 40, 60 * 60_000);
   if (!limit.ok) throw new AiError("Terlalu banyak permintaan pembuatan soal. Coba lagi sebentar lagi.");
 
   // Impor dinamis: eprt-generate memakai prompt dari berkas ini (hindari impor melingkar saat modul dimuat).

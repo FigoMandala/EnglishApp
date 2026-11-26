@@ -21,7 +21,7 @@ import {
   talkStyle,
 } from "@/lib/question-variety";
 import { NearDupIndex } from "@/lib/near-dup";
-import { pickHooks, pickKeyPositions, pickModifier, pickPoints, pickRegister } from "@/lib/seed-space";
+import { pickHooks, pickKeyPositions, pickModifier, pickPoints, pickRegister, pickSkillPoints } from "@/lib/seed-space";
 import { dialogueKey, SKILLS, type QuestionType, type SkillKey, type ToeflQuestion } from "@/lib/toefl";
 
 /** Pembuat bank soal TOEFL ITP: dipakai halaman admin dan skrip src/db/generate-eprt-bank.ts. */
@@ -269,7 +269,10 @@ const KEY_POS_ENV = process.env.WRITTEN_KEY_POS?.split(",").map((x) => Number(x.
 const KEY_POS = KEY_POS_ENV?.length ? KEY_POS_ENV : [0, 1, 2, 3];
 const KEY_POS_RESTRICTED = Boolean(KEY_POS_ENV?.length);
 
-function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
+const SENTENCE_RULES =
+  "Tiap kalimat menyatakan SATU gagasan yang masuk akal dan faktual, seperti kalimat buku teks atau ensiklopedia. Konteks di rencana hanya bahan mentah: semua keterangan tempat atau waktu harus berhubungan logis dengan isi kalimat; yang tidak nyambung dibuang. Variasikan awal dan susunan kalimat: paling banyak dua soal boleh diawali keterangan tempat atau waktu (At, In, During, When, While).";
+
+function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string, skill?: SkillKey) {
   const level = LEVEL_SCORE[band];
   const test = `TOEFL ITP (skala mirip TOEFL ITP) ${level}`;
   const rubric = levelRubric(level);
@@ -301,14 +304,15 @@ function prompt(ctx: EprtContext, kind: Kind, band: LevelBand, topic?: string) {
   const count = PER_CALL[kind];
   const topics = topic ? Array.from({ length: count }, () => topic) : pickFresh(SUBTOPICS, ctx.seeds.topics, count);
   ctx.seeds.topics = rememberSeeds(ctx.seeds.topics, topics, 5_000);
-  const points = pickPoints(kind as "structure" | "written", band, count);
+  // Latihan satu topik: titik uji diambil dari pola topik itu, bukan acak lintas topik.
+  const points = skill ? pickSkillPoints(skill, count) : pickPoints(kind as "structure" | "written", band, count);
   const label = kind === "structure" ? "titik yang diuji" : "jenis kesalahan yang disisipkan";
   const keyPos = kind === "written" ? pickKeyPositions(count, KEY_POS) : [];
   const plan = topics.map(
     (t, i) =>
-      `${i + 1}. konteks: ${topic ? t : `${t} ${pickModifier()}`}; ${label}: ${points[i]}${kind === "written" ? `; bagian bergaris bawah yang SALAH harus bagian ${"ABCD"[keyPos[i]]} (answer=${keyPos[i]})` : ""}`,
+      `${i + 1}. konteks: ${topic || skill ? t : `${t} ${pickModifier()}`}; ${label}: ${points[i]}${kind === "written" ? `; bagian bergaris bawah yang SALAH harus bagian ${"ABCD"[keyPos[i]]} (answer=${keyPos[i]})` : ""}`,
   );
-  return `Buat ${count} soal, tingkat setara ${test}.\n${rubric}\nRencana tiap soal (urut, satu baris per soal; ikuti persis, jangan menyalin teks rencana ke dalam soal):\n${plan.join("\n")}`;
+  return `Buat ${count} soal, tingkat setara ${test}.\n${rubric}\n${SENTENCE_RULES}\nRencana tiap soal (urut, satu baris per soal; ikuti persis, jangan menyalin teks rencana ke dalam soal):\n${plan.join("\n")}`;
 }
 
 /** Satu panggilan AI + verifikasi + simpan ke bank. Melempar Error kalau tidak ada yang layak. */
@@ -318,7 +322,7 @@ export async function generateEprtBatch(ctx: EprtContext, kind: Kind, band: Leve
     { role: "system", content: BUILD_SYSTEM.eptr[kind] },
     {
       role: "user",
-      content: `${prompt(ctx, kind, band, topic)}\n${isListening(kind) ? QUALITY_LISTENING : QUALITY_COMMON}\n${QUALITY[kind]}${skill ? `\nFOKUS TOPIK: SEMUA soal wajib menguji "${SKILLS[skill].label}" (${SKILLS[skill].hint}), dan field "skill" tiap soal wajib "${skill}".` : ""}\nPENTING: field "answer" adalah indeks berbasis 0 (0=A, 1=B, 2=C, 3=D), bukan mulai dari 1.`,
+      content: `${prompt(ctx, kind, band, topic, skill)}\n${isListening(kind) ? QUALITY_LISTENING : QUALITY_COMMON}\n${QUALITY[kind]}${skill ? `\nFOKUS TOPIK (mengalahkan larangan menguji hal dasar di atas): SEMUA soal wajib menguji "${SKILLS[skill].label}" (${SKILLS[skill].hint}) dengan pola sesuai rencana, dan field "skill" tiap soal wajib "${skill}". Jawaban harus ditentukan oleh aturan topik ini, bukan aturan lain. Jenis opsi benar dan jenis pengecoh harus berbeda-beda antarsoal, supaya pelajar tidak bisa menebak dari satu pola.\nPEMBAHASAN (mengalahkan aturan ringkas): "explain_id" berbahasa Indonesia sederhana untuk pelajar, 400-900 karakter, baris dipisah \n: baris 1 aturan tata bahasa yang diuji; baris 2 kenapa opsi benar cocok, tunjukkan subjek dan verb atau struktur kalimatnya; lalu satu baris untuk TIAP pengecoh: kutip isi opsinya dan sebut kenapa salah di kalimat ini. Jangan sebut huruf opsi.` : ""}\nPENTING: field "answer" adalah indeks berbasis 0 (0=A, 1=B, 2=C, 3=D), bukan mulai dari 1.`,
     },
   ];
   const result = await chatJsonRaw(ctx.config, messages, undefined, ctx.extra);

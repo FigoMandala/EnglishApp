@@ -1047,7 +1047,7 @@ export function ToeflRunner({
                       </span>
                     </div>
                     {item.explain_id ? (
-                      <p className="rounded-[14px] bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink-muted">
+                      <p className="rounded-[14px] bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink-muted whitespace-pre-line">
                         <strong className="text-ink">Kenapa:</strong> {item.explain_id}
                       </p>
                     ) : null}
@@ -1346,7 +1346,7 @@ export function ToeflRunner({
       {question.explain_id ? (
         <div className="rounded-[16px] bg-canvas px-5 py-[18px]">
           <strong className="mb-1.5 block font-display text-[1.0625rem]">Pembahasan</strong>
-          <p className="text-[1rem] leading-[1.65] text-ink-muted">{question.explain_id}</p>
+          <p className="whitespace-pre-line text-[1rem] leading-[1.65] text-ink-muted">{question.explain_id}</p>
         </div>
       ) : null}
       {question.audio ? (
